@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from rothc_py import RothC, RothCParams, percent_modern_c
 from rothc_py.containers import InputData
 from xarray import DataArray
-from xarray_annotated import Unit, enforce
+from xarray_annotated import Unit, check_annotations
 
 from ..temporal import MONTHLY, time_index
 
@@ -304,7 +304,7 @@ def rothc_config(
 
 
 @extract_fields()
-@enforce
+@check_annotations
 def rothc(
     temperature_monthly: Annotated[DataArray, Unit("degC"), MONTHLY],
     precipitation_monthly: Annotated[DataArray, Unit("mm"), MONTHLY],
@@ -385,7 +385,7 @@ def rothc(
 # so each takes ``temperature_monthly`` purely for its time coordinate.
 
 
-@enforce
+@check_annotations
 def plant_cover_monthly(
     plant_type: DataArray,
     latitude: DataArray,
@@ -494,7 +494,7 @@ def dpm_rpm_ratio_config(
     )
 
 
-@enforce
+@check_annotations
 def dpm_rpm_ratio_monthly(
     plant_type: DataArray,
     temperature_monthly: Annotated[DataArray, MONTHLY],
@@ -537,7 +537,7 @@ def dpm_rpm_ratio_monthly(
     )
 
 
-@enforce
+@check_annotations
 def farmyard_manure_input_monthly(
     plant_type: DataArray,
     temperature_monthly: Annotated[DataArray, MONTHLY],

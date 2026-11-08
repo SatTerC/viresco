@@ -567,7 +567,7 @@ class TestCachingIntact:
 
 
 class TestLatitudeCheck:
-    """`splash` checks a labelled latitude itself; see `satterc.latitude`."""
+    """`splash` declares latitude in degrees, which CF's ``degrees_north`` meets."""
 
     @staticmethod
     def _labelled(splash_inputs, latitude_units: str) -> dict:

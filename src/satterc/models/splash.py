@@ -18,9 +18,8 @@ from hamilton.function_modifiers import config, extract_fields
 from numpy.typing import NDArray
 from pandas import DatetimeIndex
 from xarray import DataArray
-from xarray_annotated import Unit, enforce
+from xarray_annotated import Unit, check_annotations
 
-from ..latitude import check_latitude
 from ..temporal import DAILY, time_index
 
 
@@ -445,7 +444,7 @@ def soil_moisture_init_inputs__equilibrate() -> dict[str, DataArray]:
 
 
 @config.when_in(soil_moisture_init_method=["prescribed"])
-@enforce
+@check_annotations
 def soil_moisture_init_inputs__prescribed(
     initial_soil_moisture: Annotated[DataArray, Unit("mm")],
 ) -> dict[str, DataArray]:
@@ -461,14 +460,13 @@ def soil_moisture_init_inputs__prescribed(
 
 
 @extract_fields()
-@enforce
+@check_annotations
 def splash(
     sunshine_fraction_daily: Annotated[DataArray, Unit("1"), DAILY],
     temperature_daily: Annotated[DataArray, Unit("degC"), DAILY],
     precipitation_daily: Annotated[DataArray, Unit("mm d-1"), DAILY],
     elevation: Annotated[DataArray, Unit("m")],
-    # Undeclared until NERC-CEH/catena#21; checked by `check_latitude` instead.
-    latitude: DataArray,
+    latitude: Annotated[DataArray, Unit("degrees")],
     max_soil_moisture: Annotated[DataArray, Unit("mm")],
     soil_moisture_init_inputs: dict[str, DataArray],
     splash_config: SplashConfig,
@@ -526,7 +524,7 @@ def splash(
         temperature_daily=temperature_daily,
         precipitation_daily=precipitation_daily,
         elevation=elevation,
-        latitude=check_latitude(latitude, "splash"),
+        latitude=latitude,
         max_soil_moisture=max_soil_moisture,
         dates_daily=time_index(temperature_daily, "temperature_daily"),
         initial_soil_moisture=soil_moisture_init_inputs.get("initial_soil_moisture"),

@@ -13,7 +13,8 @@
 #
 # [tool.uv.sources]
 # satterc = { path = ".." }
-# ukceh-catena = { git = "https://github.com/NERC-CEH/catena", rev = "develop" }
+# # TODO: pin to a catena release tag once catena and satterc stop changing in step.
+# ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
 # ///
 
 import marimo

@@ -9,7 +9,7 @@ from hamilton.function_modifiers import extract_fields
 from numpy.typing import NDArray
 from sgam import Disturbances, Sgam
 from sgam.pft import PftParams, PlantFunctionalType, get_default_pft_params
-from xarray_annotated import Unit, enforce
+from xarray_annotated import Unit, check_annotations
 
 from ..temporal import DAILY, WEEKLY, time_index
 
@@ -335,7 +335,7 @@ def disturbances_config(
     return DisturbancesConfig(growing_season_limit=growing_season_limit)
 
 
-@enforce
+@check_annotations
 def disturbances_daily(
     temperature_daily: Annotated[xr.DataArray, Unit("degC"), DAILY],
     gpp_daily: Annotated[xr.DataArray, Unit("g m-2 d-1"), DAILY],
@@ -616,7 +616,7 @@ def sgam_config(
 
 
 @extract_fields()
-@enforce
+@check_annotations
 def sgam(
     plant_type: xr.DataArray,
     pft_params: xr.Dataset,

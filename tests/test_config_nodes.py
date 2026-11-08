@@ -95,10 +95,11 @@ class TestNodeLowering:
         """The contract must survive `exec` *and* the decorators wrapping it.
 
         catena injects the return annotation after building the function body,
-        and `xarray_annotated.enforce` then wraps it. Reading the hint back through
-        `get_type_hints` is what catches the injection being lost in between —
-        which is exactly what PEP 749 caused on Python 3.14, by swapping
-        `__annotations__` for `__annotate__` in `functools.WRAPPER_ASSIGNMENTS`
+        and `xarray_annotated.check_annotations` then wraps it. Reading the hint
+        back through `get_type_hints` is what catches the injection being lost
+        in between — which is exactly what PEP 749 caused on Python 3.14, by
+        swapping `__annotations__` for `__annotate__` in
+        `functools.WRAPPER_ASSIGNMENTS`
         so that `functools.wraps` no longer carried the injected hint across.
         Fixed upstream in xarray-annotated 0.4.1; this is the regression guard.
         """

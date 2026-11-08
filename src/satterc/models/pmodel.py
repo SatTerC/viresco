@@ -26,7 +26,7 @@ from pyrealm.pmodel.arrhenius import ARRHENIUS_METHOD_REGISTRY
 from pyrealm.pmodel.optimal_chi import OPTIMAL_CHI_CLASS_REGISTRY
 from pyrealm.pmodel.quantum_yield import QUANTUM_YIELD_CLASS_REGISTRY
 from xarray import DataArray
-from xarray_annotated import Unit, enforce
+from xarray_annotated import Unit, check_annotations
 
 from ..temporal import DAILY, WEEKLY
 
@@ -293,7 +293,7 @@ def pmodel_config(
 
 
 @extract_fields()
-@enforce
+@check_annotations
 def pmodel(
     temperature_weekly: Annotated[DataArray, Unit("degC"), WEEKLY],
     vpd_weekly: Annotated[DataArray, Unit("Pa"), WEEKLY],
@@ -410,7 +410,7 @@ def optchi_inputs__none() -> dict[str, DataArray]:
 
 
 @config.when_in(method_optchi=list(_OPTCHI_THETA))
-@enforce
+@check_annotations
 def optchi_inputs__theta(
     volumetric_water_content_weekly: Annotated[DataArray, Unit("m3 m-3"), WEEKLY],
 ) -> dict[str, DataArray]:
@@ -429,7 +429,7 @@ def optchi_inputs__theta(
 
 
 @config.when_in(method_optchi=list(_OPTCHI_ROOTZONESTRESS))
-@enforce
+@check_annotations
 def optchi_inputs__rootzonestress(
     rootzonestress_weekly: Annotated[DataArray, Unit("1"), WEEKLY],
 ) -> dict[str, DataArray]:
@@ -451,7 +451,7 @@ def kphio_inputs__none() -> dict[str, DataArray]:
 
 
 @config.when_in(method_kphio=list(_KPHIO_SANDOVAL))
-@enforce
+@check_annotations
 def kphio_inputs__sandoval(
     aridity_index: Annotated[DataArray, Unit("1")],
     mean_growth_temperature: Annotated[DataArray, Unit("degC")],
@@ -482,7 +482,7 @@ def arrhenius_inputs__none() -> dict[str, DataArray]:
 
 
 @config.when_in(method_arrhenius=list(_ARRHENIUS_KATTGE_KNORR))
-@enforce
+@check_annotations
 def arrhenius_inputs__kattge_knorr(
     mean_growth_temperature: Annotated[DataArray, Unit("degC")],
 ) -> dict[str, DataArray]:
@@ -504,7 +504,7 @@ def arrhenius_inputs__kattge_knorr(
     ),
     config_used=["method_kphio", "method_arrhenius"],
 )
-@enforce
+@check_annotations
 def mean_growth_temperature(
     temperature_daily: Annotated[DataArray, Unit("degC"), DAILY],
 ) -> Annotated[DataArray, Unit("degC")]:

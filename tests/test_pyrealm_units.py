@@ -160,8 +160,7 @@ SPLASH_INPUT_UNITS = [
     ("temperature_daily", "tc"),
     ("precipitation_daily", "pn"),
     ("max_soil_moisture", "kWm"),
-    # ("latitude", "lat") is absent on purpose. See `satterc.latitude` and
-    # `test_latitude_check_uses_pyrealms_unit` below.
+    ("latitude", "lat"),
 ]
 
 # pyrealm's own two sources disagree here. The bounds table records
@@ -594,24 +593,6 @@ class TestAnnotationsMatchGolden:
             f"the golden values, so the pinned numbers describe a different "
             f"quantity than the annotation claims. {REGENERATE_HINT}"
         )
-
-
-def test_latitude_check_uses_pyrealms_unit():
-    """`splash` checks `latitude` in its body, against the unit pyrealm wants.
-
-    The check stands in for a declaration until catena labels the latitude it
-    derives; see `satterc.latitude`. The undeclared parameter and the checked
-    unit are pinned together, so removing the workaround means editing both.
-    """
-    from satterc.latitude import LATITUDE_UNITS
-    from satterc.models import splash as splash_module
-
-    assert "latitude" not in declared_input_units(splash_module.splash), (
-        "`splash` now declares `latitude`, so remove `satterc.latitude` and "
-        "restore the SPLASH_INPUT_UNITS entry."
-    )
-    checker = pyrealm.core.bounds.BoundsChecker()
-    assert normalise(checker._data["lat"].unit) == LATITUDE_UNITS
 
 
 def test_latitude_case_spans_hemispheres():

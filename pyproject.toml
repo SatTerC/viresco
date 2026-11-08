@@ -76,7 +76,8 @@ exclude-newer-package = { marimo-md-export = false , xarray-annotated = false , 
 [tool.uv.sources]
 rothc-py = { git = "https://github.com/SatTerC/rothc_py.git" }
 sgam = { git = "https://github.com/SatTerC/sgam.git" }
-ukceh-catena = { git = "https://github.com/NERC-CEH/catena" }
+# TODO: pin to a catena release tag once catena and satterc stop changing in step.
+ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
 
 [tool.pyright]
 venvPath = "."
