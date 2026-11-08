@@ -7,6 +7,16 @@ Composable models of the terrestrial carbon and water cycles, for [catena](https
 
 Usage instructions are in the [documentation](https://SatTerC.github.io/satterc).
 
+## Installation
+
+SatTerC is not on PyPI, so install it from GitHub.
+
+```sh
+uv add git+https://github.com/SatTerC/satterc
+```
+
+Append a tag such as `@v0.8.0` to the URL to install a specific release rather than the latest `main`.
+
 ## Developer instructions
 
 This project uses [uv](https://docs.astral.sh/uv/) for dependency management and packaging.

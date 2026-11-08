@@ -54,6 +54,22 @@ checkout, if present) rather than guessing at its API.
 - Generic behaviour belongs upstream. If a change would be useful to a pipeline
   that is not about carbon, it probably belongs in catena, not here.
 
+## Releasing
+
+Every PR merges to `main`; a release is a tag on it, made by the maintainer only.
+Nothing is published to PyPI: users install a tag from GitHub.
+
+1. `uv version --bump rc` (giving e.g. `0.9.0rc1`), or `--bump stable` for a
+   full release. Update the `satterc==` pins in `recipes/*.py` to match, run
+   `just export-all`, and commit. `just tag` refuses if a pin is stale.
+2. `just tag`, then `just release`.
+3. After a full release, `uv version --bump minor --bump dev`, update the recipe
+   pins again, and commit, so a git install of `main` does not report the
+   released version.
+
+The docs site deploys only on a stable release (or a manual `workflow_dispatch`),
+so it documents the latest release.
+
 ## Config schema
 
 The schema is catena's; there is no satterc-specific config code.

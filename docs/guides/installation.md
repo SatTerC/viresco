@@ -14,19 +14,14 @@ SatTerC is not on PyPI, so install it from GitHub.
 
 ## Install into an existing project
 
-=== "pip"
+```sh
+uv add git+https://github.com/SatTerC/satterc
+```
 
-    ```sh
-    pip install git+https://github.com/satterc/satterc
-    ```
+This installs the latest `main`.
+To install a specific release, append its tag to the URL, e.g. `git+https://github.com/SatTerC/satterc@v0.8.0`.
 
-=== "uv"
-
-    ```sh
-    uv add git+https://github.com/satterc/satterc
-    ```
-
-This installs the `satterc` package and the `satterc` CLI command into your environment, along with everything needed to run the built-in models.
+It installs the `satterc` package and the `satterc` CLI command into your environment, along with everything needed to run the built-in models.
 That is [catena][catena], which provides the config parser, the DAG, contract validation, I/O and the `run`, `graph` and `gridded` commands, plus its geospatial and visualisation support, and the model libraries `pyrealm`, `rothc-py` and `sgam`.
 
 There are no extras to choose from.

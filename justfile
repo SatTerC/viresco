@@ -65,3 +65,30 @@ export-all:
   just export full_pipeline
   just export soil_moisture
   just export pft_parameters
+
+# Tag the version in pyproject.toml and push the tag.
+tag:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  v=$(uv version --short)
+  [[ $v != *dev* ]] || { echo "refusing to tag dev version $v" >&2; exit 1; }
+  [[ $(git branch --show-current) == main ]] || { echo "not on main" >&2; exit 1; }
+  git diff --quiet HEAD || { echo "uncommitted changes" >&2; exit 1; }
+  stale=$(grep -L "\"satterc==$v\"" recipes/*.py || true)
+  [[ -z $stale ]] || { echo "recipes not pinned to satterc==$v:" $stale >&2; exit 1; }
+  git fetch --quiet origin main
+  [[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] \
+    || { echo "main differs from origin/main" >&2; exit 1; }
+  git tag -a "v$v" -m "v$v"
+  git push origin "v$v"
+
+# Create a GitHub release for the tagged version, deploying the docs if stable.
+release:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  v=$(uv version --short)
+  git rev-parse --quiet --verify "refs/tags/v$v" >/dev/null \
+    || { echo "no tag v$v: run 'just tag' first" >&2; exit 1; }
+  pre=()
+  [[ ! $v =~ (a|b|rc)[0-9]+$ ]] || pre=(--prerelease)
+  gh release create "v$v" --verify-tag --generate-notes "${pre[@]}"
