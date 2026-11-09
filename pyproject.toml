@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "ukceh-viresco"
-version = "0.8.0"
+version = "0.9.0.dev0"
 description = "Carbon-cycle model modules for conduit pipelines."
 authors = [
     { name = "jmarshrossney", email = "17361029+jmarshrossney@users.noreply.github.com" }
