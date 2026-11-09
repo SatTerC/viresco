@@ -18,7 +18,9 @@ tmp/
 *.html
 !overrides/*.html
 __marimo__/
-recipes/data/
+recipes/*/data/raw/
+recipes/*/results/
+!recipes/*/data/*.nc
 
 .claude/
 

@@ -4,13 +4,13 @@ _: lint typecheck test
 lint:
   ruff format
   ruff check --fix
-  marimo check recipes/
+  marimo check recipes/*.py recipes/*/demo.py
 
 # Variant of `lint` that doesn't cause any changes to files.
 lint-check:
   ruff format --check
   ruff check
-  marimo check recipes/
+  marimo check recipes/*.py recipes/*/demo.py
 
 # Run static type checker.
 typecheck:
@@ -50,22 +50,22 @@ graph-all:
 # Does not depend on `export-all`, which takes minutes, but refuses to build
 # while any recipe notebook lacks an export, since every link to it would break.
 docs: graph-all
-  @for nb in recipes/*.py; do md="docs/recipes/$(basename "$nb" .py).md"; [ -f "$md" ] || { echo "error: $md is missing; run \`just export-all\` first" >&2; exit 1; }; done
+  @for nb in recipes/*.py recipes/*/demo.py; do name=$(basename "$nb" .py); [ "$name" = demo ] && name=$(basename "$(dirname "$nb")"); md="docs/recipes/$name.md"; [ -f "$md" ] || { echo "error: $md is missing; run \`just export-all\` first" >&2; exit 1; }; done
   zensical build --clean
 
 # Export a single recipe notebook to docs/recipes/.
-# Any further arguments reach the notebook, e.g. `just export soil_moisture --data synthetic`.
-export recipe *args:
+# A recipe is either a notebook, `recipes/<recipe>.py`, or a directory whose
+# notebook is `recipes/<recipe>/demo.py`.
+export recipe:
   # Export to Markdown and keep the HTML notebook in the generated assets directory.
-  marimo-md-export "recipes/{{recipe}}.py" "docs/recipes/{{recipe}}.md" \
-    --keep-html --overflow scroll {{ if args != "" { "--marimo-args='" + args + "'" } else { "" } }}
+  marimo-md-export "{{ if path_exists("recipes/" + recipe + "/demo.py") == "true" { "recipes/" + recipe + "/demo.py" } else { "recipes/" + recipe + ".py" } }}" \
+    "docs/recipes/{{recipe}}.md" --keep-html --overflow scroll
 
 # Export all notebooks in recipes/ to docs/recipes/.
-# Pass `--data synthetic` to run soil_moisture offline, as CI does.
-export-all *args:
+export-all:
   just export my_first_pipeline
   just export full_pipeline
-  just export soil_moisture {{args}}
+  just export soil_moisture
   just export pft_parameters
 
 # Tag the version in pyproject.toml and push the tag.
@@ -76,7 +76,7 @@ tag:
   [[ $v != *dev* ]] || { echo "refusing to tag dev version $v" >&2; exit 1; }
   [[ $(git branch --show-current) == main ]] || { echo "not on main" >&2; exit 1; }
   git diff --quiet HEAD || { echo "uncommitted changes" >&2; exit 1; }
-  stale=$(grep -L "\"ukceh-viresco==$v\"" recipes/*.py || true)
+  stale=$(grep -L "\"ukceh-viresco==$v\"" recipes/*.py recipes/*/demo.py || true)
   [[ -z $stale ]] || { echo "recipes not pinned to ukceh-viresco==$v:" $stale >&2; exit 1; }
   git fetch --quiet origin main
   [[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] \
