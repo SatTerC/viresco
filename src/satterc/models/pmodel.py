@@ -26,7 +26,7 @@ from pyrealm.pmodel.arrhenius import ARRHENIUS_METHOD_REGISTRY
 from pyrealm.pmodel.optimal_chi import OPTIMAL_CHI_CLASS_REGISTRY
 from pyrealm.pmodel.quantum_yield import QUANTUM_YIELD_CLASS_REGISTRY
 from xarray import DataArray
-from xarray_annotated import Unit, check_annotations
+from xarray_annotated import Unit, check_annotations, stamp_output_units
 
 from ..temporal import DAILY, WEEKLY
 
@@ -81,20 +81,6 @@ _OUTPUT_ATTRIBUTES = {
     "jmax_weekly": "jmax",
     "jmax25_weekly": "jmax25",
     "gs_weekly": "gs",
-}
-
-#: `PModelOut` field -> the unit pyrealm returns it in. pyrealm computes on bare
-#: numbers, so this is where the unit is stated; `tests/test_pyrealm_units.py`
-#: holds it to pyrealm's documented units.
-_OUTPUT_UNITS = {
-    "gpp_flux_weekly": "ug m-2 s-1",
-    "lue_photon_weekly": "g mol-1",
-    "iwue_weekly": "umol mol-1",
-    "vcmax_weekly": "umol m-2 s-1",
-    "vcmax25_weekly": "umol m-2 s-1",
-    "jmax_weekly": "umol m-2 s-1",
-    "jmax25_weekly": "umol m-2 s-1",
-    "gs_weekly": "umol m-2 s-1",
 }
 
 
@@ -211,10 +197,7 @@ def _pmodel(
     )
     return cast(
         PModelOut,
-        {
-            name: out.assign_attrs(units=_OUTPUT_UNITS[name])
-            for name, out in zip(_OUTPUT_ATTRIBUTES, outputs, strict=True)
-        },
+        dict(zip(_OUTPUT_ATTRIBUTES, outputs, strict=True)),
     )
 
 
@@ -294,6 +277,7 @@ def pmodel_config(
 
 @extract_fields()
 @check_annotations
+@stamp_output_units
 def pmodel(
     temperature_weekly: Annotated[DataArray, Unit("degC"), WEEKLY],
     vpd_weekly: Annotated[DataArray, Unit("Pa"), WEEKLY],

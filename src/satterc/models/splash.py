@@ -18,7 +18,7 @@ from hamilton.function_modifiers import config, extract_fields
 from numpy.typing import NDArray
 from pandas import DatetimeIndex
 from xarray import DataArray
-from xarray_annotated import Unit, check_annotations
+from xarray_annotated import Unit, check_annotations, stamp_output_units
 
 from ..temporal import DAILY, time_index
 
@@ -91,24 +91,6 @@ _OUTPUT_FIELDS = (
     "runoff_daily",
     *_FLUX_ATTRIBUTES,
 )
-
-#: `SplashOut` field -> the unit pyrealm returns it in. pyrealm computes on bare
-#: numbers, so this is where the unit is stated; `tests/test_pyrealm_units.py`
-#: holds it to pyrealm's documented units.
-_OUTPUT_UNITS = {
-    "actual_evapotranspiration_daily": "mm d-1",
-    "soil_moisture_daily": "mm",
-    "runoff_daily": "mm",
-    "potential_evapotranspiration_daily": "mm d-1",
-    "equilibrium_evapotranspiration_daily": "mm d-1",
-    "condensation_daily": "mm d-1",
-    "extraterrestrial_radiation_daily": "J m-2 d-1",
-    "transmissivity_daily": "1",
-    "estimated_ppfd_daily": "mol m-2 d-1",
-    "net_longwave_radiation_daily": "W m-2",
-    "daytime_net_radiation_daily": "J m-2 d-1",
-    "nighttime_net_radiation_daily": "J m-2 d-1",
-}
 
 #: Elevations beyond these are not land surface, so are likely an undeclared fill value.
 _PLAUSIBLE_ELEVATION_M = (-500.0, 9000.0)
@@ -363,9 +345,7 @@ def _splash(
     return cast(
         SplashOut,
         {
-            name: out.assign_coords(time=time_coord)
-            .transpose("time", "pixel")
-            .assign_attrs(units=_OUTPUT_UNITS[name])
+            name: out.assign_coords(time=time_coord).transpose("time", "pixel")
             for name, out in zip(_OUTPUT_FIELDS, outputs, strict=True)
         },
     )
@@ -461,6 +441,7 @@ def soil_moisture_init_inputs__prescribed(
 
 @extract_fields()
 @check_annotations
+@stamp_output_units
 def splash(
     sunshine_fraction_daily: Annotated[DataArray, Unit("1"), DAILY],
     temperature_daily: Annotated[DataArray, Unit("degC"), DAILY],
@@ -488,9 +469,7 @@ def splash(
         Elevation of the site (metres). Values outside -500 to 9000 warn, as they
         suggest an undeclared fill value.
     latitude
-        Latitude of the site (degrees). A labelled array must be in degrees; an
-        unlabelled one is taken to be the one catena derives from a gridded
-        input's CRS, which always is.
+        Latitude of the site (degrees).
     max_soil_moisture
         Maximum soil moisture capacity (millimetres). Sets the runoff threshold and
         scales the rate at which the soil supplies water for evaporation.

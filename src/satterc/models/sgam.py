@@ -9,41 +9,38 @@ from hamilton.function_modifiers import extract_fields
 from numpy.typing import NDArray
 from sgam import Disturbances, Sgam
 from sgam.pft import PftParams, PlantFunctionalType, get_default_pft_params
-from xarray_annotated import Unit, check_annotations
+from xarray_annotated import Unit, check_annotations, stamp_output_units
 
 from ..temporal import DAILY, WEEKLY, time_index
 
-# SGAM output node names, in the order they are returned by `_sgam_1px` and mapped
-# onto the DAG node names below.
-#: `SgamOut` field -> the unit sgam returns it in, ordered as `_sgam_1px` returns
-#: them. sgam computes on bare numbers, so this is where the unit is stated.
-_SGAM_OUTPUT_UNITS: dict[str, str] = {
-    "leaf_pool_weekly": "g m-2",
-    "stem_pool_weekly": "g m-2",
-    "root_pool_weekly": "g m-2",
-    "litter_pool_weekly": "g m-2",
-    "removed_pool_weekly": "g m-2",
-    "npp_leaf_weekly": "g m-2",
-    "npp_stem_weekly": "g m-2",
-    "npp_root_weekly": "g m-2",
-    "turnover_leaf_weekly": "g m-2",
-    "turnover_stem_weekly": "g m-2",
-    "turnover_root_weekly": "g m-2",
-    "respiration_leaf_weekly": "g m-2",
-    "respiration_stem_weekly": "g m-2",
-    "respiration_root_weekly": "g m-2",
-    "disturbance_leaf_weekly": "g m-2",
-    "disturbance_stem_weekly": "g m-2",
-    "disturbance_root_weekly": "g m-2",
-    "cue_weekly": "1",
-    "allocation_leaf_weekly": "1",
-    "allocation_stem_weekly": "1",
-    "allocation_root_weekly": "1",
-    "drought_modifier_weekly": "1",
-    "lue_score_weekly": "1",
-    "iwue_score_weekly": "1",
-}
-_SGAM_OUTPUT_NAMES: tuple[str, ...] = tuple(_SGAM_OUTPUT_UNITS)
+#: `SgamOut` fields, in the order `_sgam_1px` returns them. The units are
+#: declared on `SgamOut` and stamped by `sgam`.
+_SGAM_OUTPUT_NAMES: tuple[str, ...] = (
+    "leaf_pool_weekly",
+    "stem_pool_weekly",
+    "root_pool_weekly",
+    "litter_pool_weekly",
+    "removed_pool_weekly",
+    "npp_leaf_weekly",
+    "npp_stem_weekly",
+    "npp_root_weekly",
+    "turnover_leaf_weekly",
+    "turnover_stem_weekly",
+    "turnover_root_weekly",
+    "respiration_leaf_weekly",
+    "respiration_stem_weekly",
+    "respiration_root_weekly",
+    "disturbance_leaf_weekly",
+    "disturbance_stem_weekly",
+    "disturbance_root_weekly",
+    "cue_weekly",
+    "allocation_leaf_weekly",
+    "allocation_stem_weekly",
+    "allocation_root_weekly",
+    "drought_modifier_weekly",
+    "lue_score_weekly",
+    "iwue_score_weekly",
+)
 
 
 class SgamOut(TypedDict):
@@ -290,12 +287,7 @@ def _disturbances_daily(
     # apply_ufunc drops the `time` coord (a core dim) and orders the output as
     # (pixel, time); reattach the coord and restore the canonical (time, pixel).
     time_coord = temperature_daily.coords["time"]
-    # sgam's detector returns a bare 0/1 indicator.
-    return (
-        out.assign_coords(time=time_coord)
-        .transpose("time", "pixel")
-        .assign_attrs(units="1")
-    )
+    return out.assign_coords(time=time_coord).transpose("time", "pixel")
 
 
 class DisturbancesConfig(TypedDict):
@@ -336,6 +328,7 @@ def disturbances_config(
 
 
 @check_annotations
+@stamp_output_units
 def disturbances_daily(
     temperature_daily: Annotated[xr.DataArray, Unit("degC"), DAILY],
     gpp_daily: Annotated[xr.DataArray, Unit("g m-2 d-1"), DAILY],
@@ -564,9 +557,7 @@ def _sgam(
     return cast(
         SgamOut,
         {
-            name: da.assign_coords(time=time_coord)
-            .transpose("time", "pixel")
-            .assign_attrs(units=_SGAM_OUTPUT_UNITS[name])
+            name: da.assign_coords(time=time_coord).transpose("time", "pixel")
             for name, da in zip(_SGAM_OUTPUT_NAMES, outputs, strict=True)
         },
     )
@@ -617,6 +608,7 @@ def sgam_config(
 
 @extract_fields()
 @check_annotations
+@stamp_output_units
 def sgam(
     plant_type: xr.DataArray,
     pft_params: xr.Dataset,

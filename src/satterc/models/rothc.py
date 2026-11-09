@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from rothc_py import RothC, RothCParams, percent_modern_c
 from rothc_py.containers import InputData
 from xarray import DataArray
-from xarray_annotated import Unit, check_annotations
+from xarray_annotated import Unit, check_annotations, stamp_output_units
 
 from ..temporal import MONTHLY, time_index
 
@@ -50,18 +50,16 @@ _ROTHC_OUTPUT_KEYS: tuple[str, ...] = (
     "CO2_t_C_ha",
 )
 
-#: `RothCOut` field -> the unit rothc_py returns it in, matching
-#: `_ROTHC_OUTPUT_KEYS` position by position. rothc_py computes on bare numbers,
-#: so this is where the unit is stated.
-_ROTHC_OUTPUT_UNITS: dict[str, str] = {
-    "decomposable_plant_material_monthly": "t ha-1",
-    "resistant_plant_material_monthly": "t ha-1",
-    "microbial_biomass_monthly": "t ha-1",
-    "humified_organic_matter_monthly": "t ha-1",
-    "soil_organic_carbon_monthly": "t ha-1",
-    "heterotrophic_respiration_monthly": "t ha-1",
-}
-_ROTHC_OUTPUT_NAMES: tuple[str, ...] = tuple(_ROTHC_OUTPUT_UNITS)
+#: `RothCOut` fields, matching `_ROTHC_OUTPUT_KEYS` position by position. The
+#: units are declared on `RothCOut` and stamped by `rothc`.
+_ROTHC_OUTPUT_NAMES: tuple[str, ...] = (
+    "decomposable_plant_material_monthly",
+    "resistant_plant_material_monthly",
+    "microbial_biomass_monthly",
+    "humified_organic_matter_monthly",
+    "soil_organic_carbon_monthly",
+    "heterotrophic_respiration_monthly",
+)
 
 
 def _rothc_1px(
@@ -217,9 +215,7 @@ def _rothc(
     return cast(
         RothCOut,
         {
-            name: da.assign_coords(time=time_coord)
-            .transpose("time", "pixel")
-            .assign_attrs(units=_ROTHC_OUTPUT_UNITS[name])
+            name: da.assign_coords(time=time_coord).transpose("time", "pixel")
             for name, da in zip(_ROTHC_OUTPUT_NAMES, outputs, strict=True)
         },
     )
@@ -305,6 +301,7 @@ def rothc_config(
 
 @extract_fields()
 @check_annotations
+@stamp_output_units
 def rothc(
     temperature_monthly: Annotated[DataArray, Unit("degC"), MONTHLY],
     precipitation_monthly: Annotated[DataArray, Unit("mm"), MONTHLY],
@@ -538,6 +535,7 @@ def dpm_rpm_ratio_monthly(
 
 
 @check_annotations
+@stamp_output_units
 def farmyard_manure_input_monthly(
     plant_type: DataArray,
     temperature_monthly: Annotated[DataArray, MONTHLY],
@@ -560,8 +558,8 @@ def farmyard_manure_input_monthly(
         (time, pixel) (tonnes of carbon per hectare).
     """
     dates_monthly = time_index(temperature_monthly, "temperature_monthly")
-    # Built from ``plant_type`` only for its shape/coords, so replace its
-    # inherited attrs (``plant_type``'s "dimensionless") with this quantity's unit.
+    # Built from ``plant_type`` only for its shape/coords, so drop its inherited
+    # attrs (``plant_type``'s "dimensionless") for the stamp to fill.
     zeros = xr.zeros_like(plant_type.expand_dims(time=dates_monthly), dtype=float)
     zeros.attrs.clear()
-    return zeros.assign_attrs(units="t ha-1")
+    return zeros
