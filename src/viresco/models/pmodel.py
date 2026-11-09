@@ -150,13 +150,13 @@ def _pmodel(
     method_arrhenius: str,
     reference_kphio: float | None = None,
 ) -> PModelOut:
-    """Apply the P-Model to a ``(time, pixel)`` block via `xarray.apply_ufunc`.
+    """Apply the P-Model to a ``(time, space)`` block via `xarray.apply_ufunc`.
 
     The P-Model is element-wise (every cell independent), so no core dimensions are
-    declared and ``apply_ufunc`` broadcasts over both ``time`` and ``pixel``; pyrealm
-    still vectorises within each call. ``dask="parallelized"`` is a no-op for eager
-    numpy inputs but keeps the node compatible with a future dask-backed (chunked)
-    execution strategy.
+    declared and ``apply_ufunc`` broadcasts over every dimension, whatever its name;
+    pyrealm still vectorises within each call. ``dask="parallelized"`` is a no-op
+    for eager numpy inputs but keeps the node compatible with a future dask-backed
+    (chunked) execution strategy.
 
     ``extra_inputs`` holds the method-dependent inputs, keyed by pyrealm's
     ``PModelEnvironment`` argument names, as the ``<axis>_inputs`` nodes return

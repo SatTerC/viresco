@@ -5,12 +5,14 @@ from typing import Annotated, TypedDict, cast
 import numpy as np
 import pandas as pd
 import xarray as xr
+from catena.io import sole_time_dim
 from hamilton.function_modifiers import extract_fields
 from numpy.typing import NDArray
 from sgam import Disturbances, Sgam
 from sgam.pft import PftParams, PlantFunctionalType, get_default_pft_params
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
+from .._dims import space_dim
 from ..temporal import DAILY, WEEKLY, time_index
 
 #: `SgamOut` fields, in the order `_sgam_1px` returns them. The units are
@@ -172,7 +174,7 @@ def _build_pft_params_dataset(plant_type: xr.DataArray) -> xr.Dataset:
             pft_enum = _pft_int_to_enum(int(pft_int))
             params = get_default_pft_params(pft_enum)
             values.append(getattr(params, field_name))
-        pft_vars[field_name] = xr.DataArray(data=np.array(values), dims=["pixel"])
+        pft_vars[field_name] = xr.DataArray(data=np.array(values), dims=plant_type.dims)
 
     return xr.Dataset(pft_vars)
 
@@ -205,13 +207,13 @@ def pft_params(plant_type: xr.DataArray) -> xr.Dataset:
     Parameters
     ----------
     plant_type
-        Plant functional type as an integer (0=tree, 1=grass, 2=shrub, 3=crop).
-        Dims: ["pixel"].
+        Plant functional type as an integer (0=tree, 1=grass, 2=shrub, 3=crop),
+        on the spatial dimension.
 
     Returns
     -------
     xr.Dataset
-        Dataset with dimension (pixel) containing PFT parameters for each pixel.
+        PFT parameters for each pixel, on ``plant_type``'s dimension.
     """
     return _build_pft_params_dataset(plant_type)
 
@@ -260,34 +262,42 @@ def _disturbances_daily(
     disturbance_threshold: xr.DataArray,
     growing_season_limit: float,
 ) -> xr.DataArray:
-    """Apply disturbance detection over the ``(time, pixel)`` block via apply_ufunc.
+    """Apply disturbance detection over the ``(time, space)`` block via apply_ufunc.
 
-    Disturbance detection diffs along ``time`` (so ``time`` is the input/output core
-    dim) but is otherwise element-wise over ``pixel`` (the broadcast/mapped dim).
-    ``disturbance_threshold`` is a per-pixel ``(pixel,)`` input with no core dim, so
-    it broadcasts alongside the time series.
-    ``vectorize`` is left ``False`` so the whole pixel-block reaches the numpy kernel
-    in one call; ``dask="parallelized"`` keeps a future dask-backed (chunked-``pixel``)
-    run reachable.
+    Disturbance detection diffs along time (so time is the input/output core dim)
+    but is otherwise element-wise over space (the broadcast/mapped dim); see
+    `viresco._dims` for how each is found. ``disturbance_threshold`` is a per-pixel
+    input with no core dim, so it broadcasts alongside the time series.
+    ``vectorize`` is left ``False`` so the whole block reaches the numpy kernel in
+    one call; ``dask="parallelized"`` keeps a future dask-backed (chunked over
+    space) run reachable.
     """
+    time = sole_time_dim(temperature_daily, "temperature_daily")
+    space = space_dim(
+        temperature_daily=temperature_daily,
+        gpp_daily=gpp_daily,
+        lai_daily=lai_daily,
+        disturbance_threshold=disturbance_threshold,
+    )
     out = xr.apply_ufunc(
         _disturbances_block,
         temperature_daily,
         gpp_daily,
         lai_daily,
         disturbance_threshold,
-        input_core_dims=[["time"]] * 3 + [[]],
-        output_core_dims=[["time"]],
+        input_core_dims=[[time]] * 3 + [[]],
+        output_core_dims=[[time]],
         kwargs={"growing_season_limit": growing_season_limit},
         dask="parallelized",
         keep_attrs=False,
         output_dtypes=[float],
     )
 
-    # apply_ufunc drops the `time` coord (a core dim) and orders the output as
-    # (pixel, time); reattach the coord and restore the canonical (time, pixel).
-    time_coord = temperature_daily.coords["time"]
-    return out.assign_coords(time=time_coord).transpose("time", "pixel")
+    # apply_ufunc drops the time coord (a core dim) and orders the output as
+    # (space, time); reattach the coord and restore the canonical (time, space).
+    return out.assign_coords({time: temperature_daily.coords[time]}).transpose(
+        time, space
+    )
 
 
 @check_annotations
@@ -376,7 +386,7 @@ def _sgam_1px(
     ``week_of_year`` depends only on the date range, so it is computed once in
     `_sgam` and passed through unchanged. Returns one ``(time,)`` array per
     output, ordered as `_SGAM_OUTPUT_NAMES`. This is the per-pixel kernel mapped
-    over ``pixel`` by `_sgam` via `xarray.apply_ufunc`.
+    over the spatial dimension by `_sgam` via `xarray.apply_ufunc`.
     """
     output = Sgam(
         plant_type=_pft_int_to_enum(int(plant_type)),
@@ -450,40 +460,57 @@ def _sgam(
     use_dynamic_allocation: bool = True,
     strict_mass_balance: bool = False,
 ) -> SgamOut:
-    """Map `_sgam_1px` over the stacked ``pixel`` dimension.
+    """Map `_sgam_1px` over the spatial dimension.
 
-    The per-pixel SGAM kernel is applied via `xarray.apply_ufunc` with ``time`` as
-    the input/output core dimension and ``pixel`` as the broadcast (mapped) dim. The 2D
-    ``(time, pixel)`` climate/driver inputs declare ``time`` as their core dim; the 1D
-    ``(pixel,)`` metadata and init-pool inputs declare no core dim (so each call gets a
-    per-pixel scalar). The structured per-pixel `PftParams` are passed
-    as one object-dtype ``(pixel,)`` array. ``week_of_year`` and the boolean flags are
-    pixel-invariant constants passed through ``kwargs``. ``dask="parallelized"`` is a
-    no-op for eager numpy inputs but keeps the node compatible with a future dask-backed
-    (chunked-``pixel``) execution strategy.
+    The per-pixel SGAM kernel is applied via `xarray.apply_ufunc` with time as the
+    input/output core dimension and space as the broadcast (mapped) dim; see
+    `viresco._dims` for how each is found. The 2D ``(time, space)`` climate/driver
+    inputs declare time as their core dim; the 1D ``(space,)`` metadata and
+    init-pool inputs declare no core dim (so each call gets a per-pixel scalar). The
+    structured per-pixel `PftParams` are passed as one object-dtype ``(space,)``
+    array. ``week_of_year`` and the boolean flags are pixel-invariant constants
+    passed through ``kwargs``. ``dask="parallelized"`` is a no-op for eager numpy
+    inputs but keeps the node compatible with a future dask-backed (chunked over
+    space) execution strategy.
     """
+    time = sole_time_dim(temperature_weekly, "temperature_weekly")
+    space = space_dim(
+        plant_type=plant_type,
+        pft_params=pft_params,
+        temperature_weekly=temperature_weekly,
+        gpp_weekly=gpp_weekly,
+        volumetric_water_content_weekly=volumetric_water_content_weekly,
+        vpd_weekly=vpd_weekly,
+        lue_weekly=lue_weekly,
+        iwue_weekly=iwue_weekly,
+        disturbances_weekly=disturbances_weekly,
+        latitude=latitude,
+        leaf_pool_init=leaf_pool_init,
+        stem_pool_init=stem_pool_init,
+        root_pool_init=root_pool_init,
+    )
     # Week index, from 1-52 — depends only on the date range, so compute once and share.
     # isocalendar() exists on the DatetimeIndex passed at runtime but is missing from
     # pandas Index type stubs, hence the type: ignore.
     week_of_year = dates_weekly.isocalendar().week.values  # type: ignore[reportAttributeAccessIssue]
 
-    # Pack the per-pixel PftParams into a single object-dtype (pixel,) array so each
+    # Pack the per-pixel PftParams into a single object-dtype (space,) array so each
     # apply_ufunc call receives one PftParams without exploding its 17 fields into args.
-    n_pixels = pft_params.sizes["pixel"]
+    n_pixels = pft_params.sizes[space]
     pft_objs = xr.DataArray(
         np.array(
             [_pft_params_from_dataset(pft_params, i) for i in range(n_pixels)],
             dtype=object,
         ),
-        dims=["pixel"],
+        dims=[space],
     )
-    # Under a dask-backed (chunked-pixel) run, this object-dtype array must be
-    # explicitly chunked to match the inputs' pixel chunking: dask cannot auto-estimate
-    # the byte size of object dtype, so an unchunked object array triggers an
-    # auto-rechunk error inside apply_ufunc. Mirror the pixel chunks of the
+    # Under a dask-backed run chunked over space, this object-dtype array must be
+    # explicitly chunked to match the inputs: dask cannot auto-estimate the byte
+    # size of object dtype, so an unchunked object array triggers an
+    # auto-rechunk error inside apply_ufunc. Mirror the spatial chunks of the
     # (dask-backed) reference input; stay eager numpy otherwise (a no-op when eager).
     if temperature_weekly.chunks is not None:
-        pft_objs = pft_objs.chunk({"pixel": temperature_weekly.chunksizes["pixel"]})
+        pft_objs = pft_objs.chunk({space: temperature_weekly.chunksizes[space]})
 
     # apply_ufunc inputs must be real DataArrays; substitute zeros for omitted pools.
     if litter_pool_init is None:
@@ -508,8 +535,8 @@ def _sgam(
         root_pool_init,
         litter_pool_init,
         removed_init,
-        input_core_dims=[["time"]] * 7 + [[]] * 8,
-        output_core_dims=[["time"]] * 24,
+        input_core_dims=[[time]] * 7 + [[]] * 8,
+        output_core_dims=[[time]] * 24,
         kwargs={
             "week_of_year": week_of_year,
             "use_dynamic_allocation": use_dynamic_allocation,
@@ -521,13 +548,13 @@ def _sgam(
         output_dtypes=[float] * 24,
     )
 
-    # apply_ufunc drops the `time` coordinate (a core dim) and orders outputs as
-    # (pixel, time); reattach the coordinate and restore the canonical (time, pixel).
-    time_coord = temperature_weekly.coords["time"]
+    # apply_ufunc drops the time coordinate (a core dim) and orders outputs as
+    # (space, time); reattach the coordinate and restore the canonical (time, space).
+    time_coord = temperature_weekly.coords[time]
     return cast(
         SgamOut,
         {
-            name: da.assign_coords(time=time_coord).transpose("time", "pixel")
+            name: da.assign_coords({time: time_coord}).transpose(time, space)
             for name, da in zip(_SGAM_OUTPUT_NAMES, outputs, strict=True)
         },
     )

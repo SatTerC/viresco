@@ -68,6 +68,7 @@ def _():
     from xharvest import cosmos
 
     from viresco.scaffold.data_gen import generate_synthetic_data
+    from viresco.temporal import time_index
 
     return (
         Config,
@@ -84,6 +85,7 @@ def _():
         plt,
         tempfile,
         textwrap,
+        time_index,
         tomllib,
         xr,
     )
@@ -113,20 +115,23 @@ def _(mo, synthetic):
         else r"""
     ## Pipeline configuration
 
-    COSMOS-UK measures most of what SPLASH needs, but under its own names and units, and on a `site` dimension.
-    The config reads xharvest's standardised file with `suffix = ""`, so its variables keep their names,
-    and adapts them to SPLASH with `[[node]]` entries:
+    COSMOS-UK measures most of what SPLASH needs, under its own names and units.
+    The config reads xharvest's standardised file as it is, on its own `time` and `site` dimensions,
+    since viresco's models take whatever dimension names the data has:
 
-    - Each SPLASH input is renamed onto viresco's `pixel` dimension.
-    - `latitude` and `elevation` come from the file's per-site coordinates.
+    - `[inputs.cosmos]` keeps the file's variable names, with `suffix = ""`.
+    - `[inputs.site]` binds three of them to the names SPLASH wants.
+      `latitude` and `elevation` are per-site coordinates of the file rather than variables, which `vars` reads just the same.
     - Daily precipitation totals (`mm`) are restated as a rate (`mm d-1`), with gaps filled with zero.
-      Gaps in temperature and shortwave radiation are filled by linear interpolation.
-      SPLASH carries soil moisture over from one day to the next, so it refuses any gap.
+      SPLASH carries soil moisture over from one day to the next, so it refuses any gap,
+      and stops with an error naming the site if another variable has one.
     - COSMOS-UK does not measure sunshine fraction $s_f$.
       It is recovered from incoming shortwave radiation $R_s$ by inverting SPLASH's own transmissivity model,
       $R_s / R_a = (0.25 + 0.5\,s_f)(1 + 2.67\times10^{-5} z)$,
-      with the extraterrestrial radiation $R_a$ from FAO-56 (Allen et al., 1998, eqs. 21-25).
-    - `max_soil_moisture` is a placeholder, overridden on every run of the calibration.
+      with the extraterrestrial radiation $R_a$ from FAO-56 (Allen et al., 1998, eqs. 21-25),
+      filling gaps in $R_s$ by linear interpolation.
+
+    `max_soil_moisture` is the parameter to calibrate, so it is not in the config: the notebook supplies it on every run.
 
     `[cosmos]` has no `_import_path`: xharvest registers its nodes under that section name, so catena finds
     [`cosmos_vwc_snow_masked`](https://nerc-ceh.github.io/xharvest/providers/cosmos-uk/#xharvest.cosmos.nodes.cosmos_vwc_snow_masked),
@@ -154,10 +159,7 @@ def _(synthetic, textwrap):
     [inputs.static]
     path = "static.nc"
     suffix = ""
-    vars = [
-      "elevation",
-      "max_soil_moisture",
-    ]
+    vars = ["elevation", "max_soil_moisture"]
     """)
 
     cosmos_config_toml = textwrap.dedent('''\
@@ -169,37 +171,16 @@ def _(synthetic, textwrap):
     [inputs.cosmos]
     path = "cosmos.nc"
     suffix = ""
-    vars = ["cosmos_vwc", "precip", "snow", "swin", "ta"]
+    vars = ["cosmos_vwc", "precip", "snow", "swin"]
 
-    [[node]]
-    name = "latitude"
-    inputs = ["ta"]
-    expression = "ta.lat.rename(site='pixel')"
-    units = "degrees"
-
-    [[node]]
-    name = "elevation"
-    inputs = ["ta"]
-    expression = "ta.altitude.rename(site='pixel')"
-    units = "m"
-
-    [[node]]
-    name = "max_soil_moisture"
-    inputs = ["elevation"]
-    expression = "xr.full_like(elevation, 150.0)"
-    units = "mm"
-    overwrite_units = true
-
-    [[node]]
-    name = "temperature_daily"
-    inputs = ["ta"]
-    expression = "ta.interpolate_na('time').rename(site='pixel')"
-    units = "degC"
+    [inputs.site]
+    path = "cosmos.nc"
+    vars = { latitude = "lat", elevation = "altitude", temperature_daily = "ta" }
 
     [[node]]
     name = "precipitation_daily"
     inputs = ["precip"]
-    expression = "precip.fillna(0).rename(site='pixel')"
+    expression = "precip.fillna(0)"
     units = "mm d-1"
     overwrite_units = true
 
@@ -226,7 +207,7 @@ def _(synthetic, textwrap):
     inputs = ["swin", "extraterrestrial_shortwave_daily", "elevation"]
     expression = """(
         (
-            swin.interpolate_na('time').rename(site='pixel')
+            swin.interpolate_na('time')
             / extraterrestrial_shortwave_daily
             / (1 + 2.67e-5 * elevation)
             - 0.25
@@ -298,23 +279,34 @@ def _(
             _data_dir / "cosmos_raw",
             parameters=["cosmos_vwc", "precip", "snow", "swin", "ta"],
         )
-        parsed_config.input_specs["cosmos"].path = str(
-            cosmos.to_netcdf(_raw, _data_dir / f"cosmos_{_site}.nc")
-        )
+        _path = str(cosmos.to_netcdf(_raw, _data_dir / f"cosmos_{_site}.nc"))
+        parsed_config.input_specs["cosmos"].path = _path
+        parsed_config.input_specs["site"].path = _path
 
     inputs = load_inputs(parsed_config.input_specs)
     return (inputs,)
 
 
 @app.cell
-def _(build_driver, parsed_config):
+def _(build_driver, parsed_config, xr):
     dr = build_driver(
         modules=parsed_config.modules,
         config=parsed_config.driver_config,
         node_specs=parsed_config.node_specs,
         registered=parsed_config.registered_modules,
     )
-    return (dr,)
+
+    def simulate(max_soil_moisture, dr, inputs):
+        """Run SPLASH with a uniform ``max_soil_moisture`` and return the first site."""
+        max_sm = xr.full_like(inputs["elevation"], max_soil_moisture, dtype=float)
+        max_sm.attrs = {"units": "mm"}
+        outputs = dr.execute(
+            final_vars=["soil_moisture_daily"],
+            inputs={**inputs, "max_soil_moisture": max_sm},
+        )
+        return outputs["soil_moisture_daily"].values[:, 0]
+
+    return dr, simulate
 
 
 @app.cell(hide_code=True)
@@ -337,18 +329,17 @@ def _(mo, synthetic):
 
 
 @app.cell
-def _(dr, inputs, np, synthetic):
-    _outputs = dr.execute(["max_soil_moisture", "soil_moisture_daily"], inputs=inputs)
-    default_max_soil_moisture = float(_outputs["max_soil_moisture"].values[0])
-    default_soil_moisture = _outputs["soil_moisture_daily"]
-    n_pixels = default_soil_moisture.sizes["pixel"]
+def _(dr, inputs, np, simulate, synthetic, time_index):
+    dates = time_index(inputs["temperature_daily"], "temperature_daily")
+    default_max_soil_moisture = (
+        float(inputs["max_soil_moisture"].values[0]) if synthetic else 150.0
+    )
+    default_soil_moisture = simulate(default_max_soil_moisture, dr, inputs)
 
     if synthetic:
         _rng = np.random.default_rng(42)
         true_max_soil_moisture = default_max_soil_moisture
-        observations = default_soil_moisture.values[:, 0] + _rng.normal(
-            0, 5, default_soil_moisture.sizes["time"]
-        )
+        observations = default_soil_moisture + _rng.normal(0, 5, len(dates))
         observations_label = "Synthetic soil moisture (mm)"
     else:
         true_max_soil_moisture = None
@@ -359,10 +350,10 @@ def _(dr, inputs, np, synthetic):
 
     n_observed = int(np.count_nonzero(~np.isnan(observations)))
     return (
+        dates,
         default_max_soil_moisture,
         default_soil_moisture,
         n_observed,
-        n_pixels,
         observations,
         observations_label,
         true_max_soil_moisture,
@@ -371,6 +362,7 @@ def _(dr, inputs, np, synthetic):
 
 @app.cell
 def _(
+    dates,
     default_max_soil_moisture,
     default_soil_moisture,
     observations,
@@ -378,14 +370,13 @@ def _(
     plt,
 ):
     # @output: fig-observations
-    _time = default_soil_moisture["time"].values
     _fig, _ax = plt.subplots(figsize=(12, 4))
-    _ax.plot(_time, observations, color="k", lw=1, label="Observations")
+    _ax.plot(dates, observations, color="k", lw=1, label="Observations")
     _ax.set_ylabel(observations_label)
     _twin = _ax.twinx()
     _twin.plot(
-        _time,
-        default_soil_moisture.values[:, 0],
+        dates,
+        default_soil_moisture,
         color="tab:blue",
         lw=1,
         label=f"SPLASH, max_soil_moisture = {default_max_soil_moisture:.0f} mm",
@@ -418,19 +409,7 @@ def _(mo):
 
 
 @app.cell
-def _(np, xr):
-    def simulate(max_soil_moisture, dr, n_pixels, inputs):
-        """Run SPLASH with a uniform ``max_soil_moisture`` and return the first pixel."""
-        max_sm_grid = xr.DataArray(
-            np.full(n_pixels, max_soil_moisture), dims=["pixel"], attrs={"units": "mm"}
-        )
-        outputs = dr.execute(
-            final_vars=["soil_moisture_daily"],
-            overrides={"max_soil_moisture": max_sm_grid},
-            inputs=inputs,
-        )
-        return outputs["soil_moisture_daily"].values[:, 0]
-
+def _(np, simulate):
     def fit_linear_map(modelled, observations):
         """Fit ``observations ≈ a + b * modelled`` on the observed days.
 
@@ -442,11 +421,11 @@ def _(np, xr):
         residuals = observations[observed] - design @ coefficients
         return coefficients, np.mean(residuals**2)
 
-    def objective_function(params, dr, observations, n_pixels, inputs):
-        modelled = simulate(params[0], dr, n_pixels, inputs)
+    def objective_function(params, dr, observations, inputs):
+        modelled = simulate(params[0], dr, inputs)
         return fit_linear_map(modelled, observations)[1]
 
-    return fit_linear_map, objective_function, simulate
+    return fit_linear_map, objective_function
 
 
 @app.cell(hide_code=True)
@@ -463,7 +442,6 @@ def _(
     dr,
     inputs,
     minimize,
-    n_pixels,
     objective_function,
     observations,
 ):
@@ -479,7 +457,7 @@ def _(
     optimisation_result = minimize(
         fun=objective_function,
         x0=[100.0],
-        args=(dr, observations, n_pixels, inputs),
+        args=(dr, observations, inputs),
         method="Nelder-Mead",
         bounds=[(prior_low, prior_high)],
         callback=logging_callback,
@@ -531,7 +509,6 @@ def _(
     fit_linear_map,
     inputs,
     mo,
-    n_pixels,
     observations,
     optimisation_result,
     simulate,
@@ -539,7 +516,7 @@ def _(
     true_max_soil_moisture,
 ):
     best_max_soil_moisture = float(optimisation_result.x[0])
-    best_modelled = simulate(best_max_soil_moisture, dr, n_pixels, inputs)
+    best_modelled = simulate(best_max_soil_moisture, dr, inputs)
     (best_a, best_b), _ = fit_linear_map(best_modelled, observations)
 
     mo.md(
@@ -562,17 +539,16 @@ def _(
     best_b,
     best_max_soil_moisture,
     best_modelled,
-    default_soil_moisture,
+    dates,
     observations,
     observations_label,
     plt,
 ):
     # @output: fig-fit
-    _time = default_soil_moisture["time"].values
     _fig, _ax = plt.subplots(figsize=(12, 4))
-    _ax.plot(_time, observations, color="k", lw=1, label="Observations")
+    _ax.plot(dates, observations, color="k", lw=1, label="Observations")
     _ax.plot(
-        _time,
+        dates,
         best_a + best_b * best_modelled,
         color="tab:orange",
         lw=1.5,
@@ -644,7 +620,6 @@ def _(np, objective_function):
     def make_log_posterior(
         dr,
         observations,
-        n_pixels,
         inputs,
         prior_low: float,
         prior_high: float,
@@ -657,7 +632,7 @@ def _(np, objective_function):
 
         def log_likelihood(params):
             """Logarithm of a Gaussian likelihood function."""
-            mse = objective_function(params, dr, observations, n_pixels, inputs)
+            mse = objective_function(params, dr, observations, inputs)
             return -(N / (2 * σ**2)) * mse - (N / 2) * np.log(2 * π * σ**2)
 
         def log_prior(params):
@@ -683,7 +658,6 @@ def _(
     inputs,
     make_log_posterior,
     n_observed,
-    n_pixels,
     np,
     observations,
     optimisation_result,
@@ -693,7 +667,6 @@ def _(
     log_posterior = make_log_posterior(
         dr,
         observations,
-        n_pixels,
         inputs,
         prior_low=prior_low,
         prior_high=prior_high,

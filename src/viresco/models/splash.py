@@ -14,12 +14,14 @@ import numpy as np
 import pyrealm.core.calendar
 import pyrealm.splash.splash
 import xarray as xr
+from catena.io import sole_time_dim
 from hamilton.function_modifiers import config, extract_fields
 from numpy.typing import NDArray
 from pandas import DatetimeIndex
 from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
+from .._dims import space_dim
 from ..temporal import DAILY, time_index
 
 
@@ -303,23 +305,26 @@ def _splash(
     soil_moisture_init_max_diff: float,
     initial_soil_moisture: DataArray | None = None,
 ) -> SplashOut:
-    """Apply SPLASH over the ``(time, pixel)`` block via `xarray.apply_ufunc`.
+    """Apply SPLASH over the ``(time, space)`` block via `xarray.apply_ufunc`.
 
-    SPLASH is sequential along ``time`` (soil moisture carries state day to day) but
-    embarrassingly parallel over ``pixel``, so ``time`` is the input/output core dim and
-    ``pixel`` the broadcast (mapped) dim. ``vectorize`` is left ``False`` so the whole
-    pixel-block reaches pyrealm in one call and is vectorised internally; with
-    ``dask="parallelized"`` a future dask backend can still chunk over ``pixel``.
+    SPLASH is sequential along time (soil moisture carries state day to day) but
+    embarrassingly parallel over space, so time is the input/output core dim and
+    space the broadcast (mapped) dim; `viresco._dims` says how each is found.
+    ``vectorize`` is left ``False`` so the whole block reaches pyrealm in one call
+    and is vectorised internally; with ``dask="parallelized"`` a future dask
+    backend can still chunk over space.
     Unset, ``initial_soil_moisture`` means the initial state comes from the spin-up.
     """
     _require_consecutive_days(dates_daily)
-    spatial = [dim for dim in sunshine_fraction_daily.dims if dim != "time"]
-    if len(spatial) != 1:
-        raise ValueError(
-            "SPLASH needs climate inputs with dims (time, <one spatial dim>), but "
-            f"sunshine_fraction_daily has dims {sunshine_fraction_daily.dims}."
-        )
-    (space,) = spatial
+    time = sole_time_dim(temperature_daily, "temperature_daily")
+    space = space_dim(
+        sunshine_fraction_daily=sunshine_fraction_daily,
+        temperature_daily=temperature_daily,
+        precipitation_daily=precipitation_daily,
+        elevation=elevation,
+        latitude=latitude,
+        max_soil_moisture=max_soil_moisture,
+    )
     prescribed = [] if initial_soil_moisture is None else [initial_soil_moisture]
     calendar = pyrealm.core.calendar.Calendar(dates_daily.values)
 
@@ -334,8 +339,8 @@ def _splash(
         max_soil_moisture,
         sunshine_fraction_daily[space],
         *prescribed,
-        input_core_dims=[["time"]] * 3 + [[]] * (4 + len(prescribed)),
-        output_core_dims=[["time"]] * n_outputs,
+        input_core_dims=[[time]] * 3 + [[]] * (4 + len(prescribed)),
+        output_core_dims=[[time]] * n_outputs,
         kwargs={
             "dates": calendar,
             "max_iter": soil_moisture_init_max_iter,
@@ -346,13 +351,13 @@ def _splash(
         output_dtypes=[float] * n_outputs,
     )
 
-    # apply_ufunc drops the `time` coord (a core dim) and orders outputs as
-    # (pixel, time); reattach the coord and restore the canonical (time, pixel).
-    time_coord = sunshine_fraction_daily.coords["time"]
+    # apply_ufunc drops the time coord (a core dim) and orders outputs as
+    # (space, time); reattach the coord and restore the canonical (time, space).
+    time_coord = temperature_daily.coords[time]
     return cast(
         SplashOut,
         {
-            name: out.assign_coords(time=time_coord).transpose("time", space)
+            name: out.assign_coords({time: time_coord}).transpose(time, space)
             for name, out in zip(_OUTPUT_FIELDS, outputs, strict=True)
         },
     )
