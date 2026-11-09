@@ -1,12 +1,12 @@
-# A complete four-model SatTerC pipeline: SPLASH water balance -> P-model
+# A complete four-model Viresco pipeline: SPLASH water balance -> P-model
 # photosynthesis -> SGAM vegetation growth -> RothC soil carbon.
 #
-# The framework is catena; every section below is catena's. satterc registers
+# The framework is catena; every section below is catena's. viresco registers
 # its four model modules with catena, so `[sgam]` and friends need no
 # `_import_path`. See the catena configuration reference for the full schema:
 # https://github.com/NERC-CEH/catena/blob/develop/docs/reference/configuration.md
 #
-# This file is a user-facing reference. Nothing in satterc loads it.
+# This file is a user-facing reference. Nothing in viresco loads it.
 
 [sgam]
 
@@ -39,7 +39,7 @@ zero_threshold = 1e-08
 # so `temperature` here becomes the node `temperature_daily`, which is what the
 # models' parameters are called. The labels themselves are inert: catena infers
 # no frequency from them. The models declare their expected frequencies as `Freq`
-# contracts instead (see satterc.models._time), so a weekly file wired into a
+# contracts instead (see viresco.models._time), so a weekly file wired into a
 # daily parameter is caught before anything runs.
 [inputs.daily]
 path = "inputs/daily.nc"
@@ -88,7 +88,7 @@ vars = [
 # PET, not AET: AET is what the soil actually gave up, so P/AET would be close to
 # 1 by construction wherever water limits evaporation, which is exactly the
 # regime the index exists to detect. SPLASH computes PET from net radiation on
-# its way to AET, and satterc.models.splash exposes it.
+# its way to AET, and viresco.models.splash exposes it.
 [[node]]
 name = "aridity_index"
 inputs = ["potential_evapotranspiration_daily", "precipitation_daily"]
@@ -119,7 +119,7 @@ units = "m3 m-3"
 overwrite_units = true
 freq = "7D"
 
-# satterc.models.pmodel is an honest wrapper. It reports GPP and LUE in pyrealm's
+# viresco.models.pmodel is an honest wrapper. It reports GPP and LUE in pyrealm's
 # own units, which are not the units SGAM consumes. These two nodes are the
 # bridge, and they sit here rather than inside the model node so that a reader
 # can see the conversion factor instead of hunting for it in a wrapper.

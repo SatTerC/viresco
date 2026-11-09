@@ -132,9 +132,9 @@ A violation beyond a relative tolerance of $10^{-6}$ means something is wrong; `
 ### Quickstart
 
 ```sh
-satterc setup --models sgam --defaults
-satterc data-gen config.toml --grid 1 1 --duration 2y --seed 42
-satterc run config.toml
+viresco setup --models sgam --defaults
+viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42
+viresco run config.toml
 ```
 
 The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
@@ -148,7 +148,7 @@ use_dynamic_allocation = true
 strict_mass_balance = false
 ```
 
-::: satterc.models.sgam.sgam_config
+::: viresco.models.sgam.sgam_config
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -159,7 +159,7 @@ strict_mass_balance = false
 
 Disturbance detection has one setting of its own, configured as a key of the same `[sgam]` section:
 
-::: satterc.models.sgam.disturbances_config
+::: viresco.models.sgam.disturbances_config
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -170,7 +170,7 @@ Disturbance detection has one setting of its own, configured as a key of the sam
 
 ### Inputs
 
-::: satterc.models.sgam.sgam
+::: viresco.models.sgam.sgam
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -181,7 +181,7 @@ Disturbance detection has one setting of its own, configured as a key of the sam
 
 Two of those inputs are produced by this module rather than loaded:
 
-::: satterc.models.sgam.pft_params
+::: viresco.models.sgam.pft_params
     options:
       show_root_heading: true
       show_root_full_path: false
@@ -192,7 +192,7 @@ Two of those inputs are produced by this module rather than loaded:
       heading_level: 4
       docstring_section_style: spacy
 
-::: satterc.models.sgam.disturbances_daily
+::: viresco.models.sgam.disturbances_daily
     options:
       show_root_heading: true
       show_root_full_path: false
@@ -207,7 +207,7 @@ Two of those inputs are produced by this module rather than loaded:
 
 ### Outputs
 
-::: satterc.models.sgam.SgamOut
+::: viresco.models.sgam.SgamOut
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -221,7 +221,7 @@ Leaf area index is not one of them.
 
 ### Python API
 
-See the [API documentation](../reference/modules/satterc.models/sgam.md) for full function signatures and parameter details.
+See the [API documentation](../reference/modules/viresco.models/sgam.md) for full function signatures and parameter details.
 
 ## References
 

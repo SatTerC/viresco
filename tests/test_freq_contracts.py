@@ -4,7 +4,7 @@ The model wrappers no longer receive a ``dates_*`` node; each reads its calendar
 off a time-bearing input instead, and declares the frequency it expects with a
 `xarray_annotated.Freq` marker. Those declarations are load-bearing in
 two places — catena's build-time contract check, and the frequency clustering in
-``satterc graph`` — so they need to be right, not merely present.
+``viresco graph`` — so they need to be right, not merely present.
 
 The rest of the suite runs with validation switched off (see conftest), so every
 check here runs inside ``xarray_annotated.enabled(True)`` — without it the
@@ -19,8 +19,8 @@ import xarray_annotated as xra
 from catena import build_driver
 from xarray_annotated.temporal import FreqError, check_freq
 
-from satterc import temporal as _time
-from satterc.models import pmodel, rothc, sgam, splash
+from viresco import temporal as _time
+from viresco.models import pmodel, rothc, sgam, splash
 
 MODULES = {
     "splash": splash,
@@ -39,7 +39,7 @@ def _series(dates):
 
 
 class TestDeclaredOffsets:
-    """The offsets satterc declares are the ones its resampling produces."""
+    """The offsets viresco declares are the ones its resampling produces."""
 
     @pytest.mark.parametrize(
         ("marker", "dates"),
@@ -77,14 +77,14 @@ class TestModelContractsAgainstPipelineData:
         # here, before any compute.
         with xra.enabled(True):
             build_driver(
-                [f"satterc.models.{name}"],
+                [f"viresco.models.{name}"],
                 pipeline_config.driver_config,
             )
 
     def test_all_models_together_pass_contract_check(self, pipeline_config):
         with xra.enabled(True):
             build_driver(
-                [f"satterc.models.{name}" for name in sorted(MODULES)],
+                [f"viresco.models.{name}" for name in sorted(MODULES)],
                 pipeline_config.driver_config,
             )
 

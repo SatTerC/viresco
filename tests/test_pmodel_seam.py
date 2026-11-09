@@ -1,4 +1,4 @@
-"""Tests for the P-Model ``apply_ufunc`` block seam (``satterc.models.pmodel._pmodel``).
+"""Tests for the P-Model ``apply_ufunc`` block seam (``viresco.models.pmodel._pmodel``).
 
 Unlike RothC/SGAM, the P-Model is a *whole-block* model: pyrealm vectorises over the
 spatial axis internally, so there was never a per-pixel Python loop. The seam replaces a
@@ -26,7 +26,7 @@ import pyrealm.pmodel
 import pytest
 import xarray as xr
 
-from satterc.models.pmodel import _OUTPUT_ATTRIBUTES, _pmodel
+from viresco.models.pmodel import _OUTPUT_ATTRIBUTES, _pmodel
 
 N_WEEKS = 52
 N_PIXELS = 3
@@ -232,7 +232,7 @@ class TestCachingIntact:
         spec = CacheSpec(path=str(tmp_path / "cache"))
 
         def run(cache):
-            dr = build_driver(["satterc.models.pmodel"], {}, cache=cache)
+            dr = build_driver(["viresco.models.pmodel"], {}, cache=cache)
             return dr.execute(  # type: ignore[reportArgumentType]
                 ["gpp_flux_weekly"], inputs=inputs
             )
@@ -261,7 +261,7 @@ class TestCachingIntact:
 
         def run(theta: float) -> np.ndarray:
             dr = build_driver(
-                ["satterc.models.pmodel"],
+                ["viresco.models.pmodel"],
                 {"method_optchi": "lavergne20_c3"},
                 cache=spec,
             )

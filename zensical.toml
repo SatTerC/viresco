@@ -2,13 +2,13 @@
 
 use_directory_urls = false
 
-site_name = "satterc"
+site_name = "viresco"
 site_description = "Composable models of the terrestrial carbon and water cycles, for catena pipelines."
 site_author = "Joe Marsh Rossney"
-site_url = "https://satterc.github.io/satterc"
+site_url = "https://nerc-ceh.github.io/viresco"
 
-repo_name = "SatTerC/satterc"
-repo_url = "https://github.com/SatTerC/satterc"
+repo_name = "NERC-CEH/viresco"
+repo_url = "https://github.com/NERC-CEH/viresco"
 
 copyright = "Copyright &copy; 2026 The authors"
 
@@ -36,18 +36,18 @@ nav = [
       "reference/cli.md",
       "reference/python-api.md",
       { "Modules" = [
-          "reference/modules/satterc.models/splash.md",
-          "reference/modules/satterc.models/pmodel.md",
-          "reference/modules/satterc.models/sgam.md",
-          "reference/modules/satterc.models/rothc.md",
-          "reference/modules/satterc.scaffold/config_gen.md",
-          "reference/modules/satterc.scaffold/bridges.md",
-          "reference/modules/satterc.scaffold/data_gen/generate.md",
-          "reference/modules/satterc.scaffold/data_gen/spec.md",
-          "reference/modules/satterc.scaffold/data_gen/daily.md",
-          "reference/modules/satterc.scaffold/data_gen/static.md",
-          "reference/modules/satterc.scaffold/data_gen/fallback.md",
-          "reference/modules/satterc.temporal.md",
+          "reference/modules/viresco.models/splash.md",
+          "reference/modules/viresco.models/pmodel.md",
+          "reference/modules/viresco.models/sgam.md",
+          "reference/modules/viresco.models/rothc.md",
+          "reference/modules/viresco.scaffold/config_gen.md",
+          "reference/modules/viresco.scaffold/bridges.md",
+          "reference/modules/viresco.scaffold/data_gen/generate.md",
+          "reference/modules/viresco.scaffold/data_gen/spec.md",
+          "reference/modules/viresco.scaffold/data_gen/daily.md",
+          "reference/modules/viresco.scaffold/data_gen/static.md",
+          "reference/modules/viresco.scaffold/data_gen/fallback.md",
+          "reference/modules/viresco.temporal.md",
       ]},
   ]},
 ]

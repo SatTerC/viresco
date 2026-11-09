@@ -1,4 +1,4 @@
-"""Tests for the SGAM ``apply_ufunc`` pixel seam (``satterc.models.sgam._sgam``).
+"""Tests for the SGAM ``apply_ufunc`` pixel seam (``viresco.models.sgam._sgam``).
 
 These cover the inner block-level parallelisation seam that replaced the explicit
 ``for i in range(len(plant_type))`` loop:
@@ -19,7 +19,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from satterc.models.sgam import (
+from viresco.models.sgam import (
     _SGAM_OUTPUT_NAMES,
     _build_pft_params_dataset,
     _pft_int_to_enum,
@@ -249,7 +249,7 @@ class TestCachingIntact:
         spec = CacheSpec(path=str(tmp_path / "cache"))
 
         def run(cache):
-            dr = build_driver(["satterc.models.sgam"], {}, cache=cache)
+            dr = build_driver(["viresco.models.sgam"], {}, cache=cache)
             return dr.execute(["leaf_pool_weekly"], inputs=inputs)  # type: ignore[reportArgumentType]
 
         uncached = run(None)

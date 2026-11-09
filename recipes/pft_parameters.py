@@ -4,14 +4,14 @@
 #     "marimo",
 #     "matplotlib==3.10.9",
 #     "numpy==2.4.4",
-#     "satterc==0.8.0",
+#     "ukceh-viresco==0.8.0",
 #     "ukceh-catena",
 #     "scipy==1.17.1",
 # ]
 #
 # [tool.uv.sources]
-# satterc = { path = ".." }
-# # TODO: pin to a catena release tag once catena and satterc stop changing in step.
+# ukceh-viresco = { path = ".." }
+# # TODO: pin to a catena release tag once catena and viresco stop changing in step.
 # ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
 # ///
 
@@ -52,7 +52,7 @@ def _():
     from catena.config import Config
     from scipy.optimize import minimize
 
-    from satterc.scaffold.data_gen import generate_synthetic_data
+    from viresco.scaffold.data_gen import generate_synthetic_data
 
     return (
         Config,
@@ -150,7 +150,7 @@ def _(mo):
     overwrite_units = true
     freq = "7D"
 
-    # satterc.models.pmodel reports GPP and LUE in pyrealm's own units, which are
+    # viresco.models.pmodel reports GPP and LUE in pyrealm's own units, which are
     # not the ones SGAM consumes. These two nodes are the explicit bridge.
     # GPP goes ug C m-2 s-1 -> g C m-2 d-1 (86400 s d-1 x 1e-6 g ug-1 = 0.0864).
     [[node]]

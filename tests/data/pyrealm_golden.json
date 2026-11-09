@@ -1,6 +1,6 @@
 {
   "pyrealm_version": "2.0.0",
-  "_comment": "Regenerate with `just regen-pyrealm-golden`, and only after reviewing why pyrealm's output changed. If a unit convention moved, correct satterc's annotation rather than these numbers.",
+  "_comment": "Regenerate with `just regen-pyrealm-golden`, and only after reviewing why pyrealm's output changed. If a unit convention moved, correct viresco's annotation rather than these numbers.",
   "pmodel": {
     "units": {
       "gpp_flux_weekly": "ug m-2 s-1",

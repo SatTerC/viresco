@@ -5,16 +5,16 @@ icon: lucide/book-marked
 
 # Reference
 
-Two halves of a satterc pipeline are documented in two places, and which one you need depends on what you are looking up.
+Two halves of a viresco pipeline are documented in two places, and which one you need depends on what you are looking up.
 
 Anything generic belongs to catena: the config schema, the file formats, the DAG, the contract checks, the `run` and `graph` commands.
-Anything about the carbon and water cycle models, the config generator, or the synthetic-data generator is satterc's, and is documented here.
+Anything about the carbon and water cycle models, the config generator, or the synthetic-data generator is viresco's, and is documented here.
 
 ## Here
 
 <div class="grid cards" markdown>
 
-- **[CLI](cli.md)** — `satterc setup`, which writes a starting config, and `satterc data-gen`, which fills its input files with synthetic data. The other subcommands are catena's, mounted unchanged.
+- **[CLI](cli.md)** — `viresco setup`, which writes a starting config, and `viresco data-gen`, which fills its input files with synthetic data. The other subcommands are catena's, mounted unchanged.
 - **[Python API](python-api.md)** — the model modules, the scaffolding behind `setup` and `data-gen`, and every module's signatures.
 
 </div>

@@ -3,9 +3,9 @@
 import pytest
 from hamilton.settings import ENABLE_POWER_USER_MODE
 
-from satterc import models
-from satterc.scaffold import generate_config, get_model_config
-from satterc.scaffold.config_gen import (
+from viresco import models
+from viresco.scaffold import generate_config, get_model_config
+from viresco.scaffold.config_gen import (
     _analyze_model_module,
     _infer_required_data,
     _strip_suffix,
@@ -35,12 +35,12 @@ class TestGetModelConfig:
         # Passing the full dotted path to a known module must find the same
         # _parameters() function as passing the short name.
         params_short = get_model_config("rothc")
-        params_full = get_model_config("satterc.models.rothc")
+        params_full = get_model_config("viresco.models.rothc")
         assert params_full == params_short
 
     def test_module_without_matching_function_returns_empty(self):
-        # satterc.models has no function named "models" → hits the return {} fallback
-        assert get_model_config("satterc.models") == {}
+        # viresco.models has no function named "models" → hits the return {} fallback
+        assert get_model_config("viresco.models") == {}
 
 
 class TestGenerateConfigCustomModules:
@@ -49,33 +49,33 @@ class TestGenerateConfigCustomModules:
     def test_custom_module_with_params_written_to_config(self):
         config = generate_config(
             builtin_models=[],
-            custom_modules=["satterc.models.rothc"],
+            custom_modules=["viresco.models.rothc"],
             paths=PATH_DEFAULTS,
         )
         section = config._data["rothc"]
         # A module named explicitly as a custom module still gets an
-        # `_import_path`, even one satterc happens to register: `generate_config`
+        # `_import_path`, even one viresco happens to register: `generate_config`
         # has been told to treat it as the user's own.
-        assert section["_import_path"] == "satterc.models.rothc"
+        assert section["_import_path"] == "viresco.models.rothc"
         assert "n_years_spinup" in section
 
     def test_custom_module_without_params_written_as_import_path_only(self):
         config = generate_config(
             builtin_models=[],
-            custom_modules=["satterc.models"],
+            custom_modules=["viresco.models"],
             paths=PATH_DEFAULTS,
         )
-        assert config._data["models"] == {"_import_path": "satterc.models"}
+        assert config._data["models"] == {"_import_path": "viresco.models"}
 
     def test_custom_module_params_appear_in_toml_output(self):
         config = generate_config(
             builtin_models=[],
-            custom_modules=["satterc.models.rothc"],
+            custom_modules=["viresco.models.rothc"],
             paths=PATH_DEFAULTS,
         )
         toml_str = str(config)
         assert "[rothc]" in toml_str
-        assert '_import_path = "satterc.models.rothc"' in toml_str
+        assert '_import_path = "viresco.models.rothc"' in toml_str
         assert "n_years_spinup" in toml_str
 
 
@@ -148,7 +148,7 @@ class TestGenerateConfigBuiltinModels:
             paths=PATH_DEFAULTS,
         )
         section = config._data["rothc"]
-        # satterc registers rothc with catena, so the section resolves by name
+        # viresco registers rothc with catena, so the section resolves by name
         # alone and must carry no `_import_path`.
         assert "_import_path" not in section
         assert "n_years_spinup" in section

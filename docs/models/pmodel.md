@@ -81,16 +81,16 @@ $$\text{GPP} = \text{LUE} \cdot \text{PPFD} \cdot f_{\text{APAR}}$$
 
 The P-model includes a soil moisture stress factor $\beta(\theta)$ that reduces GPP under dry conditions.
 The implementation in `pyrealm` uses the soil moisture parameter $\theta$ (volumetric water content) to modulate both $\chi$ and LUE.
-In satterc, $\theta$ reaches `pyrealm` only with the `lavergne20` optimal $\chi$ methods; see [soil moisture inputs](#inputs-soil-moisture).
+In viresco, $\theta$ reaches `pyrealm` only with the `lavergne20` optimal $\chi$ methods; see [soil moisture inputs](#inputs-soil-moisture).
 
 ## Usage
 
 ### Quickstart
 
 ```sh
-satterc setup --models pmodel --defaults
-satterc data-gen config.toml --grid 1 1 --duration 2y --seed 42
-satterc run config.toml
+viresco setup --models pmodel --defaults
+viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42
+viresco run config.toml
 ```
 
 The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
@@ -105,7 +105,7 @@ method_kphio = "temperature"
 method_arrhenius = "simple"
 ```
 
-::: satterc.models.pmodel.pmodel_config
+::: viresco.models.pmodel.pmodel_config
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -124,7 +124,7 @@ Each table after that applies only when its method is configured, and a run with
 
 Every run needs these, whatever the methods.
 
-::: satterc.models.pmodel.pmodel
+::: viresco.models.pmodel.pmodel
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -139,7 +139,7 @@ Every run needs these, whatever the methods.
 
 Required when `method_optchi` is `lavergne20_c3` or `lavergne20_c4`.
 
-::: satterc.models.pmodel.optchi_inputs__theta
+::: viresco.models.pmodel.optchi_inputs__theta
     options:
       show_root_full_path: false
       separate_signature: false
@@ -155,7 +155,7 @@ Required when `method_optchi` is `lavergne20_c3` or `lavergne20_c4`.
 
 Required when `method_optchi` is `prentice14_rootzonestress`, `c4_rootzonestress` or `c4_no_gamma_rootzonestress`.
 
-::: satterc.models.pmodel.optchi_inputs__rootzonestress
+::: viresco.models.pmodel.optchi_inputs__rootzonestress
     options:
       show_root_full_path: false
       separate_signature: false
@@ -171,7 +171,7 @@ Required when `method_optchi` is `prentice14_rootzonestress`, `c4_rootzonestress
 
 Required when `method_kphio = "sandoval"`.
 
-::: satterc.models.pmodel.kphio_inputs__sandoval
+::: viresco.models.pmodel.kphio_inputs__sandoval
     options:
       show_root_full_path: false
       separate_signature: false
@@ -192,7 +192,7 @@ The PET in `aridity_index` comes from [SPLASH](splash.md).
 Required when `method_arrhenius = "kattge_knorr"`.
 `mean_growth_temperature` is derived for you; see [below](#inputs-mean-growth-temperature).
 
-::: satterc.models.pmodel.arrhenius_inputs__kattge_knorr
+::: viresco.models.pmodel.arrhenius_inputs__kattge_knorr
     options:
       show_root_full_path: false
       separate_signature: false
@@ -208,7 +208,7 @@ Required when `method_arrhenius = "kattge_knorr"`.
 
 `mean_growth_temperature` is not loaded but derived by this module, so a run using `sandoval` or `kattge_knorr` needs this input in its place.
 
-::: satterc.models.pmodel.mean_growth_temperature
+::: viresco.models.pmodel.mean_growth_temperature
     options:
       show_root_full_path: false
       separate_signature: false
@@ -221,7 +221,7 @@ Required when `method_arrhenius = "kattge_knorr"`.
 
 ### Outputs
 
-::: satterc.models.pmodel.PModelOut
+::: viresco.models.pmodel.PModelOut
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -236,7 +236,7 @@ iWUE needs no bridge, because `pyrealm` and SGAM agree on µmol mol⁻¹.
 
 ### Python API
 
-See the [API documentation](../reference/modules/satterc.models/pmodel.md) for full function signatures and parameter details.
+See the [API documentation](../reference/modules/viresco.models/pmodel.md) for full function signatures and parameter details.
 
 ## References
 

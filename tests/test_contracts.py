@@ -18,7 +18,7 @@ import xarray_annotated as xra
 from catena import ParsedConfig, get_final_vars, load_config, load_inputs
 from conftest import driver_from_config
 
-from satterc.scaffold.data_gen import generate_synthetic_data
+from viresco.scaffold.data_gen import generate_synthetic_data
 
 EXAMPLE_CONFIG = Path(__file__).parent.parent / "recipes" / "config.toml"
 

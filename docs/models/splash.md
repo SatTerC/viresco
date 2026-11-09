@@ -89,9 +89,9 @@ The input dates must also be consecutive days, and a missing date stops the run 
 ### Quickstart
 
 ```sh
-satterc setup --models splash --defaults
-satterc data-gen config.toml --grid 1 1 --duration 2y --seed 42
-satterc run config.toml
+viresco setup --models splash --defaults
+viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42
+viresco run config.toml
 ```
 
 The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
@@ -106,7 +106,7 @@ soil_moisture_init_max_iter = 10
 soil_moisture_init_max_diff = 1.0
 ```
 
-::: satterc.models.splash.splash_config
+::: viresco.models.splash.splash_config
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -119,7 +119,7 @@ soil_moisture_init_max_diff = 1.0
 
 #### Always required
 
-::: satterc.models.splash.splash
+::: viresco.models.splash.splash
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -134,7 +134,7 @@ soil_moisture_init_max_diff = 1.0
 
 Required when `soil_moisture_init_method` is `prescribed`.
 
-::: satterc.models.splash.soil_moisture_init_inputs__prescribed
+::: viresco.models.splash.soil_moisture_init_inputs__prescribed
     options:
       show_root_full_path: false
       separate_signature: false
@@ -148,7 +148,7 @@ Required when `soil_moisture_init_method` is `prescribed`.
 
 ### Outputs
 
-::: satterc.models.splash.SplashOut
+::: viresco.models.splash.SplashOut
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -159,7 +159,7 @@ Required when `soil_moisture_init_method` is `prescribed`.
 
 ### Python API
 
-See the [API documentation](../reference/modules/satterc.models/splash.md) for full function signatures and parameter details.
+See the [API documentation](../reference/modules/viresco.models/splash.md) for full function signatures and parameter details.
 
 ## References
 

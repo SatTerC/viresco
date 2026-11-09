@@ -5,7 +5,7 @@ icon: lucide/download
 
 # Installation
 
-SatTerC is not on PyPI, so install it from GitHub.
+Viresco is not on PyPI, so install it from GitHub.
 
 
 ## Prerequisites
@@ -15,23 +15,23 @@ SatTerC is not on PyPI, so install it from GitHub.
 ## Install into an existing project
 
 ```sh
-uv add git+https://github.com/SatTerC/satterc
+uv add git+https://github.com/NERC-CEH/viresco
 ```
 
 This installs the latest `main`.
-To install a specific release, append its tag to the URL, e.g. `git+https://github.com/SatTerC/satterc@v0.8.0`.
+To install a specific release, append its tag to the URL, e.g. `git+https://github.com/NERC-CEH/viresco@v0.8.0`.
 
-It installs the `satterc` package and the `satterc` CLI command into your environment, along with everything needed to run the built-in models.
+It installs the `viresco` package and the `viresco` CLI command into your environment, along with everything needed to run the built-in models.
 That is [catena][catena], which provides the config parser, the DAG, contract validation, I/O and the `run`, `graph` and `gridded` commands, plus its geospatial and visualisation support, and the model libraries `pyrealm`, `rothc-py` and `sgam`.
 
 There are no extras to choose from.
-SatTerC is pre-alpha and used by a handful of people, so a single install that always works is worth more than a smaller one.
+Viresco is pre-alpha and used by a handful of people, so a single install that always works is worth more than a smaller one.
 
 ## Install for development
 
 ```sh
-git clone https://github.com/SatTerC/satterc.git
-cd satterc
+git clone https://github.com/NERC-CEH/viresco.git
+cd viresco
 uv sync
 source .venv/bin/activate
 ```
@@ -42,7 +42,7 @@ source .venv/bin/activate
 
 ### Graphviz (for pipeline visualisation)
 
-The Python `graphviz` bindings come with the install, but `satterc graph` also needs the Graphviz system binaries:
+The Python `graphviz` bindings come with the install, but `viresco graph` also needs the Graphviz system binaries:
 
 ```sh
 # Ubuntu/Debian
@@ -55,9 +55,9 @@ brew install graphviz
 ## Verify installation
 
 ```sh
-satterc --version
+viresco --version
 ```
 
-This prints the installed SatTerC version and, beneath it, the version of catena it is running on.
+This prints the installed Viresco version and, beneath it, the version of catena it is running on.
 
 [catena]: https://github.com/NERC-CEH/catena

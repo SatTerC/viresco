@@ -5,10 +5,10 @@ icon: lucide/package
 
 # Built-in models
 
-`satterc` currently comes with four models, which can be composed into a pipeline.
+`viresco` currently comes with four models, which can be composed into a pipeline.
 Each model is called through a single Python function, which becomes a node in the DAG.
 
-SatTerC registers all four with catena, so a config names one by its section alone.
+Viresco registers all four with catena, so a config names one by its section alone.
 
 ```toml
 [splash]

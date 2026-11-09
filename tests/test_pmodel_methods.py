@@ -1,6 +1,6 @@
 """Every pyrealm P-Model method gets exactly the extra inputs it declares.
 
-`satterc.models.pmodel` selects an ``<axis>_inputs`` variant per configured method,
+`viresco.models.pmodel` selects an ``<axis>_inputs`` variant per configured method,
 grouping methods by what pyrealm declares they need on each method class (``requires``,
 or ``required_env_variables`` for the Arrhenius classes). A new method with a known
 requirement set joins its group by itself. These tests catch one whose set has no
@@ -22,10 +22,10 @@ from pyrealm.pmodel.jmax_limitation import JMAX_LIMITATION_CLASS_REGISTRY
 from pyrealm.pmodel.optimal_chi import OPTIMAL_CHI_CLASS_REGISTRY
 from pyrealm.pmodel.quantum_yield import QUANTUM_YIELD_CLASS_REGISTRY
 
-from satterc.models.pmodel import _OUTPUT_ATTRIBUTES, pmodel_config
-from satterc.scaffold.config_gen import _unwrap_annotated
+from viresco.models.pmodel import _OUTPUT_ATTRIBUTES, pmodel_config
+from viresco.scaffold.config_gen import _unwrap_annotated
 
-MODULE = "satterc.models.pmodel"
+MODULE = "viresco.models.pmodel"
 
 #: config key -> (pyrealm registry, attribute naming its requirements, node)
 AXES = {
@@ -100,7 +100,7 @@ def _required_inputs(dr) -> set[str]:
     """The data inputs the run needs, leaving out unset settings.
 
     A setting the config leaves unset is an external input too, defaulted by
-    `pmodel_config`, so filter on type as `satterc.scaffold.config_gen` does.
+    `pmodel_config`, so filter on type as `viresco.scaffold.config_gen` does.
     """
     return {
         v.name
@@ -243,11 +243,11 @@ def test_reference_kphio_reaches_pyrealm(method_kphio):
         ),
     ],
 )
-def test_pyrealm_warnings_survive_importing_satterc(kwargs, env_extra, expected):
-    """Run outside pytest, which replaces the filters `satterc` installs on import."""
+def test_pyrealm_warnings_survive_importing_viresco(kwargs, env_extra, expected):
+    """Run outside pytest, which replaces the filters `viresco` installs on import."""
     script = f"""
 import numpy as np
-import satterc
+import viresco
 from pyrealm.pmodel import PModel, PModelEnvironment
 one = np.ones(2)
 env = PModelEnvironment(

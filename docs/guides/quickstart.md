@@ -11,7 +11,7 @@ real data is needed.
 
 ## Prerequisites
 
-Follow the [Installation guide](installation.md) to install SatTerC and its
+Follow the [Installation guide](installation.md) to install Viresco and its
 optional dependencies.
 
 ## Step 1: generate a config
@@ -19,7 +19,7 @@ optional dependencies.
 The interactive setup command writes a config file:
 
 ```sh
-satterc setup
+viresco setup
 ```
 
 It asks which models you want. Choose `splash`, and accept the default paths.
@@ -27,14 +27,14 @@ It asks which models you want. Choose `splash`, and accept the default paths.
 To skip the prompts:
 
 ```sh
-satterc setup --models splash --defaults
+viresco setup --models splash --defaults
 ```
 
 /// admonition | `setup` is experimental
     type: warning
 
 The command and the configs it generates may change. See the
-[CLI reference](../reference/cli.md#satterc-setup) for its current limitations.
+[CLI reference](../reference/cli.md#viresco-setup) for its current limitations.
 ///
 
 This creates a `config.toml` file that looks like:
@@ -71,7 +71,7 @@ vars = [
 ```
 
 A model is a section named after the model.
-SatTerC's models are ordinary catena modules; SatTerC registers them with catena, so a section resolves to a module by its name alone.
+Viresco's models are ordinary catena modules; Viresco registers them with catena, so a section resolves to a module by its name alone.
 A module catena has no registration for needs `_import_path` to say where it lives.
 Node names are `{var}{suffix}`, and the suffix defaults to the section label, so
 `temperature` under `[inputs.daily]` becomes the node `temperature_daily`, which
@@ -87,7 +87,7 @@ from it:
 
 ```sh
 mkdir -p inputs
-satterc data-gen config.toml --grid 1 1 --duration 2y --seed 42
+viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42
 ```
 
 This writes NetCDF files at the input paths named in the config.
@@ -104,7 +104,7 @@ one year of data". Use `2y` or more.
 ## Step 3: check the pipeline before running it
 
 ```sh
-satterc run config.toml --dry-run
+viresco run config.toml --dry-run
 ```
 
 This parses the config, loads the inputs, builds the DAG and validates every
@@ -128,7 +128,7 @@ Dry run passed.
 Draw the DAG:
 
 ```sh
-satterc graph config.toml --pdf
+viresco graph config.toml --pdf
 ```
 
 This writes `pipeline.pdf`: every node and its dependencies, grouped and coloured
@@ -138,7 +138,7 @@ by declared frequency.
 
 ```sh
 mkdir -p outputs
-satterc run config.toml
+viresco run config.toml
 ```
 
 This reads the inputs, executes the DAG and writes `outputs/daily.nc`. The config

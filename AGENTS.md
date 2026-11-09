@@ -1,13 +1,13 @@
 # AGENTS.md
 
-SatTerC is in **alpha** with no users outside the core collaboration. Backwards
+Viresco is in **alpha** with no users outside the core collaboration. Backwards
 compatibility is *not* a constraint: prefer the cleanest design and make breaking
 changes (config schema, public APIs, behaviour) freely rather than adding
 compatibility shims.
 
 ## Architecture / what lives where
 
-SatTerC is a thin domain package on top of [**catena**](https://github.com/NERC-CEH/catena), which owns the framework:
+Viresco is a thin domain package on top of [**catena**](https://github.com/NERC-CEH/catena), which owns the framework:
 config parsing, the DAG, contract validation, I/O, caching, blocking, subsetting,
 the gridded/Zarr layer, and the `run` / `graph` / `gridded` CLI commands.
 catena's **`main` branch is the source of truth** — read it (or the local
@@ -17,8 +17,8 @@ checkout, if present) rather than guessing at its API.
 
 - All common tasks run via `just` (see `justfile`) — no need to invoke `pytest`/`uv run` directly.
 - Pre-commit hooks only run `uv-lock`, `pyright`, and `ruff` — not the full test suite.
-- Marimo notebooks live directly under `recipes/`, as `recipes/<name>.py`, and `just export <name>` renders one into `docs/recipes/`. They pin `satterc==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
-- Plain config files under `recipes/` are **not** loaded by any code or tooling — they are user-facing references only, so nothing will catch a mistake in them. Check with `satterc run --dry-run`. That covers `recipes/config.toml` and `recipes/graphviz.toml`.
+- Marimo notebooks live directly under `recipes/`, as `recipes/<name>.py`, and `just export <name>` renders one into `docs/recipes/`. They pin `ukceh-viresco==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
+- Plain config files under `recipes/` are **not** loaded by any code or tooling — they are user-facing references only, so nothing will catch a mistake in them. Check with `viresco run --dry-run`. That covers `recipes/config.toml` and `recipes/graphviz.toml`.
 - Documentation uses **zensical** (markdown, mkdocstrings-material-like), **not** Sphinx/rst.
 - Synthetic data is table-driven: a variable is one `Var` row (units, long name,
   one generator lambda) in `scaffold/data_gen/daily.py` or `static.py`. Adding
@@ -60,7 +60,7 @@ Every PR merges to `main`; a release is a tag on it, made by the maintainer only
 Nothing is published to PyPI: users install a tag from GitHub.
 
 1. `uv version --bump rc` (giving e.g. `0.9.0rc1`), or `--bump stable` for a
-   full release. Update the `satterc==` pins in `recipes/*.py` to match, run
+   full release. Update the `ukceh-viresco==` pins in `recipes/*.py` to match, run
    `just export-all`, and commit. `just tag` refuses if a pin is stale.
 2. `just tag`, then `just release`.
 3. After a full release, `uv version --bump minor --bump dev`, update the recipe
@@ -72,7 +72,7 @@ so it documents the latest release.
 
 ## Config schema
 
-The schema is catena's; there is no satterc-specific config code.
+The schema is catena's; there is no viresco-specific config code.
 
 
 ## Block size is not numerically free

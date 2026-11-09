@@ -51,7 +51,7 @@ RothC requires initial pool sizes to begin simulation. A spin-up phase runs the 
 ### Evapotranspiration, not open-pan evaporation
 
 RothC's own water-balance driver is open-pan evaporation, which the underlying RothC_Py scales by 0.75 to get evapotranspiration.
-SatTerC instead supplies potential evapotranspiration directly, since SPLASH computes it (Priestley-Taylor) on its way to AET.
+Viresco instead supplies potential evapotranspiration directly, since SPLASH computes it (Priestley-Taylor) on its way to AET.
 There is nothing to convert, so `evap_factor` defaults to 1.0.
 
 PET, not AET, is the right driver: RothC's water balance is rainfall minus evaporative *demand*, and AET is already suppressed by the soil dryness RothC is itself computing, so feeding AET in double-counts the water limitation and holds the soil systematically too wet.
@@ -68,9 +68,9 @@ For full model details, see:
 RothC needs potential evapotranspiration, which [SPLASH](splash.md) produces, so run the two together:
 
 ```sh
-satterc setup --models splash --models rothc --defaults
-satterc data-gen config.toml --grid 1 1 --duration 2y --seed 42
-satterc run config.toml
+viresco setup --models splash --models rothc --defaults
+viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42
+viresco run config.toml
 ```
 
 The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
@@ -82,7 +82,7 @@ The [quickstart](../guides/quickstart.md) walks through what each of those does,
 n_years_spinup = 1
 ```
 
-::: satterc.models.rothc.rothc_config
+::: viresco.models.rothc.rothc_config
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -93,7 +93,7 @@ n_years_spinup = 1
 
 The per-PFT DPM/RPM ratios are settings of the `dpm_rpm_ratio_monthly` bridge node below, and are configured as keys of the same `[rothc]` section:
 
-::: satterc.models.rothc.dpm_rpm_ratio_config
+::: viresco.models.rothc.dpm_rpm_ratio_config
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -104,7 +104,7 @@ The per-PFT DPM/RPM ratios are settings of the `dpm_rpm_ratio_monthly` bridge no
 
 ### Inputs
 
-::: satterc.models.rothc.rothc
+::: viresco.models.rothc.rothc
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -119,7 +119,7 @@ Three of those monthly inputs are produced by this module rather than loaded.
 Each builds a monthly series out of per-pixel static data, which leaves it nothing to get a calendar from — so each also takes `temperature_monthly`, read purely for its time coordinate.
 If you supply your own version of one of these nodes, it needs a time-bearing input for the same reason.
 
-::: satterc.models.rothc.plant_cover_monthly
+::: viresco.models.rothc.plant_cover_monthly
     options:
       show_root_heading: true
       show_root_full_path: false
@@ -130,7 +130,7 @@ If you supply your own version of one of these nodes, it needs a time-bearing in
       heading_level: 4
       docstring_section_style: spacy
 
-::: satterc.models.rothc.dpm_rpm_ratio_monthly
+::: viresco.models.rothc.dpm_rpm_ratio_monthly
     options:
       show_root_heading: true
       show_root_full_path: false
@@ -141,7 +141,7 @@ If you supply your own version of one of these nodes, it needs a time-bearing in
       heading_level: 4
       docstring_section_style: spacy
 
-::: satterc.models.rothc.farmyard_manure_input_monthly
+::: viresco.models.rothc.farmyard_manure_input_monthly
     options:
       show_root_heading: true
       show_root_full_path: false
@@ -154,7 +154,7 @@ If you supply your own version of one of these nodes, it needs a time-bearing in
 
 ### Outputs
 
-::: satterc.models.rothc.RothCOut
+::: viresco.models.rothc.RothCOut
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -165,7 +165,7 @@ If you supply your own version of one of these nodes, it needs a time-bearing in
 
 ### Python API
 
-See the [API documentation](../reference/modules/satterc.models/rothc.md) for full function signatures and parameter details.
+See the [API documentation](../reference/modules/viresco.models/rothc.md) for full function signatures and parameter details.
 
 ## References
 

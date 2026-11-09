@@ -3,13 +3,13 @@
 # dependencies = [
 #     "marimo",
 #     "matplotlib==3.10.9",
-#     "satterc==0.8.0",
+#     "ukceh-viresco==0.8.0",
 #     "ukceh-catena",
 # ]
 #
 # [tool.uv.sources]
-# satterc = { path = ".." }
-# # TODO: pin to a catena release tag once catena and satterc stop changing in step.
+# ukceh-viresco = { path = ".." }
+# # TODO: pin to a catena release tag once catena and viresco stop changing in step.
 # ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
 # ///
 
@@ -24,7 +24,7 @@ def _(mo):
     mo.md(r"""
     # Wiring four models into one pipeline
 
-    This recipe builds a pipeline out of all four of SatTerC's models at once: SPLASH for the water balance, the P-model for photosynthesis, SGAM for plant carbon allocation, and RothC for soil carbon.
+    This recipe builds a pipeline out of all four of Viresco's models at once: SPLASH for the water balance, the P-model for photosynthesis, SGAM for plant carbon allocation, and RothC for soil carbon.
 
     The models are the easy part.
     None of the four knows the others exist, and none of them imports another.
@@ -51,7 +51,7 @@ def _():
     from catena.graph import _node_maps as node_maps
     from catena.graph import relabel_with_units
 
-    from satterc.scaffold.data_gen import generate_synthetic_data
+    from viresco.scaffold.data_gen import generate_synthetic_data
 
     return (
         Config,
@@ -186,7 +186,7 @@ def _(mo):
     overwrite_units = true
     freq = "7D"
 
-    # satterc.models.pmodel is an honest wrapper. It reports GPP and LUE in
+    # viresco.models.pmodel is an honest wrapper. It reports GPP and LUE in
     # pyrealm's own units, which are not the ones SGAM consumes. These two nodes
     # are the bridge, kept here rather than inside the model node so that a
     # reader can see the conversion factor.
@@ -462,7 +462,7 @@ def _(mo):
     ### The P-model to SGAM: carbon, and the unit conversions
 
     This is the join worth studying.
-    Three quantities cross and two of them are in the wrong units, because `satterc.models.pmodel` is an honest wrapper: it reports what pyrealm computes, in pyrealm's units, rather than quietly converting on the way out.
+    Three quantities cross and two of them are in the wrong units, because `viresco.models.pmodel` is an honest wrapper: it reports what pyrealm computes, in pyrealm's units, rather than quietly converting on the way out.
 
     **Gross primary productivity.**
     pyrealm reports an instantaneous flux in ug C m-2 s-1.
@@ -625,7 +625,7 @@ def _(mo):
     That is a deliberate choice and it costs something: the config is long, and an expression in a TOML string gets no help from a type checker.
 
     What it buys is that the factor of 0.0864 is visible to whoever reads the pipeline.
-    A wrapper that quietly converted pyrealm's GPP on the way out would be shorter and would leave the next person with no way to see the assumption, let alone change it without editing SatTerC.
+    A wrapper that quietly converted pyrealm's GPP on the way out would be shorter and would leave the next person with no way to see the assumption, let alone change it without editing Viresco.
     """)
     return
 

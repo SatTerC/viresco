@@ -22,7 +22,7 @@ test:
 
 # Run tests with coverage report.
 test-cov:
-  pytest --cov=satterc --cov-report=term-missing --cov-fail-under=90
+  pytest --cov=viresco --cov-report=term-missing --cov-fail-under=90
 
 # Re-record the pyrealm unit anchor in tests/data/pyrealm_golden.json.
 # Only after reviewing *why* pyrealm's output changed. If a unit convention
@@ -74,8 +74,8 @@ tag:
   [[ $v != *dev* ]] || { echo "refusing to tag dev version $v" >&2; exit 1; }
   [[ $(git branch --show-current) == main ]] || { echo "not on main" >&2; exit 1; }
   git diff --quiet HEAD || { echo "uncommitted changes" >&2; exit 1; }
-  stale=$(grep -L "\"satterc==$v\"" recipes/*.py || true)
-  [[ -z $stale ]] || { echo "recipes not pinned to satterc==$v:" $stale >&2; exit 1; }
+  stale=$(grep -L "\"ukceh-viresco==$v\"" recipes/*.py || true)
+  [[ -z $stale ]] || { echo "recipes not pinned to ukceh-viresco==$v:" $stale >&2; exit 1; }
   git fetch --quiet origin main
   [[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] \
     || { echo "main differs from origin/main" >&2; exit 1; }

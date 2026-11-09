@@ -1,9 +1,9 @@
 """Tests for model helper functions and model execution.
 
 Covers:
-- satterc.models.rothc  — plant_cover_monthly, dpm_rpm_ratio_monthly, farmyard_manure_input_monthly
-- satterc.models.sgam   — _pft_int_to_enum, _build_pft_params_dataset, _pft_params_from_dataset, pft_params
-- satterc.models.pmodel — mean_growth_temperature
+- viresco.models.rothc  — plant_cover_monthly, dpm_rpm_ratio_monthly, farmyard_manure_input_monthly
+- viresco.models.sgam   — _pft_int_to_enum, _build_pft_params_dataset, _pft_params_from_dataset, pft_params
+- viresco.models.pmodel — mean_growth_temperature
 - model execution smoke tests for splash, pmodel (via pipeline_inputs session fixture)
 """
 
@@ -12,9 +12,9 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from satterc.models import pmodel as pmodel_module
-from satterc.models import rothc as rothc_module
-from satterc.models import sgam as sgam_module
+from viresco.models import pmodel as pmodel_module
+from viresco.models import rothc as rothc_module
+from viresco.models import sgam as sgam_module
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -316,7 +316,7 @@ class TestPmodelExecution:
 
     @pytest.fixture(scope="class")
     def pmodel_result(self):
-        from satterc.models.pmodel import _pmodel
+        from viresco.models.pmodel import _pmodel
 
         n_weeks = 52
         n_pixels = 1
@@ -367,7 +367,7 @@ class TestRothcExecution:
 
     @pytest.fixture(scope="class")
     def rothc_result(self):
-        from satterc.models.rothc import _rothc
+        from viresco.models.rothc import _rothc
 
         n_months = 24
         n_pixels = 1
@@ -445,7 +445,7 @@ class TestPmodelDriverExecution:
             )
 
         dr = build_driver(
-            ["satterc.models.pmodel"],
+            ["viresco.models.pmodel"],
             {
                 "method_optchi": "prentice14",
                 "method_jmaxlim": "wang17",
@@ -494,7 +494,7 @@ class TestRothcDriverExecution:
                 coords={"pixel": pixel},
             )
 
-        dr = build_driver(["satterc.models.rothc"], {"n_years_spinup": 1})
+        dr = build_driver(["viresco.models.rothc"], {"n_years_spinup": 1})
         result = dr.execute(
             ["soil_organic_carbon_monthly"],
             inputs={
@@ -519,7 +519,7 @@ class TestSgamInnerExecution:
     """Smoke test: _sgam() runs end-to-end with minimal synthetic inputs."""
 
     def test_sgam_inner_returns_dict(self):
-        from satterc.models.sgam import _build_pft_params_dataset, _sgam
+        from viresco.models.sgam import _build_pft_params_dataset, _sgam
 
         n_weeks = 52
         n_pixels = 1
@@ -564,7 +564,7 @@ class TestSgamInnerExecution:
         assert "soil_organic_carbon_monthly" not in result
 
     def test_sgam_outputs_non_negative_pools(self):
-        from satterc.models.sgam import _build_pft_params_dataset, _sgam
+        from viresco.models.sgam import _build_pft_params_dataset, _sgam
 
         n_weeks = 52
         n_pixels = 1
@@ -612,7 +612,7 @@ class TestDisturbancesDaily:
     """Smoke test: disturbances_daily computes disturbance indicators."""
 
     def test_disturbances_output_shape(self):
-        from satterc.models.sgam import disturbances_daily
+        from viresco.models.sgam import disturbances_daily
 
         n_days = 365
         n_pixels = 2
@@ -627,7 +627,7 @@ class TestDisturbancesDaily:
         def _static_da(values):
             return xr.DataArray(values, dims=["pixel"], coords={"pixel": pixel})
 
-        from satterc.models.sgam import disturbances_config, pft_params
+        from viresco.models.sgam import disturbances_config, pft_params
 
         result = disturbances_daily(
             temperature_daily=_da(np.full((n_days, n_pixels), 15.0)),
@@ -646,7 +646,7 @@ class TestSplashExecution:
 
     @pytest.fixture(scope="class")
     def splash_result(self):
-        from satterc.models.splash import _splash
+        from viresco.models.splash import _splash
 
         n_days = 366  # 2020 is a leap year; SPLASH needs a full year
         n_pixels = 2
@@ -680,7 +680,7 @@ class TestSplashExecution:
         assert isinstance(splash_result, dict)
 
     def test_output_keys(self, splash_result):
-        from satterc.models.splash import SplashOut
+        from viresco.models.splash import SplashOut
 
         assert set(splash_result) == set(SplashOut.__annotations__)
 
@@ -705,7 +705,7 @@ class TestSplashExecution:
 
     def test_public_splash_wrapper_returns_dict(self):
         """Test the public splash() function (covers the 'return _splash(...)' line)."""
-        from satterc.models.splash import splash, splash_config
+        from viresco.models.splash import splash, splash_config
 
         n_days = 366
         n_pixels = 1

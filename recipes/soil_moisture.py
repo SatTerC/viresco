@@ -4,7 +4,7 @@
 #     "marimo",
 #     "matplotlib==3.10.9",
 #     "numpy==2.4.4",
-#     "satterc==0.8.0",
+#     "ukceh-viresco==0.8.0",
 #     "ukceh-catena",
 #     "scipy==1.17.1",
 #     "xarray==2026.4.0",
@@ -12,8 +12,8 @@
 # ]
 #
 # [tool.uv.sources]
-# satterc = { path = ".." }
-# # TODO: pin to a catena release tag once catena and satterc stop changing in step.
+# ukceh-viresco = { path = ".." }
+# # TODO: pin to a catena release tag once catena and viresco stop changing in step.
 # ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
 # ///
 
@@ -51,7 +51,7 @@ def _():
     from catena.config import Config
     from scipy.optimize import OptimizeResult, minimize
 
-    from satterc.scaffold.data_gen import generate_synthetic_data
+    from viresco.scaffold.data_gen import generate_synthetic_data
 
     return (
         Config,

@@ -69,7 +69,7 @@ def _seasonal(n: int) -> NDArray[np.float64]:
 
 
 def pmodel_inputs() -> dict[str, Any]:
-    """Fixed P-Model drivers, in the units `satterc.models.pmodel` declares."""
+    """Fixed P-Model drivers, in the units `viresco.models.pmodel` declares."""
     season = _seasonal(N_WEEKS * 7)[::7][:N_WEEKS]
 
     def field(center: float, spread: float, amplitude: float = 0.0) -> xr.DataArray:
@@ -89,7 +89,7 @@ def pmodel_inputs() -> dict[str, Any]:
 
 
 def splash_inputs() -> dict[str, Any]:
-    """Fixed SPLASH drivers, in the units `satterc.models.splash` declares."""
+    """Fixed SPLASH drivers, in the units `viresco.models.splash` declares."""
     season = _seasonal(N_DAYS)
     return {
         "sunshine_fraction_daily": _daily(

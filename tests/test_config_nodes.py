@@ -3,7 +3,7 @@
 `tests/test_config.toml` declares no `[[node]]` or `[[resample]]` entries, so the
 fast suite never exercised catena's node lowering at all — the only test that
 did was `test_contracts.py`, which generates two years of data and runs four
-models. That left the cheapest, most load-bearing part of every satterc config
+models. That left the cheapest, most load-bearing part of every viresco config
 covered only by the slowest test in the suite.
 
 These tests build the same *shapes* of node that `recipes/config.toml` relies on

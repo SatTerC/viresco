@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#   "satterc==0.8.0",
+#   "ukceh-viresco==0.8.0",
 #   "ukceh-catena",
 #   "marimo",
 #   "matplotlib==3.10.9",
@@ -9,8 +9,8 @@
 # ]
 #
 # [tool.uv.sources]
-# satterc = { path = ".." }
-# # TODO: pin to a catena release tag once catena and satterc stop changing in step.
+# ukceh-viresco = { path = ".." }
+# # TODO: pin to a catena release tag once catena and viresco stop changing in step.
 # ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
 # ///
 
@@ -23,10 +23,10 @@ app = marimo.App(width="medium")
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Getting started with SatTerC
+    # Getting started with Viresco
 
-    This notebook walks through running a SatTerC pipeline step by step.
-    It is aimed at users who are new to SatTerC, and assumes only basic familiarity with Python.
+    This notebook walks through running a Viresco pipeline step by step.
+    It is aimed at users who are new to Viresco, and assumes only basic familiarity with Python.
     """)
     return
 
@@ -47,11 +47,11 @@ def _(mo):
 
     `uv` will read the dependency list embedded at the top of this file, install everything
     it needs into a temporary isolated environment, and open the notebook in your browser.
-    You do not need to install SatTerC separately.
+    You do not need to install Viresco separately.
 
     ### Option B — using an existing Python environment
 
-    If SatTerC is already installed in a Python environment (for example, the project
+    If Viresco is already installed in a Python environment (for example, the project
     development environment), activate that environment, move to the repository root,
     and run:
 
@@ -73,7 +73,7 @@ def _():
     from catena import build_driver, run
     from catena.config import Config
 
-    from satterc.scaffold.data_gen import generate_synthetic_data
+    from viresco.scaffold.data_gen import generate_synthetic_data
 
     return (
         Config,
@@ -92,11 +92,11 @@ def _(mo):
     mo.md(r"""
     ## Step 1: Configure the pipeline
 
-    A SatTerC pipeline is described by a configuration file written in
+    A Viresco pipeline is described by a configuration file written in
     [TOML](https://toml.io/en/) — a simple, human-readable format. The config schema
-    is [catena](https://github.com/NERC-CEH/catena)'s; SatTerC supplies the models.
+    is [catena](https://github.com/NERC-CEH/catena)'s; Viresco supplies the models.
     Every section activates a pipeline component.
-    `[splash]` loads the SPLASH water-balance module, which SatTerC registers with catena so the section name alone is enough to find it.
+    `[splash]` loads the SPLASH water-balance module, which Viresco registers with catena so the section name alone is enough to find it.
     `[inputs.daily]` loads daily climate data from the given path, and `[outputs.daily]` saves the named variables to disk when the pipeline finishes.
 
     Node names are `{var}{suffix}`, with the suffix defaulting to the section label,
@@ -177,7 +177,7 @@ def _(mo):
     data.
 
     It is worth knowing what you trade away. A TOML file is one artefact you can
-    version, diff, review and pass to `satterc run`; a dictionary assembled over
+    version, diff, review and pass to `viresco run`; a dictionary assembled over
     fifty lines of Python is none of those. Write the file by default, and reach
     for the dictionary when you are generating configs rather than authoring them.
     """)
@@ -189,8 +189,8 @@ def _(mo):
     mo.md(r"""
     ## Step 2: Generate synthetic input data
 
-    SatTerC reads input data from NetCDF or Zarr files, detecting the format from
-    the file extension listed in the configuration. SatTerC's built-in synthetic
+    Viresco reads input data from NetCDF or Zarr files, detecting the format from
+    the file extension listed in the configuration. Viresco's built-in synthetic
     data generator writes either, so it is easy to produce realistic stand-in
     inputs.
 
@@ -203,7 +203,7 @@ def _(mo):
 
     ### A note on units
 
-    Every model input in SatTerC declares the units it expects, and catena
+    Every model input in Viresco declares the units it expects, and catena
     checks the data against that declaration before the model sees it. The check
     reads a `units` attribute on the array: the generator labels `temperature` as
     `degC`, and NetCDF keeps the label.
@@ -240,7 +240,7 @@ def _(mo):
     mo.md(r"""
     ## Step 3: Build the pipeline
 
-    SatTerC represents a pipeline as a Directed Acyclic Graph (DAG) — a network of nodes
+    Viresco represents a pipeline as a Directed Acyclic Graph (DAG) — a network of nodes
     where each node is a computation, and edges show which computations depend on which others.
 
     Building the pipeline means constructing this graph from the modules and configuration

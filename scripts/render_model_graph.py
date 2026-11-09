@@ -1,8 +1,8 @@
 """Render one model's DAG to an SVG for its documentation page.
 
-The `satterc graph` command visualises a whole pipeline, so this builds the
+The `viresco graph` command visualises a whole pipeline, so this builds the
 smallest config that exercises a single model — the model's own section plus
-the inputs and outputs `satterc.scaffold.config_gen` infers for it — and graphs
+the inputs and outputs `viresco.scaffold.config_gen` infers for it — and graphs
 that. The I/O paths in the generated config are never opened: building the
 graph reads the DAG's contracts, not the data.
 
@@ -23,7 +23,7 @@ from pathlib import Path
 
 import tomlkit
 
-from satterc.scaffold.config_gen import generate_config
+from viresco.scaffold.config_gen import generate_config
 
 #: Placeholder I/O paths. `generate_config` requires them; nothing reads them.
 PATHS = {
@@ -46,7 +46,7 @@ def render(model: str) -> str:
         config_file.write_text(tomlkit.dumps(config._data))
         stem = Path(tmp) / model
         subprocess.run(
-            ["satterc", "graph", str(config_file), "-o", str(stem)],
+            ["viresco", "graph", str(config_file), "-o", str(stem)],
             check=True,
             capture_output=True,
         )

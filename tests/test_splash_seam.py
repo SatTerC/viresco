@@ -1,4 +1,4 @@
-"""Tests for the SPLASH ``apply_ufunc`` block seam (``satterc.models.splash._splash``).
+"""Tests for the SPLASH ``apply_ufunc`` block seam (``viresco.models.splash._splash``).
 
 Like the P-Model, SPLASH is a *whole-block* pyrealm model — it vectorises over the
 spatial axis internally and loops only over ``time`` (soil moisture carries state day to
@@ -31,7 +31,7 @@ import xarray as xr
 import xarray_annotated as xra
 from xarray_annotated.units import UnitError
 
-from satterc.models.splash import (
+from viresco.models.splash import (
     _FLUX_ATTRIBUTES,
     _OUTPUT_FIELDS,
     _describe_pixels,
@@ -299,7 +299,7 @@ class TestPrescribedInitialState:
     def _driver(self, **settings):
         from catena import build_driver
 
-        return build_driver(["satterc.models.splash"], settings)
+        return build_driver(["viresco.models.splash"], settings)
 
     def test_equilibrate_needs_no_initial_state(self):
         names = {v.name for v in self._driver().list_available_variables()}
@@ -546,7 +546,7 @@ class TestCachingIntact:
 
         def run(cache):
             dr = build_driver(
-                ["satterc.models.splash"],
+                ["viresco.models.splash"],
                 {
                     "soil_moisture_init_max_iter": MAX_ITER,
                     "soil_moisture_init_max_diff": MAX_DIFF,

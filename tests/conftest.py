@@ -5,7 +5,7 @@ import pytest
 import xarray as xr
 from catena import build_driver, load_config, load_inputs
 
-from satterc.scaffold.data_gen import generate_synthetic_data
+from viresco.scaffold.data_gen import generate_synthetic_data
 
 # The fixtures build DAGs and run models over deliberately small, synthetic
 # arrays. Contract validation is catena's job and is exercised by catena's own
@@ -90,7 +90,7 @@ def driver_from_config(config, **kwargs):
     Everything catena needs to resolve a module has to be forwarded: `base` is
     the directory a relative `.py` `_import_path` resolves against, and
     `registered_modules` names the sections that came from an entry-point
-    registration rather than an `_import_path`. satterc's own sections are the
+    registration rather than an `_import_path`. viresco's own sections are the
     latter, so a driver built without `registered` cannot report where a failing
     module came from.
     """

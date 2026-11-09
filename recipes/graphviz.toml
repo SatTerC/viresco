@@ -1,4 +1,4 @@
-# Example styling for `satterc graph --style recipes/graphviz.toml`.
+# Example styling for `viresco graph --style recipes/graphviz.toml`.
 #
 # Every key is optional: omitted values fall back to the built-in defaults
 # (see `catena.graph_style.GraphvizSpec`). This file styles the DAG only;

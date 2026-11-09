@@ -1,4 +1,4 @@
-"""Regression tests pinning pyrealm's unit conventions to satterc's annotations.
+"""Regression tests pinning pyrealm's unit conventions to viresco's annotations.
 
 `tests/test_pmodel_seam.py` and `tests/test_splash_seam.py` already check that
 the wrapped models agree with pyrealm called directly. They cannot catch the
@@ -16,7 +16,7 @@ per-mole quantity. iWUE was labelled ``Pa`` for a ``umol mol-1`` mixing ratio.
 
 Four layers, each failing differently on purpose:
 
-1. `TestUpstreamUnitMetadata` compares satterc's declared units against pyrealm's
+1. `TestUpstreamUnitMetadata` compares viresco's declared units against pyrealm's
    own machine-readable tables. The cheapest check and the most direct. It would
    have caught the bug above for free.
 2. `TestGoldenValues` pins absolute magnitudes in ``data/pyrealm_golden.json``,
@@ -55,18 +55,18 @@ from pyrealm_cases import (
     summarize,
 )
 
-from satterc.models.pmodel import _OUTPUT_ATTRIBUTES, PModelOut, _pmodel
-from satterc.models.splash import _FLUX_ATTRIBUTES, SplashOut, _splash
+from viresco.models.pmodel import _OUTPUT_ATTRIBUTES, PModelOut, _pmodel
+from viresco.models.splash import _FLUX_ATTRIBUTES, SplashOut, _splash
 
 GOLDEN_PATH = Path(__file__).parent / "data" / "pyrealm_golden.json"
 
 REGENERATE_HINT = (
-    "If pyrealm changed a unit convention, fix satterc's annotation. Do NOT "
+    "If pyrealm changed a unit convention, fix viresco's annotation. Do NOT "
     "just regenerate the golden file. Regenerate with "
     "`just regen-pyrealm-golden` only once the change is understood."
 )
 
-# pyrealm spells its units for humans; satterc declares them in CF/UDUNITS form.
+# pyrealm spells its units for humans; viresco declares them in CF/UDUNITS form.
 # Normalising handles spelling only. It never reconciles a real difference.
 # Substitutions are substring-wise and so must not touch exponents: "-" alone
 # means dimensionless, but the "-" in "m-2" is a minus sign, which is why the
@@ -82,7 +82,7 @@ _DIMENSIONLESS = {"-", "unitless", ""}
 
 
 def normalise(unit: str) -> str:
-    """Render a pyrealm unit string in the spelling satterc's annotations use."""
+    """Render a pyrealm unit string in the spelling viresco's annotations use."""
     text = unit.strip()
     if text in _DIMENSIONLESS:
         return "1"
@@ -123,7 +123,7 @@ def declared_pmodel_inputs() -> dict[str, str]:
     The method-dependent inputs sit on the ``<axis>_inputs`` variants, not on
     `pmodel`. Two variants can declare the same input, and must agree on it.
     """
-    from satterc.models import pmodel as pmodel_module
+    from viresco.models import pmodel as pmodel_module
 
     nodes = [
         pmodel_module.pmodel,
@@ -142,7 +142,7 @@ def declared_pmodel_inputs() -> dict[str, str]:
     return declared
 
 
-# Each entry maps a satterc node argument to the pyrealm variable it becomes.
+# Each entry maps a viresco node argument to the pyrealm variable it becomes.
 PMODEL_INPUT_UNITS = [
     ("temperature_weekly", "tc"),
     ("vpd_weekly", "vpd"),
@@ -166,14 +166,14 @@ SPLASH_INPUT_UNITS = [
 # pyrealm's own two sources disagree here. The bounds table records
 # `mean_growth_temperature` as "-" (dimensionless) while PModelEnvironment's
 # docstring documents it as °C, which is plainly what it is, a temperature with
-# a 0-50 range. satterc follows the docstring. This is recorded as a named
+# a 0-50 range. viresco follows the docstring. This is recorded as a named
 # exception rather than dropped from the mapping, so that if upstream ever fixes
 # the bounds entry the test fails and tells us to delete the workaround.
 BOUNDS_DISAGREES_WITH_DOCSTRING = {"mean_growth_temperature": ("1", "degC")}
 
 
 class TestUpstreamUnitMetadata:
-    """satterc's declared units still match pyrealm's own unit tables."""
+    """viresco's declared units still match pyrealm's own unit tables."""
 
     @pytest.mark.parametrize(("argument", "variable"), PMODEL_INPUT_UNITS)
     def test_pmodel_input_units(self, bounds, argument, variable):
@@ -187,7 +187,7 @@ class TestUpstreamUnitMetadata:
 
     @pytest.mark.parametrize(("argument", "variable"), SPLASH_INPUT_UNITS)
     def test_splash_input_units(self, bounds, argument, variable):
-        from satterc.models import splash as splash_module
+        from viresco.models import splash as splash_module
 
         declared_inputs = declared_input_units(splash_module.splash)
         declared = declared_inputs[argument]
@@ -259,7 +259,7 @@ class TestUpstreamUnitMetadata:
 
 
 class TestUpstreamApiNames:
-    """Every name satterc passes to or reads from pyrealm still exists.
+    """Every name viresco passes to or reads from pyrealm still exists.
 
     Turns a rename upstream into an immediate, legible failure instead of a
     TypeError raised deep inside a pipeline run.
@@ -547,7 +547,7 @@ class TestGoldenValues:
                 f"Golden file was generated against pyrealm "
                 f"{golden['pyrealm_version']}, installed is "
                 f"{pyrealm.__version__}. Any failures below are most likely this "
-                f"and not a bug in satterc. {REGENERATE_HINT}"
+                f"and not a bug in viresco. {REGENERATE_HINT}"
             )
 
     @pytest.mark.parametrize("field", _OUTPUT_ATTRIBUTES)

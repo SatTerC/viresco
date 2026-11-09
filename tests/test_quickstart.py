@@ -1,6 +1,6 @@
 """The scaffolding route has to actually produce a pipeline that runs.
 
-`satterc setup` → `satterc data-gen` → `satterc run` is what the quickstart tells
+`viresco setup` → `viresco data-gen` → `viresco run` is what the quickstart tells
 a new user to do, and it is the only path where the two scaffolding halves are
 exercised against each other: the config generator decides what a model needs,
 and the data generator has to be able to fabricate it.
@@ -18,7 +18,7 @@ import pytest
 import xarray as xr
 from typer.testing import CliRunner
 
-from satterc.cli import app
+from viresco.cli import app
 
 MODELS = "splash,pmodel,sgam,rothc"
 GRID = ("2", "2")

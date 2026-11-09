@@ -2308,97 +2308,6 @@ wheels = [
 ]
 
 [[package]]
-name = "satterc"
-version = "0.8.0"
-source = { editable = "." }
-dependencies = [
-    { name = "numpy" },
-    { name = "pyrealm" },
-    { name = "rothc-py" },
-    { name = "sgam" },
-    { name = "typer" },
-    { name = "ukceh-catena", extra = ["cli", "geo", "viz"] },
-    { name = "xarray" },
-    { name = "xarray-annotated" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "coverage" },
-    { name = "marimo" },
-    { name = "marimo-md-export" },
-    { name = "matplotlib" },
-    { name = "mkdocs-typer2", extra = ["termynal"] },
-    { name = "mkdocstrings-python" },
-    { name = "pre-commit" },
-    { name = "pyright" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "rust-just" },
-    { name = "zensical" },
-]
-docs = [
-    { name = "marimo" },
-    { name = "marimo-md-export" },
-    { name = "matplotlib" },
-    { name = "mkdocs-typer2", extra = ["termynal"] },
-    { name = "mkdocstrings-python" },
-    { name = "zensical" },
-]
-recipes = [
-    { name = "matplotlib" },
-]
-test = [
-    { name = "coverage" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "numpy", specifier = ">=2.4.2" },
-    { name = "pyrealm", specifier = ">=2.0.0,<3" },
-    { name = "rothc-py", git = "https://github.com/SatTerC/rothc_py.git" },
-    { name = "sgam", git = "https://github.com/SatTerC/sgam.git" },
-    { name = "typer", specifier = ">=0.24.1" },
-    { name = "ukceh-catena", extras = ["cli", "geo", "viz"], git = "https://github.com/NERC-CEH/catena?branch=main" },
-    { name = "xarray", specifier = ">=2026.2.0" },
-    { name = "xarray-annotated", specifier = ">=0.8.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "coverage", specifier = ">=7.13.5" },
-    { name = "marimo", specifier = ">=0.23.0" },
-    { name = "marimo-md-export", specifier = ">=0.5.2" },
-    { name = "matplotlib", specifier = ">=3.10.8" },
-    { name = "mkdocs-typer2", extras = ["termynal"], specifier = ">=0.4.1" },
-    { name = "mkdocstrings-python", specifier = ">=2.0.3" },
-    { name = "pre-commit", specifier = ">=4.5.1" },
-    { name = "pyright", specifier = ">=1.1.409" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-cov", specifier = ">=7.1.0" },
-    { name = "ruff", specifier = ">=0.15.4" },
-    { name = "rust-just", specifier = ">=1.46.0" },
-    { name = "zensical", specifier = ">=0.0.24,<0.0.74" },
-]
-docs = [
-    { name = "marimo", specifier = ">=0.23.0" },
-    { name = "marimo-md-export", specifier = ">=0.5.2" },
-    { name = "matplotlib", specifier = ">=3.10.8" },
-    { name = "mkdocs-typer2", extras = ["termynal"], specifier = ">=0.4.1" },
-    { name = "mkdocstrings-python", specifier = ">=2.0.3" },
-    { name = "zensical", specifier = ">=0.0.24,<0.0.74" },
-]
-recipes = [{ name = "matplotlib", specifier = ">=3.10.8" }]
-test = [
-    { name = "coverage", specifier = ">=7.13.5" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-cov", specifier = ">=7.1.0" },
-]
-
-[[package]]
 name = "scipy"
 version = "1.18.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2703,6 +2612,97 @@ geo = [
 ]
 viz = [
     { name = "apache-hamilton", extra = ["visualization"] },
+]
+
+[[package]]
+name = "ukceh-viresco"
+version = "0.8.0"
+source = { editable = "." }
+dependencies = [
+    { name = "numpy" },
+    { name = "pyrealm" },
+    { name = "rothc-py" },
+    { name = "sgam" },
+    { name = "typer" },
+    { name = "ukceh-catena", extra = ["cli", "geo", "viz"] },
+    { name = "xarray" },
+    { name = "xarray-annotated" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "coverage" },
+    { name = "marimo" },
+    { name = "marimo-md-export" },
+    { name = "matplotlib" },
+    { name = "mkdocs-typer2", extra = ["termynal"] },
+    { name = "mkdocstrings-python" },
+    { name = "pre-commit" },
+    { name = "pyright" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "rust-just" },
+    { name = "zensical" },
+]
+docs = [
+    { name = "marimo" },
+    { name = "marimo-md-export" },
+    { name = "matplotlib" },
+    { name = "mkdocs-typer2", extra = ["termynal"] },
+    { name = "mkdocstrings-python" },
+    { name = "zensical" },
+]
+recipes = [
+    { name = "matplotlib" },
+]
+test = [
+    { name = "coverage" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = ">=2.4.2" },
+    { name = "pyrealm", specifier = ">=2.0.0,<3" },
+    { name = "rothc-py", git = "https://github.com/SatTerC/rothc_py.git" },
+    { name = "sgam", git = "https://github.com/SatTerC/sgam.git" },
+    { name = "typer", specifier = ">=0.24.1" },
+    { name = "ukceh-catena", extras = ["cli", "geo", "viz"], git = "https://github.com/NERC-CEH/catena?branch=main" },
+    { name = "xarray", specifier = ">=2026.2.0" },
+    { name = "xarray-annotated", specifier = ">=0.8.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "coverage", specifier = ">=7.13.5" },
+    { name = "marimo", specifier = ">=0.23.0" },
+    { name = "marimo-md-export", specifier = ">=0.5.2" },
+    { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "mkdocs-typer2", extras = ["termynal"], specifier = ">=0.4.1" },
+    { name = "mkdocstrings-python", specifier = ">=2.0.3" },
+    { name = "pre-commit", specifier = ">=4.5.1" },
+    { name = "pyright", specifier = ">=1.1.409" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "ruff", specifier = ">=0.15.4" },
+    { name = "rust-just", specifier = ">=1.46.0" },
+    { name = "zensical", specifier = ">=0.0.24,<0.0.74" },
+]
+docs = [
+    { name = "marimo", specifier = ">=0.23.0" },
+    { name = "marimo-md-export", specifier = ">=0.5.2" },
+    { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "mkdocs-typer2", extras = ["termynal"], specifier = ">=0.4.1" },
+    { name = "mkdocstrings-python", specifier = ">=2.0.3" },
+    { name = "zensical", specifier = ">=0.0.24,<0.0.74" },
+]
+recipes = [{ name = "matplotlib", specifier = ">=3.10.8" }]
+test = [
+    { name = "coverage", specifier = ">=7.13.5" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
 ]
 
 [[package]]
