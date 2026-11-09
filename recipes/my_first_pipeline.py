@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -102,7 +102,7 @@ def _(mo):
     Node names are `{var}{suffix}`, with the suffix defaulting to the section label,
     so `temperature` under `[inputs.daily]` becomes the node `temperature_daily` —
     which is what SPLASH's parameter is called. Static variables are consumed under
-    bare names, so that section sets `suffix = ""`.
+    bare names, so that section sets `suffix = "\"`.
 
     `latitude` appears in neither input section. The inputs are georeferenced, so
     catena computes each pixel's latitude from their coordinate reference system.
@@ -400,7 +400,7 @@ def _(mo):
 
     [inputs.static]
     path = "/data/my-site/static.nc"
-    suffix = ""
+    suffix = "\"
     vars = [
       "elevation",
       "latitude",
