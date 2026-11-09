@@ -1,27 +1,20 @@
 """Render one model's DAG to an SVG for its documentation page.
 
-The `viresco graph` command visualises a whole pipeline, so this builds the
-smallest config that exercises a single model — the model's own section plus
-the inputs and outputs `viresco.scaffold.config_gen` infers for it — and graphs
-that. The I/O paths in the generated config are never opened: building the
-graph reads the DAG's contracts, not the data.
+`catena.build_graph` visualises a whole pipeline, so this builds the smallest
+config that exercises a single model — the model's own section plus the inputs
+and outputs `viresco.scaffold.config_gen` infers for it — and graphs that. The
+I/O paths in the generated config are never opened: building the graph reads
+the DAG's contracts, not the data.
 
-Going through the CLI rather than catena's Python API is deliberate. The graph
-internals moved module between conduit 0.2.0 and catena 0.4.0, whereas the
-command has stayed put, and `AGENTS.md` records `graph` as one of the commands
-catena owns.
-
-Run through ``just graph <model>``; the SVG is committed, like the exported
-example notebooks.
+Run through ``just graph <model>``. The SVG is not committed: ``just docs``
+regenerates every model's graph before each build.
 """
 
 import argparse
 import re
-import subprocess
-import tempfile
 from pathlib import Path
 
-import tomlkit
+from catena import build_graph
 
 from viresco.scaffold.config_gen import generate_config
 
@@ -40,39 +33,7 @@ PATHS = {
 def render(model: str) -> str:
     """Return the SVG source for ``model``'s DAG."""
     config = generate_config(builtin_models=[model], custom_modules=[], paths=PATHS)
-
-    with tempfile.TemporaryDirectory() as tmp:
-        config_file = Path(tmp) / f"{model}.toml"
-        config_file.write_text(tomlkit.dumps(config._data))
-        stem = Path(tmp) / model
-        subprocess.run(
-            ["viresco", "graph", str(config_file), "-o", str(stem)],
-            check=True,
-            capture_output=True,
-        )
-        source = stem.with_suffix(".dot")
-        source.write_text(_drop_config_notes(source.read_text()))
-        dot = subprocess.run(
-            ["dot", "-Tsvg", str(source)],
-            check=True,
-            capture_output=True,
-        )
-    return dot.stdout.decode()
-
-
-def _drop_config_notes(dot: str) -> str:
-    """Remove Hamilton's floating config-value boxes.
-
-    catena moves each config value a node consumes into that node's config
-    table, so the boxes left floating are config no node reads, such as
-    ``hamilton.enable_power_user_mode``. The tables and the legend's config
-    entry are kept.
-    """
-    return "".join(
-        line
-        for line in dot.splitlines(keepends=True)
-        if not ("shape=note" in line and "[label=<<b>" in line)
-    )
+    return build_graph(config.parse()).pipe(format="svg", encoding="utf-8")
 
 
 def as_inline_html(svg: str) -> str:

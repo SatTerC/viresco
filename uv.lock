@@ -2590,7 +2590,7 @@ wheels = [
 [[package]]
 name = "ukceh-catena"
 version = "0.5.0.dev0"
-source = { git = "https://github.com/NERC-CEH/catena?branch=main#9e06b040ccedd7abb619c4facf3101df2bef53a4" }
+source = { git = "https://github.com/NERC-CEH/catena?branch=main#6c4b24702fa370e040b2f3c502ba856059b32fac" }
 dependencies = [
     { name = "apache-hamilton" },
     { name = "dask" },
