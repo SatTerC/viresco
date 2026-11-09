@@ -36,17 +36,17 @@ checkout, if present) rather than guessing at its API.
   column. A module's non-model public nodes get their own `:::` blocks with
   `show_root_full_path: false`, `separate_signature: false` and
   `heading_level: 4`.
-- Configurable settings live in a `<node>_config` node returning a
-  `<Node>Config` TypedDict, which the consuming node unpacks. `Config`, not
-  `Params`: `params` is already taken by per-pixel scientific parameters that
-  are not pipeline config (`sgam.pft_params`, `rothc_py.RothCParams`).
-  Descriptions and defaults go on that function, never on the TypedDict fields —
-  catena reads the defaults off its keyword-only arguments. Every
-  settings-bearing node gets its own container, not just the model node: rothc's
-  per-PFT DPM/RPM ratios sit on `dpm_rpm_ratio_config` and sgam's growing-season
-  gate on `disturbances_config`. `get_model_config` in `config_gen.py` scans
-  every public function in the module, so a new container is picked up with no
-  change there; the keys still land flat in the one `[<model>]` section.
+- Configurable settings are keyword-only arguments, after a bare `*`, on the
+  node that consumes them, with their defaults in the signature. Document them
+  under numpydoc `Other Parameters`, not `Parameters`, so a model page can
+  render one node twice: once for its settings (`show_docstring_parameters:
+  false`) and once for its data inputs (`show_docstring_other_parameters:
+  false`). Settings on a non-model node stay on that node: rothc's per-PFT
+  DPM/RPM ratios are on `dpm_rpm_ratio_monthly` and sgam's growing-season gate
+  on `disturbances_daily`. `get_model_config` in `config_gen.py` reads the
+  keyword-only defaults off every public function in the module, so a new
+  setting is picked up with no change there; the keys still land flat in the one
+  `[<model>]` section. Do not group settings into a config node or TypedDict.
 - Model DAG graphs are generated, not committed: `just graph <model>` writes
   `docs/models/_graphs/<model>.svg`, and `just docs` depends on `graph-all` so a
   docs build always renders them fresh. Add a line to `graph-all` for each new

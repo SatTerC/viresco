@@ -7,6 +7,7 @@ requirement set joins its group by itself. These tests catch one whose set has n
 variant, so that fails here instead of in a pipeline run.
 """
 
+import inspect
 import subprocess
 import sys
 from typing import Any
@@ -22,7 +23,7 @@ from pyrealm.pmodel.jmax_limitation import JMAX_LIMITATION_CLASS_REGISTRY
 from pyrealm.pmodel.optimal_chi import OPTIMAL_CHI_CLASS_REGISTRY
 from pyrealm.pmodel.quantum_yield import QUANTUM_YIELD_CLASS_REGISTRY
 
-from viresco.models.pmodel import _OUTPUT_ATTRIBUTES, pmodel_config
+from viresco.models.pmodel import _OUTPUT_ATTRIBUTES, pmodel
 from viresco.scaffold.config_gen import _unwrap_annotated
 
 MODULE = "viresco.models.pmodel"
@@ -100,7 +101,7 @@ def _required_inputs(dr) -> set[str]:
     """The data inputs the run needs, leaving out unset settings.
 
     A setting the config leaves unset is an external input too, defaulted by
-    `pmodel_config`, so filter on type as `viresco.scaffold.config_gen` does.
+    `pmodel`, so filter on type as `viresco.scaffold.config_gen` does.
     """
     return {
         v.name
@@ -147,12 +148,12 @@ def test_only_required_inputs_are_asked_for(key, method):
 def test_defaults_need_no_extra_inputs():
     """An unset method key selects the empty variant, so the default must need none.
 
-    `config.when` cannot see `pmodel_config`'s defaults, only the keys a config
+    `config.when` cannot see `pmodel`'s defaults, only the keys a config
     actually sets.
     """
-    defaults = pmodel_config()
+    defaults = inspect.signature(pmodel).parameters
     for key in AXES:
-        assert _requires(key, defaults[key]) == []
+        assert _requires(key, defaults[key].default) == []
 
     dr = build_driver([MODULE], {})
     assert _required_inputs(dr) == CORE_INPUTS

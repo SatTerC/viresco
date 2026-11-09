@@ -105,13 +105,15 @@ method_kphio = "temperature"
 method_arrhenius = "simple"
 ```
 
-::: viresco.models.pmodel.pmodel_config
+::: viresco.models.pmodel.pmodel
     options:
       show_root_heading: false
       show_root_toc_entry: false
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
 
 ### Inputs
@@ -131,9 +133,11 @@ Every run needs these, whatever the methods.
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_other_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
       extra:
-        hide_parameters: [optchi_inputs, kphio_inputs, arrhenius_inputs, pmodel_config]
+        hide_parameters: [optchi_inputs, kphio_inputs, arrhenius_inputs]
 
 #### Soil moisture, for `lavergne20` optimal χ { #inputs-soil-moisture }
 

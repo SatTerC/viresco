@@ -221,84 +221,6 @@ def _rothc(
     )
 
 
-class RothCConfig(TypedDict):
-    """Settings for the `rothc` node, as returned by `rothc_config`.
-
-    The descriptions and defaults live on `rothc_config`, which is what the
-    pipeline config populates.
-    """
-
-    n_years_spinup: int
-    dpm_rate: float
-    rpm_rate: float
-    bio_rate: float
-    hum_rate: float
-    evap_factor: float
-    equilibrium_threshold: float
-    zero_threshold: float
-
-
-def rothc_config(
-    *,
-    n_years_spinup: int = 1,
-    dpm_rate: float = 10.0,
-    rpm_rate: float = 0.3,
-    bio_rate: float = 0.66,
-    hum_rate: float = 0.02,
-    evap_factor: float = 1.0,
-    equilibrium_threshold: float = 1e-6,
-    zero_threshold: float = 1e-8,
-) -> RothCConfig:
-    """Collect the RothC settings from the pipeline config.
-
-    Grouping the settings into one node keeps them out of `rothc`'s data inputs.
-    It does not namespace them: catena merges every module section's params
-    into one flat driver config, so these are still configured as top-level keys
-    of ``[rothc]``.
-
-    Parameters
-    ----------
-    n_years_spinup
-        Number of years of climate data used for model spin-up.
-    dpm_rate
-        Decomposition rate constant for decomposable plant material (per year).
-    rpm_rate
-        Decomposition rate constant for resistant plant material (per year).
-    bio_rate
-        Decomposition rate constant for microbial biomass (per year).
-    hum_rate
-        Decomposition rate constant for humified organic matter (per year).
-    evap_factor
-        Factor applied to `potential_evapotranspiration_monthly` before RothC's
-        water balance (dimensionless). RothC's own driver is open-pan
-        evaporation, and rothc_py's 0.75 converts that to evapotranspiration;
-        viresco supplies evapotranspiration already, so the default here is 1.0
-        (no conversion). Only change it if you are feeding open-pan evaporation
-        into this node instead.
-    equilibrium_threshold
-        Spin-up convergence criterion: maximum annual change in total organic
-        carbon (tonnes of carbon per hectare).
-    zero_threshold
-        Minimum pool size for numerical stability in radiocarbon age
-        calculations (tonnes of carbon per hectare).
-
-    Returns
-    -------
-    RothCConfig
-        The settings, ready to unpack into the model call.
-    """
-    return RothCConfig(
-        n_years_spinup=n_years_spinup,
-        dpm_rate=dpm_rate,
-        rpm_rate=rpm_rate,
-        bio_rate=bio_rate,
-        hum_rate=hum_rate,
-        evap_factor=evap_factor,
-        equilibrium_threshold=equilibrium_threshold,
-        zero_threshold=zero_threshold,
-    )
-
-
 @extract_fields()
 @check_annotations
 @stamp_output_units
@@ -313,7 +235,15 @@ def rothc(
     clay_content: Annotated[DataArray, Unit("percent")],
     inert_organic_matter: Annotated[DataArray, Unit("t ha-1")],
     soil_depth: Annotated[DataArray, Unit("cm")],
-    rothc_config: RothCConfig,
+    *,
+    n_years_spinup: int = 1,
+    dpm_rate: float = 10.0,
+    rpm_rate: float = 0.3,
+    bio_rate: float = 0.66,
+    hum_rate: float = 0.02,
+    evap_factor: float = 1.0,
+    equilibrium_threshold: float = 1e-6,
+    zero_threshold: float = 1e-8,
 ) -> RothCOut:
     """
     Rothamsted Carbon model.
@@ -343,8 +273,32 @@ def rothc(
         Soil depth (centimetres).
     inert_organic_matter
         Inert organic matter (tonnes of carbon per hectare).
-    rothc_config
-        Model settings; see `rothc_config`.
+
+    Other Parameters
+    ----------------
+    n_years_spinup
+        Number of years of climate data used for model spin-up.
+    dpm_rate
+        Decomposition rate constant for decomposable plant material (per year).
+    rpm_rate
+        Decomposition rate constant for resistant plant material (per year).
+    bio_rate
+        Decomposition rate constant for microbial biomass (per year).
+    hum_rate
+        Decomposition rate constant for humified organic matter (per year).
+    evap_factor
+        Factor applied to `potential_evapotranspiration_monthly` before RothC's
+        water balance (dimensionless). RothC's own driver is open-pan
+        evaporation, and rothc_py's 0.75 converts that to evapotranspiration;
+        viresco supplies evapotranspiration already, so the default here is 1.0
+        (no conversion). Only change it if you are feeding open-pan evaporation
+        into this node instead.
+    equilibrium_threshold
+        Spin-up convergence criterion: maximum annual change in total organic
+        carbon (tonnes of carbon per hectare).
+    zero_threshold
+        Minimum pool size for numerical stability in radiocarbon age
+        calculations (tonnes of carbon per hectare).
 
     Returns
     -------
@@ -372,7 +326,14 @@ def rothc(
         soil_depth=soil_depth,
         inert_organic_matter=inert_organic_matter,
         dates_monthly=time_index(temperature_monthly, "temperature_monthly"),
-        **rothc_config,
+        n_years_spinup=n_years_spinup,
+        dpm_rate=dpm_rate,
+        rpm_rate=rpm_rate,
+        bio_rate=bio_rate,
+        hum_rate=hum_rate,
+        evap_factor=evap_factor,
+        equilibrium_threshold=equilibrium_threshold,
+        zero_threshold=zero_threshold,
     )
 
 
@@ -438,37 +399,32 @@ def plant_cover_monthly(
     )
 
 
-class DpmRpmRatioConfig(TypedDict):
-    """Settings for `dpm_rpm_ratio_monthly`, as returned by `dpm_rpm_ratio_config`.
-
-    The descriptions and defaults live on `dpm_rpm_ratio_config`, which is what
-    the pipeline config populates.
-    """
-
-    dpm_rpm_ratio_tree: float
-    dpm_rpm_ratio_grass: float
-    dpm_rpm_ratio_shrub: float
-    dpm_rpm_ratio_crop: float
-
-
-def dpm_rpm_ratio_config(
+@check_annotations
+@stamp_output_units
+def dpm_rpm_ratio_monthly(
+    plant_type: DataArray,
+    temperature_monthly: Annotated[DataArray, MONTHLY],
     *,
     dpm_rpm_ratio_tree: float = 0.25,
     dpm_rpm_ratio_grass: float = 1.44,
     dpm_rpm_ratio_shrub: float = 0.67,
     dpm_rpm_ratio_crop: float = 1.44,
-) -> DpmRpmRatioConfig:
-    """Collect the per-PFT DPM/RPM ratios from the pipeline config.
+) -> Annotated[DataArray, Unit("1"), MONTHLY]:
+    """Return the DPM/RPM ratio for RothC based on plant type.
 
-    Grouping the settings into one node keeps them out of
-    `dpm_rpm_ratio_monthly`'s data inputs. It does not namespace them: catena
-    merges every module section's params into one flat driver config, so these
-    are still configured as top-level keys of ``[rothc]``.
-
-    The defaults are the ratios given in the RothC documentation.
+    The default ratios are the ones given in the RothC documentation.
 
     Parameters
     ----------
+    plant_type
+        Plant functional type as an integer (0=tree, 1=grass, 2=shrub, 3=crop).
+        Dims: ["pixel"].
+    temperature_monthly
+        Read only for its monthly time coordinate, which sets the returned
+        series' calendar.
+
+    Other Parameters
+    ----------------
     dpm_rpm_ratio_tree
         DPM/RPM ratio for tree/woodland (dimensionless).
     dpm_rpm_ratio_grass
@@ -480,46 +436,9 @@ def dpm_rpm_ratio_config(
 
     Returns
     -------
-    DpmRpmRatioConfig
-        The settings, ready to unpack into the ratio lookup.
-    """
-    return DpmRpmRatioConfig(
-        dpm_rpm_ratio_tree=dpm_rpm_ratio_tree,
-        dpm_rpm_ratio_grass=dpm_rpm_ratio_grass,
-        dpm_rpm_ratio_shrub=dpm_rpm_ratio_shrub,
-        dpm_rpm_ratio_crop=dpm_rpm_ratio_crop,
-    )
-
-
-@check_annotations
-@stamp_output_units
-def dpm_rpm_ratio_monthly(
-    plant_type: DataArray,
-    temperature_monthly: Annotated[DataArray, MONTHLY],
-    dpm_rpm_ratio_config: DpmRpmRatioConfig,
-) -> Annotated[DataArray, Unit("1"), MONTHLY]:
-    """Return the DPM/RPM ratio for RothC based on plant type.
-
-    Parameters
-    ----------
-    plant_type
-        Plant functional type as an integer (0=tree, 1=grass, 2=shrub, 3=crop).
-        Dims: ["pixel"].
-    temperature_monthly
-        Read only for its monthly time coordinate, which sets the returned
-        series' calendar.
-    dpm_rpm_ratio_config
-        The per-PFT ratios; see `dpm_rpm_ratio_config`.
-
-    Returns
-    -------
     DataArray
         DPM/RPM ratio with shape (time, pixel).
     """
-    dpm_rpm_ratio_tree = dpm_rpm_ratio_config["dpm_rpm_ratio_tree"]
-    dpm_rpm_ratio_grass = dpm_rpm_ratio_config["dpm_rpm_ratio_grass"]
-    dpm_rpm_ratio_shrub = dpm_rpm_ratio_config["dpm_rpm_ratio_shrub"]
-    dpm_rpm_ratio_crop = dpm_rpm_ratio_config["dpm_rpm_ratio_crop"]
     ratio_map = {
         0: dpm_rpm_ratio_tree,
         1: dpm_rpm_ratio_grass,

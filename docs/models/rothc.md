@@ -82,24 +82,28 @@ The [quickstart](../guides/quickstart.md) walks through what each of those does,
 n_years_spinup = 1
 ```
 
-::: viresco.models.rothc.rothc_config
+::: viresco.models.rothc.rothc
     options:
       show_root_heading: false
       show_root_toc_entry: false
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
 
 The per-PFT DPM/RPM ratios are settings of the `dpm_rpm_ratio_monthly` bridge node below, and are configured as keys of the same `[rothc]` section:
 
-::: viresco.models.rothc.dpm_rpm_ratio_config
+::: viresco.models.rothc.dpm_rpm_ratio_monthly
     options:
       show_root_heading: false
       show_root_toc_entry: false
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
 
 ### Inputs
@@ -111,6 +115,8 @@ The per-PFT DPM/RPM ratios are settings of the `dpm_rpm_ratio_monthly` bridge no
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_other_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
 
 ### Bridge nodes
@@ -138,6 +144,7 @@ If you supply your own version of one of these nodes, it needs a time-bearing in
       show_signature: false
       separate_signature: false
       show_docstring_returns: false
+      show_docstring_other_parameters: false
       heading_level: 4
       docstring_section_style: spacy
 

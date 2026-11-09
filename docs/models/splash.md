@@ -106,13 +106,15 @@ soil_moisture_init_max_iter = 10
 soil_moisture_init_max_diff = 1.0
 ```
 
-::: viresco.models.splash.splash_config
+::: viresco.models.splash.splash
     options:
       show_root_heading: false
       show_root_toc_entry: false
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
 
 ### Inputs
@@ -126,9 +128,11 @@ soil_moisture_init_max_diff = 1.0
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_other_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
       extra:
-        hide_parameters: [soil_moisture_init_inputs, splash_config]
+        hide_parameters: [soil_moisture_init_inputs]
 
 #### Initial state, for `prescribed` initialisation
 

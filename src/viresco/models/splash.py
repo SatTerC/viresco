@@ -354,69 +354,6 @@ def _splash(
 _INIT_METHODS = ("equilibrate", "prescribed")
 
 
-class SplashConfig(TypedDict):
-    """Settings for the `splash` node, as returned by `splash_config`.
-
-    The descriptions and defaults live on `splash_config`, which is what the
-    pipeline config populates.
-    """
-
-    soil_moisture_init_method: str
-    soil_moisture_init_max_iter: int
-    soil_moisture_init_max_diff: float
-
-
-def splash_config(
-    *,
-    soil_moisture_init_method: str = "equilibrate",
-    soil_moisture_init_max_iter: int = 10,
-    soil_moisture_init_max_diff: float = 1.0,
-) -> SplashConfig:
-    """Collect the SPLASH settings from the pipeline config.
-
-    Grouping the settings into one node keeps them out of `splash`'s data
-    inputs. It does not namespace them: catena merges every module section's
-    params into one flat driver config, so these are still configured as
-    top-level keys of ``[splash]``.
-
-    Parameters
-    ----------
-    soil_moisture_init_method
-        Where the initial soil moisture comes from: ``equilibrate`` repeats the
-        first year until soil moisture stabilises, and ``prescribed`` takes it
-        from the ``initial_soil_moisture`` input; see
-        `soil_moisture_init_inputs__prescribed`.
-    soil_moisture_init_max_iter
-        Maximum number of one-year iterations used to estimate initial soil
-        moisture. If any pixel in a block with a non-NaN result has not converged
-        by then, the run stops with an error. Only used by ``equilibrate``.
-    soil_moisture_init_max_diff
-        Maximum acceptable difference between year-start and year-end soil
-        moisture (millimetres). Only used by ``equilibrate``.
-
-    Returns
-    -------
-    SplashConfig
-        The settings for the model call.
-
-    Raises
-    ------
-    ValueError
-        If ``soil_moisture_init_method`` is not a known method. Without this a
-        misspelt ``prescribed`` would silently select ``equilibrate``.
-    """
-    if soil_moisture_init_method not in _INIT_METHODS:
-        raise ValueError(
-            f"Unknown soil_moisture_init_method {soil_moisture_init_method!r}; "
-            f"expected one of {', '.join(map(repr, _INIT_METHODS))}."
-        )
-    return SplashConfig(
-        soil_moisture_init_method=soil_moisture_init_method,
-        soil_moisture_init_max_iter=soil_moisture_init_max_iter,
-        soil_moisture_init_max_diff=soil_moisture_init_max_diff,
-    )
-
-
 @config.when_not_in(soil_moisture_init_method=["prescribed"])
 def soil_moisture_init_inputs__equilibrate() -> dict[str, DataArray]:
     """No extra inputs, for ``soil_moisture_init_method = "equilibrate"``."""
@@ -450,7 +387,10 @@ def splash(
     latitude: Annotated[DataArray, Unit("degrees")],
     max_soil_moisture: Annotated[DataArray, Unit("mm")],
     soil_moisture_init_inputs: dict[str, DataArray],
-    splash_config: SplashConfig,
+    *,
+    soil_moisture_init_method: str = "equilibrate",
+    soil_moisture_init_max_iter: int = 10,
+    soil_moisture_init_max_diff: float = 1.0,
 ) -> SplashOut:
     """Run the SPLASH water balance model.
 
@@ -475,8 +415,21 @@ def splash(
         scales the rate at which the soil supplies water for evaporation.
     soil_moisture_init_inputs
         Extra inputs for the configured ``soil_moisture_init_method``.
-    splash_config
-        Model settings; see `splash_config`.
+
+    Other Parameters
+    ----------------
+    soil_moisture_init_method
+        Where the initial soil moisture comes from: ``equilibrate`` repeats the
+        first year until soil moisture stabilises, and ``prescribed`` takes it
+        from the ``initial_soil_moisture`` input; see
+        `soil_moisture_init_inputs__prescribed`.
+    soil_moisture_init_max_iter
+        Maximum number of one-year iterations used to estimate initial soil
+        moisture. If any pixel in a block with a non-NaN result has not converged
+        by then, the run stops with an error. Only used by ``equilibrate``.
+    soil_moisture_init_max_diff
+        Maximum acceptable difference between year-start and year-end soil
+        moisture (millimetres). Only used by ``equilibrate``.
 
     Returns
     -------
@@ -497,7 +450,18 @@ def splash(
           radiation fluxes
 
         See `SplashOut` for per-output detail.
+
+    Raises
+    ------
+    ValueError
+        If ``soil_moisture_init_method`` is not a known method. Without this a
+        misspelt ``prescribed`` would silently select ``equilibrate``.
     """
+    if soil_moisture_init_method not in _INIT_METHODS:
+        raise ValueError(
+            f"Unknown soil_moisture_init_method {soil_moisture_init_method!r}; "
+            f"expected one of {', '.join(map(repr, _INIT_METHODS))}."
+        )
     return _splash(
         sunshine_fraction_daily=sunshine_fraction_daily,
         temperature_daily=temperature_daily,
@@ -507,6 +471,6 @@ def splash(
         max_soil_moisture=max_soil_moisture,
         dates_daily=time_index(temperature_daily, "temperature_daily"),
         initial_soil_moisture=soil_moisture_init_inputs.get("initial_soil_moisture"),
-        soil_moisture_init_max_iter=splash_config["soil_moisture_init_max_iter"],
-        soil_moisture_init_max_diff=splash_config["soil_moisture_init_max_diff"],
+        soil_moisture_init_max_iter=soil_moisture_init_max_iter,
+        soil_moisture_init_max_diff=soil_moisture_init_max_diff,
     )

@@ -37,7 +37,6 @@ from viresco.models.splash import (
     _describe_pixels,
     _splash,
     splash,
-    splash_config,
 )
 
 N_DAYS = 366  # 2020 is a leap year; SPLASH needs a full year for spin-up
@@ -329,9 +328,18 @@ class TestPrescribedInitialState:
             piped["soil_moisture_daily"].values, direct["soil_moisture_daily"].values
         )
 
-    def test_misspelt_method_is_rejected(self):
+    def test_misspelt_method_is_rejected(self, splash_inputs):
+        inputs = {
+            key: value
+            for key, value in splash_inputs.items()
+            if isinstance(value, xr.DataArray)
+        }
         with pytest.raises(ValueError, match="Unknown soil_moisture_init_method"):
-            splash_config(soil_moisture_init_method="prescibed")
+            splash(
+                **inputs,
+                soil_moisture_init_inputs={},
+                soil_moisture_init_method="prescibed",
+            )
 
 
 class TestInvalidPixels:
@@ -590,7 +598,6 @@ class TestLatitudeCheck:
             splash(
                 **inputs,
                 soil_moisture_init_inputs={},
-                splash_config=splash_config(),
             )
 
     def test_accepts_latitude_in_degrees_north(self, splash_inputs):
@@ -599,6 +606,5 @@ class TestLatitudeCheck:
             out = splash(
                 **inputs,
                 soil_moisture_init_inputs={},
-                splash_config=splash_config(),
             )
         assert out["soil_moisture_daily"].attrs["units"] == "mm"

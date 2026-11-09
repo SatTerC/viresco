@@ -154,14 +154,12 @@ def get_builtin_models() -> list[str]:
 def get_model_config(model_name: str) -> dict[str, Any]:
     """Collect a model's configurable settings and their defaults.
 
-    Every public function the module defines is read, not just the model node.
-    A module's settings are gathered into ``<node>_config`` container nodes (see
-    `viresco.models.splash.splash_config`), and a module with more than one
-    settings-bearing node has more than one such container — RothC's per-PFT
-    DPM/RPM ratios sit on `viresco.models.rothc.dpm_rpm_ratio_config`, not on
-    the model node. Scanning the module finds all of them, and the result is
-    still one flat dict because catena merges a section's keys into one flat
-    driver config regardless of which node consumes them.
+    Settings are the keyword-only arguments of the node that consumes them.
+    Every public function the module defines is read, not just the model node,
+    because some settings sit elsewhere: RothC's per-PFT DPM/RPM ratios are on
+    `viresco.models.rothc.dpm_rpm_ratio_monthly`. The result is still one flat
+    dict because catena merges a section's keys into one flat driver config
+    regardless of which node consumes them.
     """
     builtin_models = get_builtin_models()
     module_path = (

@@ -139,32 +139,26 @@ class TestRothcBridgeFunctions:
             )
 
     def test_dpm_rpm_ratio_shape(self, plant_type_mixed):
-        result = rothc_module.dpm_rpm_ratio_monthly(
-            plant_type_mixed, MONTHLY_CLOCK, rothc_module.dpm_rpm_ratio_config()
-        )
+        result = rothc_module.dpm_rpm_ratio_monthly(plant_type_mixed, MONTHLY_CLOCK)
         assert result.sizes["pixel"] == 4
         assert result.sizes["time"] == N_MONTHS
 
     def test_dpm_rpm_ratio_positive(self, plant_type_mixed):
-        result = rothc_module.dpm_rpm_ratio_monthly(
-            plant_type_mixed, MONTHLY_CLOCK, rothc_module.dpm_rpm_ratio_config()
-        )
+        result = rothc_module.dpm_rpm_ratio_monthly(plant_type_mixed, MONTHLY_CLOCK)
         assert np.all(result.values > 0)
 
     def test_dpm_rpm_ratio_values_by_type(self, plant_type_mixed):
-        result = rothc_module.dpm_rpm_ratio_monthly(
-            plant_type_mixed, MONTHLY_CLOCK, rothc_module.dpm_rpm_ratio_config()
-        )
+        result = rothc_module.dpm_rpm_ratio_monthly(plant_type_mixed, MONTHLY_CLOCK)
         np.testing.assert_allclose(result.sel(pixel=0).values, 0.25)
         np.testing.assert_allclose(result.sel(pixel=1).values, 1.44)
         np.testing.assert_allclose(result.sel(pixel=2).values, 0.67)
         np.testing.assert_allclose(result.sel(pixel=3).values, 1.44)
 
-    def test_dpm_rpm_ratio_config_override(self, plant_type_mixed):
+    def test_dpm_rpm_ratio_override(self, plant_type_mixed):
         result = rothc_module.dpm_rpm_ratio_monthly(
             plant_type_mixed,
             MONTHLY_CLOCK,
-            rothc_module.dpm_rpm_ratio_config(dpm_rpm_ratio_grass=0.67),
+            dpm_rpm_ratio_grass=0.67,
         )
         np.testing.assert_allclose(result.sel(pixel=1).values, 0.67)
 
@@ -627,14 +621,13 @@ class TestDisturbancesDaily:
         def _static_da(values):
             return xr.DataArray(values, dims=["pixel"], coords={"pixel": pixel})
 
-        from viresco.models.sgam import disturbances_config, pft_params
+        from viresco.models.sgam import pft_params
 
         result = disturbances_daily(
             temperature_daily=_da(np.full((n_days, n_pixels), 15.0)),
             gpp_daily=_da(np.full((n_days, n_pixels), 5.0)),
             lai_daily=_da(np.full((n_days, n_pixels), 2.0)),
             pft_params=pft_params(_static_da(np.array([0, 3]))),
-            disturbances_config=disturbances_config(),
         )
         assert isinstance(result, xr.DataArray)
         assert result.sizes["time"] == n_days
@@ -705,7 +698,7 @@ class TestSplashExecution:
 
     def test_public_splash_wrapper_returns_dict(self):
         """Test the public splash() function (covers the 'return _splash(...)' line)."""
-        from viresco.models.splash import splash, splash_config
+        from viresco.models.splash import splash
 
         n_days = 366
         n_pixels = 1
@@ -732,7 +725,6 @@ class TestSplashExecution:
             latitude=_static_da(np.array([51.5])),
             max_soil_moisture=_static_da(np.array([150.0])),
             soil_moisture_init_inputs={},
-            splash_config=splash_config(),
         )
         assert isinstance(result, dict)
         assert "actual_evapotranspiration_daily" in result

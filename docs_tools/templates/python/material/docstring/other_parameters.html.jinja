@@ -1,0 +1,8 @@
+{#- Other Parameters, rendered exactly as Parameters.
+
+A node's configurable settings are its keyword-only arguments, documented under
+numpydoc's ``Other Parameters`` so a model page can show them apart from the
+data inputs. The stock template for that section drops the defaults, which are
+what a settings table is for, so reuse the Parameters template instead.
+-#}
+{% include "docstring/parameters.html.jinja" with context %}

@@ -201,80 +201,6 @@ def _pmodel(
     )
 
 
-class PModelConfig(TypedDict):
-    """Settings for the `pmodel` node, as returned by `pmodel_config`.
-
-    The descriptions and defaults live on `pmodel_config`, which is what the
-    pipeline config populates.
-    """
-
-    method_optchi: str
-    method_jmaxlim: str
-    method_kphio: str
-    method_arrhenius: str
-    reference_kphio: float | None
-
-
-def pmodel_config(
-    *,
-    method_optchi: str = "prentice14",
-    method_jmaxlim: str = "wang17",
-    method_kphio: str = "temperature",
-    method_arrhenius: str = "simple",
-    reference_kphio: float | None = None,
-) -> PModelConfig:
-    """Collect the P-model settings from the pipeline config.
-
-    Grouping the settings into one node keeps them out of `pmodel`'s data
-    inputs. It does not namespace them: catena merges every module section's
-    params into one flat driver config, so these are still configured as
-    top-level keys of ``[pmodel]``.
-
-    Each setting selects one of pyrealm's alternative formulations; the
-    accepted values are pyrealm's, and the
-    [pyrealm P-model documentation](https://pyrealm.readthedocs.io/en/latest/users/pmodel/module_overview.html)
-    is the authoritative list. pyrealm's own warnings reach you unfiltered: it
-    warns that some of these methods are experimental, and recommends ``simple``
-    over the other ``method_arrhenius`` choices.
-
-    Parameters
-    ----------
-    method_optchi
-        Formulation for optimal chi, the ratio of leaf-internal to ambient CO2:
-        ``prentice14``, ``prentice14_rootzonestress``, ``c4``,
-        ``c4_rootzonestress``, ``c4_no_gamma``, ``c4_no_gamma_rootzonestress``,
-        ``lavergne20_c3`` or ``lavergne20_c4``. The ``lavergne20`` methods need
-        soil moisture and the ``rootzonestress`` methods a root zone stress
-        factor; see `optchi_inputs__theta` and `optchi_inputs__rootzonestress`.
-    method_jmaxlim
-        Jmax limitation: ``wang17``, ``smith19`` or ``none``.
-    method_kphio
-        Temperature dependence of the quantum yield efficiency (phi0):
-        ``temperature``, ``fixed`` or ``sandoval``. ``sandoval`` needs
-        climatological inputs; see `kphio_inputs__sandoval`.
-    method_arrhenius
-        Arrhenius temperature scaling of ``vcmax25_weekly`` and ``jmax25_weekly``,
-        the only outputs it affects: ``simple`` or ``kattge_knorr``.
-        ``kattge_knorr`` needs the mean growth temperature; see
-        `arrhenius_inputs__kattge_knorr`.
-    reference_kphio
-        Reference value of the quantum yield efficiency, as one number for the
-        whole run. Unset, ``method_kphio`` uses pyrealm's default for that method.
-
-    Returns
-    -------
-    PModelConfig
-        The settings, ready to unpack into the model call.
-    """
-    return PModelConfig(
-        method_optchi=method_optchi,
-        method_jmaxlim=method_jmaxlim,
-        method_kphio=method_kphio,
-        method_arrhenius=method_arrhenius,
-        reference_kphio=reference_kphio,
-    )
-
-
 @extract_fields()
 @check_annotations
 @stamp_output_units
@@ -288,9 +214,21 @@ def pmodel(
     optchi_inputs: dict[str, DataArray],
     kphio_inputs: dict[str, DataArray],
     arrhenius_inputs: dict[str, DataArray],
-    pmodel_config: PModelConfig,
+    *,
+    method_optchi: str = "prentice14",
+    method_jmaxlim: str = "wang17",
+    method_kphio: str = "temperature",
+    method_arrhenius: str = "simple",
+    reference_kphio: float | None = None,
 ) -> PModelOut:
     """Run the P-Model, returning every output pyrealm declares.
+
+    Each method setting selects one of pyrealm's alternative formulations; the
+    accepted values are pyrealm's, and the
+    [pyrealm P-model documentation](https://pyrealm.readthedocs.io/en/latest/users/pmodel/module_overview.html)
+    is the authoritative list. pyrealm's own warnings reach you unfiltered: it
+    warns that some of these methods are experimental, and recommends ``simple``
+    over the other ``method_arrhenius`` choices.
 
     Parameters
     ----------
@@ -314,8 +252,30 @@ def pmodel(
         Extra inputs for the configured ``method_kphio``.
     arrhenius_inputs
         Extra inputs for the configured ``method_arrhenius``.
-    pmodel_config
-        Model settings; see `pmodel_config`.
+
+    Other Parameters
+    ----------------
+    method_optchi
+        Formulation for optimal chi, the ratio of leaf-internal to ambient CO2:
+        ``prentice14``, ``prentice14_rootzonestress``, ``c4``,
+        ``c4_rootzonestress``, ``c4_no_gamma``, ``c4_no_gamma_rootzonestress``,
+        ``lavergne20_c3`` or ``lavergne20_c4``. The ``lavergne20`` methods need
+        soil moisture and the ``rootzonestress`` methods a root zone stress
+        factor; see `optchi_inputs__theta` and `optchi_inputs__rootzonestress`.
+    method_jmaxlim
+        Jmax limitation: ``wang17``, ``smith19`` or ``none``.
+    method_kphio
+        Temperature dependence of the quantum yield efficiency (phi0):
+        ``temperature``, ``fixed`` or ``sandoval``. ``sandoval`` needs
+        climatological inputs; see `kphio_inputs__sandoval`.
+    method_arrhenius
+        Arrhenius temperature scaling of ``vcmax25_weekly`` and ``jmax25_weekly``,
+        the only outputs it affects: ``simple`` or ``kattge_knorr``.
+        ``kattge_knorr`` needs the mean growth temperature; see
+        `arrhenius_inputs__kattge_knorr`.
+    reference_kphio
+        Reference value of the quantum yield efficiency, as one number for the
+        whole run. Unset, ``method_kphio`` uses pyrealm's default for that method.
 
     Returns
     -------
@@ -345,7 +305,11 @@ def pmodel(
         fapar_weekly=fapar_weekly,
         ppfd_weekly=ppfd_weekly,
         extra_inputs={**optchi_inputs, **kphio_inputs, **arrhenius_inputs},
-        **pmodel_config,
+        method_optchi=method_optchi,
+        method_jmaxlim=method_jmaxlim,
+        method_kphio=method_kphio,
+        method_arrhenius=method_arrhenius,
+        reference_kphio=reference_kphio,
     )
 
 
@@ -365,7 +329,7 @@ def _methods_requiring(
 # Methods that need inputs beyond the core drivers, grouped by what they need, as
 # pyrealm declares it. A method in none of these gets the empty
 # `<axis>_inputs__none` variant, and so does an unset key: the config's defaults live
-# on `pmodel_config`, which `config.when` cannot see, so this only holds while every
+# on `pmodel`, which `config.when` cannot see, so this only holds while every
 # default method needs nothing extra. `tests/test_pmodel_methods.py` checks that
 # invariant, and fails on a requirement set that has no variant here.
 #

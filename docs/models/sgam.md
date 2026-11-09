@@ -148,24 +148,28 @@ use_dynamic_allocation = true
 strict_mass_balance = false
 ```
 
-::: viresco.models.sgam.sgam_config
+::: viresco.models.sgam.sgam
     options:
       show_root_heading: false
       show_root_toc_entry: false
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
 
 Disturbance detection has one setting of its own, configured as a key of the same `[sgam]` section:
 
-::: viresco.models.sgam.disturbances_config
+::: viresco.models.sgam.disturbances_daily
     options:
       show_root_heading: false
       show_root_toc_entry: false
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
 
 ### Inputs
@@ -177,6 +181,8 @@ Disturbance detection has one setting of its own, configured as a key of the sam
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_other_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
 
 Two of those inputs are produced by this module rather than loaded:
@@ -200,6 +206,7 @@ Two of those inputs are produced by this module rather than loaded:
       show_signature: false
       separate_signature: false
       show_docstring_returns: false
+      show_docstring_other_parameters: false
       heading_level: 4
       docstring_section_style: spacy
 

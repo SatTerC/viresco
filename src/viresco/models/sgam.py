@@ -290,43 +290,6 @@ def _disturbances_daily(
     return out.assign_coords(time=time_coord).transpose("time", "pixel")
 
 
-class DisturbancesConfig(TypedDict):
-    """Settings for `disturbances_daily`, as returned by `disturbances_config`.
-
-    The descriptions and defaults live on `disturbances_config`, which is what
-    the pipeline config populates.
-    """
-
-    growing_season_limit: float
-
-
-def disturbances_config(
-    *,
-    growing_season_limit: float = 10.0,
-) -> DisturbancesConfig:
-    """Collect the disturbance-detection settings from the pipeline config.
-
-    Grouping the settings into one node keeps them out of
-    `disturbances_daily`'s data inputs. It does not namespace them: catena
-    merges every module section's params into one flat driver config, so these
-    are still configured as top-level keys of ``[sgam]``.
-
-    Parameters
-    ----------
-    growing_season_limit
-        Minimum daily mean temperature for a day to count as within the growing
-        season (degrees Celsius). This is a temperature gate, not a calendar
-        one, so it needs no hemisphere correction: the seasonal phase is already
-        carried by ``temperature_daily``.
-
-    Returns
-    -------
-    DisturbancesConfig
-        The settings, ready to unpack into the detection call.
-    """
-    return DisturbancesConfig(growing_season_limit=growing_season_limit)
-
-
 @check_annotations
 @stamp_output_units
 def disturbances_daily(
@@ -334,7 +297,8 @@ def disturbances_daily(
     gpp_daily: Annotated[xr.DataArray, Unit("g m-2 d-1"), DAILY],
     lai_daily: Annotated[xr.DataArray, Unit("1"), DAILY],
     pft_params: xr.Dataset,
-    disturbances_config: DisturbancesConfig,
+    *,
+    growing_season_limit: float = 10.0,
 ) -> Annotated[xr.DataArray, Unit("1"), DAILY]:
     """Detect daily disturbance events from anomalous declines in GPP and LAI.
 
@@ -357,8 +321,14 @@ def disturbances_daily(
     pft_params
         PFT parameters for each pixel. Output of the `pft_params` node; only
         ``disturbance_threshold`` is used here.
-    disturbances_config
-        Detection settings; see `disturbances_config`.
+
+    Other Parameters
+    ----------------
+    growing_season_limit
+        Minimum daily mean temperature for a day to count as within the growing
+        season (degrees Celsius). This is a temperature gate, not a calendar
+        one, so it needs no hemisphere correction: the seasonal phase is already
+        carried by ``temperature_daily``.
 
     Returns
     -------
@@ -372,7 +342,7 @@ def disturbances_daily(
         gpp_daily,
         lai_daily,
         pft_params["disturbance_threshold"],
-        **disturbances_config,
+        growing_season_limit=growing_season_limit,
     )
 
 
@@ -563,49 +533,6 @@ def _sgam(
     )
 
 
-class SgamConfig(TypedDict):
-    """Settings for the `sgam` node, as returned by `sgam_config`.
-
-    The descriptions and defaults live on `sgam_config`, which is what the
-    pipeline config populates.
-    """
-
-    use_dynamic_allocation: bool
-    strict_mass_balance: bool
-
-
-def sgam_config(
-    *,
-    use_dynamic_allocation: bool = True,
-    strict_mass_balance: bool = False,
-) -> SgamConfig:
-    """Collect the SGAM settings from the pipeline config.
-
-    Grouping the settings into one node keeps them out of `sgam`'s data inputs.
-    It does not namespace them: catena merges every module section's params
-    into one flat driver config, so these are still configured as top-level keys
-    of ``[sgam]``.
-
-    Parameters
-    ----------
-    use_dynamic_allocation
-        Whether allocation fractions vary with environmental conditions. When
-        False, the PFT's fixed base allocations are used instead.
-    strict_mass_balance
-        Whether a mass balance violation raises `RuntimeError`. When False, it
-        issues a warning instead.
-
-    Returns
-    -------
-    SgamConfig
-        The settings, ready to unpack into the model call.
-    """
-    return SgamConfig(
-        use_dynamic_allocation=use_dynamic_allocation,
-        strict_mass_balance=strict_mass_balance,
-    )
-
-
 @extract_fields()
 @check_annotations
 @stamp_output_units
@@ -623,9 +550,11 @@ def sgam(
     stem_pool_init: Annotated[xr.DataArray, Unit("g m-2")],
     root_pool_init: Annotated[xr.DataArray, Unit("g m-2")],
     latitude: xr.DataArray,
-    sgam_config: SgamConfig,
     litter_pool_init: xr.DataArray | None = None,
     removed_init: xr.DataArray | None = None,
+    *,
+    use_dynamic_allocation: bool = True,
+    strict_mass_balance: bool = False,
 ) -> SgamOut:
     """Run the Simplified Growth and Allocation Model (SGAM) vegetation model.
 
@@ -665,14 +594,21 @@ def sgam(
         Initial root carbon pool (grams of carbon per square metre).
     latitude
         Latitude for each pixel (degrees; used to determine hemisphere).
-    sgam_config
-        Model settings; see `sgam_config`.
     litter_pool_init
         Initial litter carbon pool (grams of carbon per square metre). Defaults
         to zero.
     removed_init
         Initial removed-carbon pool (grams of carbon per square metre). Defaults
         to zero.
+
+    Other Parameters
+    ----------------
+    use_dynamic_allocation
+        Whether allocation fractions vary with environmental conditions. When
+        False, the PFT's fixed base allocations are used instead.
+    strict_mass_balance
+        Whether a mass balance violation raises `RuntimeError`. When False, it
+        issues a warning instead.
 
     Returns
     -------
@@ -698,5 +634,6 @@ def sgam(
         latitude=latitude,
         litter_pool_init=litter_pool_init,
         removed_init=removed_init,
-        **sgam_config,
+        use_dynamic_allocation=use_dynamic_allocation,
+        strict_mass_balance=strict_mass_balance,
     )
