@@ -1,5 +1,7 @@
 """The models read dimension names off the data, so none is assumed.
 
+A static scan fails on any dimension name written into the package's source, and
+an end-to-end test checks that the models work on whatever names the data has.
 A file can name its axes ``date`` and ``site`` rather than ``time`` and ``pixel``.
 The end-to-end test runs the four-model example pipeline twice, as generated and
 with every input's dimensions renamed, and expects the same numbers on the renamed
@@ -7,6 +9,7 @@ axes. The example config's own expressions name ``time``, as a config written fo
 such a file would not, so the renamed run swaps that name in the config too.
 """
 
+import ast
 import re
 from pathlib import Path
 
@@ -22,6 +25,55 @@ from viresco.scaffold.data_gen import generate_synthetic_data
 
 EXAMPLE_CONFIG = Path(__file__).parent.parent / "recipes" / "config.toml"
 RENAMED = {"time": "date", "pixel": "site"}
+
+PACKAGE = Path(__file__).parent.parent / "src" / "viresco"
+DIM_NAMES = {"time", "pixel", "site", "date", "x", "y"}
+# The synthetic-data generator names the dimensions of the data it makes, and the
+# CLI handles no arrays: its 'x' and 'y' are a checkbox marker and a unit.
+NOT_SCANNED = {"scaffold", "cli"}
+
+
+def _docstrings(tree: ast.Module) -> set[int]:
+    owners = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+    return {
+        id(node.body[0].value)
+        for node in ast.walk(tree)
+        if isinstance(node, owners)
+        and node.body
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Constant)
+    }
+
+
+def _dim_names_in(path: Path) -> list[str]:
+    """Return each string, keyword or attribute in ``path`` named like a dimension."""
+    tree = ast.parse(path.read_text())
+    docstrings = _docstrings(tree)
+    found = []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Constant)
+            and node.value in DIM_NAMES
+            and id(node) not in docstrings
+        ):
+            found.append((node.lineno, repr(node.value)))
+        elif isinstance(node, ast.keyword) and node.arg in DIM_NAMES:
+            found.append((node.value.lineno, f"{node.arg}="))
+        elif isinstance(node, ast.Attribute) and node.attr in DIM_NAMES:
+            found.append((node.lineno, f".{node.attr}"))
+    where = path.relative_to(PACKAGE.parent)
+    return [f"{where}:{line}: {name}" for line, name in sorted(found)]
+
+
+def test_no_dimension_name_is_written_into_the_source():
+    """Models take names from `sole_time_dim` and `viresco._dims.space_dim`."""
+    hits = [
+        hit
+        for path in sorted(PACKAGE.rglob("*.py"))
+        if not NOT_SCANNED & set(path.relative_to(PACKAGE).parts)
+        for hit in _dim_names_in(path)
+    ]
+    assert not hits, "dimension names in the source:\n" + "\n".join(hits)
 
 
 def _rename_dims(da: xr.DataArray, mapping: dict[str, str]) -> xr.DataArray:
