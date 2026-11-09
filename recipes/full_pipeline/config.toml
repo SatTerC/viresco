@@ -1,0 +1,109 @@
+# SPLASH, the P-model, SGAM and RothC in one pipeline, joined by the bridges in
+# nodes.py.
+
+[splash]
+
+[pmodel]
+method_kphio = "sandoval"
+method_optchi = "lavergne20_c3"
+
+[sgam]
+
+[rothc]
+n_years_spinup = 1
+equilibrium_threshold = 0.0001
+
+[bridges]
+_import_path = "nodes.py"
+porosity = 0.45
+par_photons_per_mj = 4.57
+
+[inputs.daily]
+path = "data/daily.nc"
+vars = [
+  "precipitation",
+  "sunshine_fraction",
+  "temperature",
+  "lai",
+  "gpp",
+]
+
+[inputs.weekly]
+path = "data/weekly.nc"
+vars = [
+  "co2",
+  "fapar",
+  "ppfd",
+  "pressure",
+  "vpd",
+]
+
+[inputs.static]
+path = "data/static.nc"
+suffix = ""
+vars = [
+  "elevation",
+  "plant_type",
+  "max_soil_moisture",
+  "clay_content",
+  "soil_depth",
+  "organic_carbon_stocks",
+  "root_pool_init",
+  "leaf_pool_init",
+  "stem_pool_init",
+]
+
+[[resample]]
+vars = [
+  "temperature",
+  "precipitation",
+  "soil_moisture",
+]
+from = "daily"
+to = "weekly"
+freq = "7D"
+
+[[resample]]
+vars = [
+  "temperature",
+]
+from = "daily"
+to = "monthly"
+freq = "1ME"
+
+[[resample]]
+vars = ["disturbances"]
+from = "daily"
+to = "weekly"
+freq = "7D"
+aggfunc = "max"
+
+[outputs.daily]
+path = "results/daily.nc"
+vars = [
+  "actual_evapotranspiration",
+  "soil_moisture",
+  "runoff",
+]
+
+[outputs.weekly]
+path = "results/weekly.nc"
+vars = [
+  "gpp",
+  "leaf_pool",
+  "stem_pool",
+  "root_pool",
+  "litter_pool",
+  "leaf_area_index",
+]
+
+[outputs.monthly]
+path = "results/monthly.nc"
+vars = [
+  "decomposable_plant_material",
+  "resistant_plant_material",
+  "microbial_biomass",
+  "humified_organic_matter",
+  "soil_organic_carbon",
+  "heterotrophic_respiration",
+]

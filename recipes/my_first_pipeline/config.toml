@@ -1,0 +1,26 @@
+[splash]
+
+[inputs.daily]
+path = "data/daily.nc"
+vars = [
+  "precipitation",
+  "sunshine_fraction",
+  "temperature",
+]
+
+[inputs.static]
+path = "data/static.nc"
+suffix = ""
+vars = [
+  "elevation",
+  "latitude",
+  "max_soil_moisture",
+]
+
+[outputs.daily]
+path = "results/daily.nc"
+vars = [
+  "actual_evapotranspiration",
+  "soil_moisture",
+  "runoff",
+]

@@ -20,7 +20,9 @@ tmp/
 __marimo__/
 recipes/*/data/raw/
 recipes/*/results/
-!recipes/*/data/*.nc
+recipes/*/data/
+!recipes/soil_moisture/data/
+!recipes/soil_moisture/data/cosmos.nc
 
 .claude/
 
