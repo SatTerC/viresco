@@ -63,15 +63,15 @@ def render(model: str) -> str:
 def _drop_config_notes(dot: str) -> str:
     """Remove Hamilton's floating config-value boxes.
 
-    Hamilton draws every driver-config value as an unconnected ``shape=note``
-    box. On a model page those are noise: two of them restate settings the
-    node's own input box already lists, and the third is
-    ``hamilton.enable_power_user_mode``, which is framework bookkeeping. The
-    values themselves belong in the page's configuration section, where they
-    are documented rather than merely displayed.
+    catena moves each config value a node consumes into that node's config
+    table, so the boxes left floating are config no node reads, such as
+    ``hamilton.enable_power_user_mode``. The tables and the legend's config
+    entry are kept.
     """
     return "".join(
-        line for line in dot.splitlines(keepends=True) if "shape=note" not in line
+        line
+        for line in dot.splitlines(keepends=True)
+        if not ("shape=note" in line and "[label=<<b>" in line)
     )
 
 
