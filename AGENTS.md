@@ -17,7 +17,7 @@ checkout, if present) rather than guessing at its API.
 
 - All common tasks run via `just` (see `justfile`) — no need to invoke `pytest`/`uv run` directly.
 - Pre-commit hooks only run `uv-lock`, `pyright`, and `ruff` — not the full test suite.
-- A recipe is either a single marimo notebook, `recipes/<name>.py`, or a directory, `recipes/<name>/`, holding a `config.toml`, a node module, the data it runs on, and the notebook as `demo.py`, as catena's recipes do. Prefer a directory for a new recipe: real functions in a module rather than `[[node]]` expressions, and real data rather than synthetic. `just export <name>` renders either into `docs/recipes/`; `tests/test_recipes.py` dry-runs and runs every directory recipe's config. Notebooks pin `ukceh-viresco==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
+- A recipe is a directory, `recipes/<name>/`, holding a `config.toml`, any node module it needs, its data or a `make_data.py` that writes it, and the marimo notebook as `demo.py`, as catena's recipes do. Put conversions in the node module as real functions rather than `[[node]]` expressions, and prefer real data to synthetic. `just export <name>` renders the notebook into `docs/recipes/`; `tests/test_recipes.py` dry-runs and runs every recipe's config. Notebooks pin `ukceh-viresco==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
 - Plain config files under `recipes/` are **not** loaded by any code or tooling — they are user-facing references only, so nothing will catch a mistake in them. Check with `viresco run --dry-run`. That covers `recipes/config.toml` and `recipes/graphviz.toml`.
 - Documentation uses **zensical** (markdown, mkdocstrings-material-like), **not** Sphinx/rst.
 - Synthetic data is table-driven: a variable is one `Var` row (units, long name,
@@ -60,7 +60,7 @@ Every PR merges to `main`; a release is a tag on it, made by the maintainer only
 Nothing is published to PyPI: users install a tag from GitHub.
 
 1. `uv version --bump rc` (giving e.g. `0.9.0rc1`), or `--bump stable` for a
-   full release. Update the `ukceh-viresco==` pins in `recipes/*.py` and `recipes/*/demo.py` to match, run
+   full release. Update the `ukceh-viresco==` pins in `recipes/*/demo.py` to match, run
    `just export-all`, and commit. `just tag` refuses if a pin is stale.
 2. `just tag`, then `just release`.
 3. After a full release, `uv version --bump minor --bump dev`, update the recipe

@@ -1,0 +1,71 @@
+# SPLASH, the P-model and SGAM, joined by the bridges in nodes.py.
+
+[splash]
+
+[pmodel]
+method_kphio = "sandoval"
+method_optchi = "lavergne20_c3"
+
+[sgam]
+
+[bridges]
+_import_path = "nodes.py"
+porosity = 0.45
+par_photons_per_mj = 4.57
+
+[inputs.daily]
+path = "data/daily.nc"
+vars = [
+  "precipitation",
+  "sunshine_fraction",
+  "temperature",
+  "lai",
+  "gpp",
+]
+
+[inputs.weekly]
+path = "data/weekly.nc"
+vars = [
+  "co2",
+  "fapar",
+  "ppfd",
+  "pressure",
+  "vpd",
+]
+
+[inputs.static]
+path = "data/static.nc"
+suffix = ""
+vars = [
+  "elevation",
+  "plant_type",
+  "max_soil_moisture",
+  "leaf_pool_init",
+  "stem_pool_init",
+  "root_pool_init",
+]
+
+[[resample]]
+vars = [
+  "temperature",
+  "soil_moisture",
+]
+from = "daily"
+to = "weekly"
+freq = "7D"
+
+[[resample]]
+vars = ["disturbances"]
+from = "daily"
+to = "weekly"
+freq = "7D"
+aggfunc = "max"
+
+[outputs.weekly]
+path = "results/weekly.nc"
+vars = [
+  "gpp",
+  "leaf_pool",
+  "stem_pool",
+  "root_pool",
+]
