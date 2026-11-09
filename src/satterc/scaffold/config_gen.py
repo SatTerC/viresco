@@ -337,9 +337,9 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
                     "inputs": [source_name],
                     "expression": (
                         f"{source_name}.resample(time='{freq_offset}').sum()"
-                        f".assign_attrs(units='{units[target_name]}')"
                     ),
                     "units": units[target_name],
+                    "overwrite_units": True,
                     "freq": freq_offset,
                 }
             )
@@ -368,11 +368,9 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
             {
                 "name": target_name,
                 "inputs": [source_name],
-                "expression": (
-                    f"({source_name} * {factor:.6g})"
-                    f".assign_attrs(units='{target_units}')"
-                ),
+                "expression": f"{source_name} * {factor:.6g}",
                 "units": target_units,
+                "overwrite_units": True,
                 "freq": temporal.offset(_label(freq)),
             }
         )

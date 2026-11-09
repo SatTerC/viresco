@@ -132,8 +132,9 @@ def _(mo):
     [[node]]
     name = "aridity_index"
     inputs = ["potential_evapotranspiration_daily", "precipitation_daily"]
-    expression = "(potential_evapotranspiration_daily.sum('time') / precipitation_daily.sum('time')).assign_attrs(units='1')"
+    expression = "potential_evapotranspiration_daily.sum('time') / precipitation_daily.sum('time')"
     units = "1"  # ratio of two mm totals -> dimensionless
+    overwrite_units = true
 
     # Both the P-model (as pyrealm's `theta`) and SGAM (against the PFT's
     # `wilting_point`/`field_capacity`) want volumetric water content (m3 m-3).
@@ -144,8 +145,9 @@ def _(mo):
     [[node]]
     name = "volumetric_water_content_weekly"
     inputs = ["soil_moisture_weekly", "max_soil_moisture"]
-    expression = "(soil_moisture_weekly / max_soil_moisture * 0.45).assign_attrs(units='m3 m-3')"
+    expression = "soil_moisture_weekly / max_soil_moisture * 0.45"
     units = "m3 m-3"
+    overwrite_units = true
     freq = "7D"
 
     # satterc.models.pmodel reports GPP and LUE in pyrealm's own units, which are
@@ -154,16 +156,18 @@ def _(mo):
     [[node]]
     name = "gpp_weekly"
     inputs = ["gpp_flux_weekly"]
-    expression = "(gpp_flux_weekly * 0.0864).assign_attrs(units='g m-2 d-1')"
+    expression = "gpp_flux_weekly * 0.0864"
     units = "g m-2 d-1"
+    overwrite_units = true
     freq = "7D"
 
     # For LUE, pyrealm's denominator is moles of photons and SGAM's is MJ of PAR.
     [[node]]
     name = "lue_weekly"
     inputs = ["lue_photon_weekly"]
-    expression = "(lue_photon_weekly * 4.57).assign_attrs(units='g MJ-1')"
+    expression = "lue_photon_weekly * 4.57"
     units = "g MJ-1"
+    overwrite_units = true
     freq = "7D"
 
     [[resample]]

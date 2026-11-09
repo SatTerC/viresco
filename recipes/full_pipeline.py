@@ -99,7 +99,8 @@ def _(mo):
     Everything else in the file exists to connect them:
 
     - `[[node]]` defines a new node from an expression over existing ones, which is how a bridge between two models is written.
-      Nothing converts units between nodes, so an expression that changes a unit states the new one with `.assign_attrs(units=...)`, and the node's `units` key declares it.
+      Nothing converts units between nodes, so a node whose expression changes a unit declares the new one with its `units` key.
+      catena labels the output with it, and `overwrite_units = true` replaces the label the output would otherwise keep from its inputs, as xarray carries it through `x * k` or a sum.
     - `[[resample]]` changes the frequency of a variable, which is how a daily model feeds a weekly one.
     - `[inputs.*]` and `[outputs.*]` say what is read from and written to disk.
 
@@ -167,8 +168,9 @@ def _(mo):
     [[node]]
     name = "aridity_index"
     inputs = ["potential_evapotranspiration_daily", "precipitation_daily"]
-    expression = "(potential_evapotranspiration_daily.sum('time') / precipitation_daily.sum('time')).assign_attrs(units='1')"
+    expression = "potential_evapotranspiration_daily.sum('time') / precipitation_daily.sum('time')"
     units = "1"  # ratio of two mm totals -> dimensionless
+    overwrite_units = true
 
     # Both the P-model (as pyrealm's `theta`) and SGAM (against the PFT's
     # `wilting_point`/`field_capacity`) want volumetric water content (m3 m-3).
@@ -179,8 +181,9 @@ def _(mo):
     [[node]]
     name = "volumetric_water_content_weekly"
     inputs = ["soil_moisture_weekly", "max_soil_moisture"]
-    expression = "(soil_moisture_weekly / max_soil_moisture * 0.45).assign_attrs(units='m3 m-3')"
+    expression = "soil_moisture_weekly / max_soil_moisture * 0.45"
     units = "m3 m-3"
+    overwrite_units = true
     freq = "7D"
 
     # satterc.models.pmodel is an honest wrapper. It reports GPP and LUE in
@@ -193,8 +196,9 @@ def _(mo):
     [[node]]
     name = "gpp_weekly"
     inputs = ["gpp_flux_weekly"]
-    expression = "(gpp_flux_weekly * 0.0864).assign_attrs(units='g m-2 d-1')"
+    expression = "gpp_flux_weekly * 0.0864"
     units = "g m-2 d-1"
+    overwrite_units = true
     freq = "7D"
 
     # pyrealm defines LUE against PPFD, a *photon* flux, so its denominator is
@@ -203,8 +207,9 @@ def _(mo):
     [[node]]
     name = "lue_weekly"
     inputs = ["lue_photon_weekly"]
-    expression = "(lue_photon_weekly * 4.57).assign_attrs(units='g MJ-1')"
+    expression = "lue_photon_weekly * 4.57"
     units = "g MJ-1"
+    overwrite_units = true
     freq = "7D"
 
     # iWUE needs no bridge: pyrealm reports umol mol-1 and SGAM consumes it.
@@ -212,21 +217,23 @@ def _(mo):
     [[node]]
     name = "leaf_area_index_weekly"
     inputs = ["leaf_pool_weekly", "pft_params"]
-    expression = '(leaf_pool_weekly / pft_params["leaf_carbon_area"]).assign_attrs(units="m2 m-2")'
+    expression = 'leaf_pool_weekly / pft_params["leaf_carbon_area"]'
     units = "m2 m-2"  # leaf carbon per ground area / leaf carbon per leaf area
+    overwrite_units = true
 
     # PET, not AET: RothC's water balance is rainfall minus evaporative *demand*.
     # AET is already suppressed by the dryness RothC is trying to compute, so
     # feeding it in double-counts the limitation and holds the soil too wet.
     # SPLASH PET is a daily rate (mm d-1); RothC wants a monthly total (mm).
     # Summing the daily rate over the month integrates it (daily Δt = 1 day, so
-    # Σ mm d-1 is numerically the monthly mm total), so the expression relabels
-    # the rate as the resulting total.
+    # Σ mm d-1 is numerically the monthly mm total), so `overwrite_units`
+    # relabels the rate as the resulting total.
     [[node]]
     name = "potential_evapotranspiration_monthly"
     inputs = ["potential_evapotranspiration_daily"]
-    expression = "(potential_evapotranspiration_daily.resample(time='1ME').sum()).assign_attrs(units='mm')"
+    expression = "potential_evapotranspiration_daily.resample(time='1ME').sum()"
     units = "mm"
+    overwrite_units = true
 
     # Precipitation is likewise a daily rate (mm d-1); aggregate to a monthly
     # total (mm) for RothC the same way. (Done as a derive rather than a plain
@@ -235,8 +242,9 @@ def _(mo):
     [[node]]
     name = "precipitation_monthly"
     inputs = ["precipitation_daily"]
-    expression = "(precipitation_daily.resample(time='1ME').sum()).assign_attrs(units='mm')"
+    expression = "precipitation_daily.resample(time='1ME').sum()"
     units = "mm"
+    overwrite_units = true
 
     # Carbon entering the soil each month = the litter produced that month. SGAM's
     # litter_pool is an accumulate-only stock (no decomposition; that is RothC's
@@ -247,13 +255,13 @@ def _(mo):
     [[node]]
     name = "soil_carbon_input_monthly"
     inputs = ["litter_pool_weekly"]
-    expression = "litter_pool_weekly.diff('time').resample(time='1ME').sum().assign_attrs(units='g m-2').pint.quantify().pint.to('t ha-1').pint.dequantify()"
+    expression = "litter_pool_weekly.diff('time').resample(time='1ME').sum().pint.quantify().pint.to('t ha-1').pint.dequantify()"
     units = "t ha-1"
 
     [[node]]
     name = "inert_organic_matter"
     inputs = ["organic_carbon_stocks"]
-    expression = "(0.049 * organic_carbon_stocks**1.139).assign_attrs(units='t ha-1')"  # Falloon IOM
+    expression = "0.049 * organic_carbon_stocks**1.139"  # Falloon IOM
     units = "t ha-1"
 
     [[resample]]
@@ -515,8 +523,9 @@ def _(mo):
     The per-call `rankdir` overrides the shared style's without discarding the rest of it.
 
     Two more bridges appear here, and both are about aggregating a daily rate into a monthly total.
-    Summing a rate in mm d-1 over a month integrates it, because the daily timestep is one day, and the expression relabels the result as the total it now is with `.assign_attrs(units="mm")`.
-    `units = "mm"` then declares it, so the label is checked rather than trusted.
+    Summing a rate in mm d-1 over a month integrates it, because the daily timestep is one day, but the sum keeps the rate's `mm d-1` label.
+    `units = "mm"` with `overwrite_units = true` relabels the result as the total it now is.
+    That label is stated rather than checked, so the comment beside each bridge is what records why it is right.
 
     The choice of *which* water flux to send RothC matters more than the arithmetic.
     It is potential evapotranspiration, not actual.
