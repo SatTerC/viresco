@@ -313,6 +313,13 @@ def _splash(
     Unset, ``initial_soil_moisture`` means the initial state comes from the spin-up.
     """
     _require_consecutive_days(dates_daily)
+    spatial = [dim for dim in sunshine_fraction_daily.dims if dim != "time"]
+    if len(spatial) != 1:
+        raise ValueError(
+            "SPLASH needs climate inputs with dims (time, <one spatial dim>), but "
+            f"sunshine_fraction_daily has dims {sunshine_fraction_daily.dims}."
+        )
+    (space,) = spatial
     prescribed = [] if initial_soil_moisture is None else [initial_soil_moisture]
     calendar = pyrealm.core.calendar.Calendar(dates_daily.values)
 
@@ -325,7 +332,7 @@ def _splash(
         elevation,
         latitude,
         max_soil_moisture,
-        sunshine_fraction_daily["pixel"],
+        sunshine_fraction_daily[space],
         *prescribed,
         input_core_dims=[["time"]] * 3 + [[]] * (4 + len(prescribed)),
         output_core_dims=[["time"]] * n_outputs,
@@ -345,7 +352,7 @@ def _splash(
     return cast(
         SplashOut,
         {
-            name: out.assign_coords(time=time_coord).transpose("time", "pixel")
+            name: out.assign_coords(time=time_coord).transpose("time", space)
             for name, out in zip(_OUTPUT_FIELDS, outputs, strict=True)
         },
     )

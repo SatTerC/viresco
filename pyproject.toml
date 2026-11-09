@@ -62,6 +62,7 @@ docs = [
 ]
 recipes = [
     "matplotlib>=3.10.8",
+    "xharvest[cosmos]",
 ]
 test = [
     "coverage>=7.13.5",
@@ -75,13 +76,14 @@ module-name = "viresco"
 
 [tool.uv]
 exclude-newer = "1 week"
-exclude-newer-package = { marimo-md-export = false , xarray-annotated = false , ukceh-catena = false , sgam = false , rothc-py = false }
+exclude-newer-package = { marimo-md-export = false , xarray-annotated = false , ukceh-catena = false , sgam = false , rothc-py = false , xharvest = false }
 
 [tool.uv.sources]
 rothc-py = { git = "https://github.com/SatTerC/rothc_py.git" }
 sgam = { git = "https://github.com/SatTerC/sgam.git" }
 # TODO: pin to a catena release tag once catena and viresco stop changing in step.
 ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
+xharvest = { git = "https://github.com/NERC-CEH/xharvest", branch = "main" }
 
 [tool.pyright]
 venvPath = "."

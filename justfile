@@ -54,16 +54,18 @@ docs: graph-all
   zensical build --clean
 
 # Export a single recipe notebook to docs/recipes/.
-export recipe:
+# Any further arguments reach the notebook, e.g. `just export soil_moisture --data synthetic`.
+export recipe *args:
   # Export to Markdown and keep the HTML notebook in the generated assets directory.
   marimo-md-export "recipes/{{recipe}}.py" "docs/recipes/{{recipe}}.md" \
-    --keep-html --overflow scroll
+    --keep-html --overflow scroll {{ if args != "" { "--marimo-args='" + args + "'" } else { "" } }}
 
 # Export all notebooks in recipes/ to docs/recipes/.
-export-all:
+# Pass `--data synthetic` to run soil_moisture offline, as CI does.
+export-all *args:
   just export my_first_pipeline
   just export full_pipeline
-  just export soil_moisture
+  just export soil_moisture {{args}}
   just export pft_parameters
 
 # Tag the version in pyproject.toml and push the tag.

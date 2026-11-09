@@ -18,6 +18,7 @@ tmp/
 *.html
 !overrides/*.html
 __marimo__/
+recipes/data/
 
 .claude/
 
