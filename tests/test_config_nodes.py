@@ -1,9 +1,9 @@
 """`[[node]]` entries must lower into a buildable graph with their contracts.
 
 `tests/test_config.toml` declares no `[[node]]` or `[[resample]]` entries, so the
-fast suite never exercised conduit's node lowering at all — the only test that
+fast suite never exercised catena's node lowering at all — the only test that
 did was `test_contracts.py`, which generates two years of data and runs four
-models. That left the cheapest, most load-bearing part of every satterc config
+models. That left the cheapest, most load-bearing part of every viresco config
 covered only by the slowest test in the suite.
 
 These tests build the same *shapes* of node that `recipes/config.toml` relies on
@@ -18,8 +18,9 @@ import typing
 from pathlib import Path
 
 import pytest
-from conduit import load_config
+from catena import load_config
 from conftest import driver_from_config
+from pyrealm_cases import declared_unit
 
 CONFIG = """
 [inputs.daily]
@@ -93,11 +94,12 @@ class TestNodeLowering:
     def test_declared_units_reach_the_built_function(self, node_config, name, unit):
         """The contract must survive `exec` *and* the decorators wrapping it.
 
-        conduit injects the return annotation after building the function body,
-        and the `declare_*` decorators then wrap it. Reading the hint back through
-        `get_type_hints` is what catches the injection being lost in between —
-        which is exactly what PEP 749 caused on Python 3.14, by swapping
-        `__annotations__` for `__annotate__` in `functools.WRAPPER_ASSIGNMENTS`
+        catena injects the return annotation after building the function body,
+        and `xarray_annotated.check_annotations` then wraps it. Reading the hint
+        back through `get_type_hints` is what catches the injection being lost
+        in between — which is exactly what PEP 749 caused on Python 3.14, by
+        swapping `__annotations__` for `__annotate__` in
+        `functools.WRAPPER_ASSIGNMENTS`
         so that `functools.wraps` no longer carried the injected hint across.
         Fixed upstream in xarray-annotated 0.4.1; this is the regression guard.
         """
@@ -106,7 +108,7 @@ class TestNodeLowering:
             driver.graph.nodes[name].callable, include_extras=True
         )
         assert "return" in hints, f"{name} lost its injected return annotation"
-        assert unit in str(hints["return"])
+        assert declared_unit(hints["return"]) == unit
 
 
 def test_the_example_config_still_uses_nodes():

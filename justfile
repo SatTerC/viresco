@@ -22,7 +22,7 @@ test:
 
 # Run tests with coverage report.
 test-cov:
-  pytest --cov=satterc --cov-report=term-missing --cov-fail-under=90
+  pytest --cov=viresco --cov-report=term-missing --cov-fail-under=90
 
 # Re-record the pyrealm unit anchor in tests/data/pyrealm_golden.json.
 # Only after reviewing *why* pyrealm's output changed. If a unit convention
@@ -47,7 +47,10 @@ graph-all:
 # checking in an SVG that a signature change would silently invalidate.
 # `--clean` because zensical's incremental cache does not track the files pulled
 # in by `pymdownx.snippets`, so a freshly rendered graph is otherwise ignored.
+# Does not depend on `export-all`, which takes minutes, but refuses to build
+# while any recipe notebook lacks an export, since every link to it would break.
 docs: graph-all
+  @for nb in recipes/*.py; do md="docs/recipes/$(basename "$nb" .py).md"; [ -f "$md" ] || { echo "error: $md is missing; run \`just export-all\` first" >&2; exit 1; }; done
   zensical build --clean
 
 # Export a single recipe notebook to docs/recipes/.
@@ -62,3 +65,30 @@ export-all:
   just export full_pipeline
   just export soil_moisture
   just export pft_parameters
+
+# Tag the version in pyproject.toml and push the tag.
+tag:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  v=$(uv version --short)
+  [[ $v != *dev* ]] || { echo "refusing to tag dev version $v" >&2; exit 1; }
+  [[ $(git branch --show-current) == main ]] || { echo "not on main" >&2; exit 1; }
+  git diff --quiet HEAD || { echo "uncommitted changes" >&2; exit 1; }
+  stale=$(grep -L "\"ukceh-viresco==$v\"" recipes/*.py || true)
+  [[ -z $stale ]] || { echo "recipes not pinned to ukceh-viresco==$v:" $stale >&2; exit 1; }
+  git fetch --quiet origin main
+  [[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] \
+    || { echo "main differs from origin/main" >&2; exit 1; }
+  git tag -a "v$v" -m "v$v"
+  git push origin "v$v"
+
+# Create a GitHub release for the tagged version, deploying the docs if stable.
+release:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  v=$(uv version --short)
+  git rev-parse --quiet --verify "refs/tags/v$v" >/dev/null \
+    || { echo "no tag v$v: run 'just tag' first" >&2; exit 1; }
+  pre=()
+  [[ ! $v =~ (a|b|rc)[0-9]+$ ]] || pre=(--prerelease)
+  gh release create "v$v" --verify-tag --generate-notes "${pre[@]}"

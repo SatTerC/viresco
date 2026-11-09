@@ -1,11 +1,21 @@
-# `satterc`
+# `viresco`
 
-Composable models of the terrestrial carbon and water cycles, for [conduit](https://github.com/NERC-CEH/conduit) pipelines.
+Composable models of the terrestrial carbon and water cycles, for [catena](https://github.com/NERC-CEH/catena) pipelines.
 
 > [!WARNING]
-> **Alpha status.** `satterc` is an early-stage project under active development. Things will change without warning.
+> **Alpha status.** `viresco` is an early-stage project under active development. Things will change without warning.
 
-Usage instructions are in the [documentation](https://SatTerC.github.io/satterc).
+Usage instructions are in the [documentation](https://nerc-ceh.github.io/viresco).
+
+## Installation
+
+Viresco is not on PyPI, so install it from GitHub.
+
+```sh
+uv add git+https://github.com/NERC-CEH/viresco
+```
+
+Append a tag such as `@v0.8.0` to the URL to install a specific release rather than the latest `main`.
 
 ## Developer instructions
 
@@ -21,8 +31,8 @@ This project uses [uv](https://docs.astral.sh/uv/) for dependency management and
 1. **Clone the repository:**
 
 ```bash
-git clone https://github.com/SatTerC/satterc.git
-cd satterc
+git clone https://github.com/NERC-CEH/viresco.git
+cd viresco
 ```
 
 

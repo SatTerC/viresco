@@ -1,6 +1,6 @@
 """One spelling of each temporal resolution, shared by everything that needs it.
 
-`satterc.temporal` exists because the models, the config generator and the
+`viresco.temporal` exists because the models, the config generator and the
 synthetic data generator all have to agree on what "weekly" means. They used to
 carry three separate spellings of ``"7D"`` and ``"1ME"``, kept in step by a
 comment. These tests pin the agreement so it cannot drift back apart silently —
@@ -12,9 +12,9 @@ import typing
 import pytest
 from xarray_annotated.temporal import Freq
 
-from satterc import temporal
-from satterc.models import pmodel, rothc, sgam, splash
-from satterc.temporal import (
+from viresco import temporal
+from viresco.models import pmodel, rothc, sgam, splash
+from viresco.temporal import (
     BY_LABEL,
     DAILY,
     MONTHLY,
@@ -110,7 +110,7 @@ class TestOneSourceOfTruth:
         """Guards against a fourth spelling appearing somewhere.
 
         Reads the package source rather than any one module, so a new literal
-        added anywhere in `satterc` fails here.
+        added anywhere in `viresco` fails here.
         """
         from pathlib import Path
 

@@ -1,6 +1,6 @@
 """Griffe extension that turns a `TypedDict` of outputs into a table.
 
-SatTerC model nodes return a `TypedDict` whose fields carry their type, units
+Viresco model nodes return a `TypedDict` whose fields carry their type, units
 and frequency in the annotation, as ``Annotated[DataArray, "mm d-1", DAILY]``,
 and their meaning in an attribute docstring. Rendered as class members that
 becomes a run of headings; what the model pages want is one table, matching the

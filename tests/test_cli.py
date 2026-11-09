@@ -1,21 +1,21 @@
-"""Tests for the satterc CLI commands."""
+"""Tests for the viresco CLI commands."""
 
 import shutil
 import tomllib
 
 import pytest
-from conduit import load_config
+from catena import load_config
 from typer.testing import CliRunner
 
-from satterc._version import __version__
-from satterc.cli import app
-from satterc.cli.data_gen import (
+from viresco._version import __version__
+from viresco.cli import app
+from viresco.cli.data_gen import (
     _parse_bbox,
     _parse_duration,
     _parse_start_date,
     _validate_output_paths,
 )
-from satterc.cli.setup import (
+from viresco.cli.setup import (
     _display_models,
     _import_error,
     _parse_selections,
@@ -35,12 +35,12 @@ def config_toml(tmp_path, synthetic_data_dir):
     """Config TOML pointing to session-scoped synthetic NetCDF files."""
     content = f"""\
 [pmodel]
-_import_path = "satterc.models.pmodel"
+_import_path = "viresco.models.pmodel"
 method_kphio = "sandoval"
 method_optchi = "lavergne20_c3"
 
 [rothc]
-_import_path = "satterc.models.rothc"
+_import_path = "viresco.models.rothc"
 n_years_spinup = 1
 
 [inputs.daily]
@@ -78,7 +78,7 @@ def datagen_config_toml(tmp_path):
     data_dir = tmp_path / "data"
     content = f"""\
 [rothc]
-_import_path = "satterc.models.rothc"
+_import_path = "viresco.models.rothc"
 n_years_spinup = 1
 
 [inputs.daily]
@@ -165,7 +165,7 @@ class TestGraphCommand:
 
 
 class TestComposedApp:
-    """The pipeline commands are conduit's, mounted into satterc's app."""
+    """The pipeline commands are catena's, mounted into viresco's app."""
 
     @pytest.mark.parametrize(
         "command", ["run", "graph", "gridded", "setup", "data-gen"]
@@ -373,8 +373,8 @@ class TestModelSelectionFlag:
     def _models_in(self, path) -> list[str]:
         with open(path, "rb") as f:
             data = tomllib.load(f)
-        # A built-in model section carries no `_import_path` -- satterc
-        # registers the module with conduit -- so it is identified by name.
+        # A built-in model section carries no `_import_path` -- viresco
+        # registers the module with catena -- so it is identified by name.
         return [k for k in data if k in self.FOUR]
 
     @pytest.mark.parametrize(
@@ -427,7 +427,7 @@ class TestCustomModuleImportCheck:
     """
 
     def test_importable_module_is_added_without_a_prompt(self):
-        assert _import_error("satterc.models.rothc") is None
+        assert _import_error("viresco.models.rothc") is None
 
     def test_unimportable_module_reports_why(self):
         error = _import_error("nosuch.module")

@@ -81,15 +81,16 @@ $$\text{GPP} = \text{LUE} \cdot \text{PPFD} \cdot f_{\text{APAR}}$$
 
 The P-model includes a soil moisture stress factor $\beta(\theta)$ that reduces GPP under dry conditions.
 The implementation in `pyrealm` uses the soil moisture parameter $\theta$ (volumetric water content) to modulate both $\chi$ and LUE.
+In viresco, $\theta$ reaches `pyrealm` only with the `lavergne20` optimal $\chi$ methods; see [soil moisture inputs](#inputs-soil-moisture).
 
 ## Usage
 
 ### Quickstart
 
 ```sh
-satterc setup --models pmodel --defaults
-satterc data-gen config.toml --grid 1 1 --duration 2y --seed 42
-satterc run config.toml
+viresco setup --models pmodel --defaults
+viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42
+viresco run config.toml
 ```
 
 The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
@@ -104,19 +105,49 @@ method_kphio = "temperature"
 method_arrhenius = "simple"
 ```
 
-::: satterc.models.pmodel.pmodel_config
+::: viresco.models.pmodel.pmodel
     options:
       show_root_heading: false
       show_root_toc_entry: false
       show_signature: false
       show_docstring_description: false
       show_docstring_returns: false
+      show_docstring_parameters: false
+      show_docstring_raises: false
       docstring_section_style: spacy
 
 ### Inputs
 
-::: satterc.models.pmodel.pmodel
+Which inputs a run needs depends on the configured methods.
+The defaults need only the drivers under *Always required*.
+Each table after that applies only when its method is configured, and a run without that method never asks for those inputs.
+
+#### Always required
+
+Every run needs these, whatever the methods.
+
+::: viresco.models.pmodel.pmodel
     options:
+      show_root_heading: false
+      show_root_toc_entry: false
+      show_signature: false
+      show_docstring_description: false
+      show_docstring_returns: false
+      show_docstring_other_parameters: false
+      show_docstring_raises: false
+      docstring_section_style: spacy
+      extra:
+        hide_parameters: [optchi_inputs, kphio_inputs, arrhenius_inputs]
+
+#### Soil moisture, for `lavergne20` optimal χ { #inputs-soil-moisture }
+
+Required when `method_optchi` is `lavergne20_c3` or `lavergne20_c4`.
+
+::: viresco.models.pmodel.optchi_inputs__theta
+    options:
+      show_root_full_path: false
+      separate_signature: false
+      heading_level: 4
       show_root_heading: false
       show_root_toc_entry: false
       show_signature: false
@@ -124,23 +155,77 @@ method_arrhenius = "simple"
       show_docstring_returns: false
       docstring_section_style: spacy
 
-`mean_growth_temperature` is produced by this module rather than loaded, from daily temperature:
+#### Root zone stress, for `rootzonestress` optimal χ
 
-::: satterc.models.pmodel.mean_growth_temperature
+Required when `method_optchi` is `prentice14_rootzonestress`, `c4_rootzonestress` or `c4_no_gamma_rootzonestress`.
+
+::: viresco.models.pmodel.optchi_inputs__rootzonestress
     options:
+      show_root_full_path: false
+      separate_signature: false
+      heading_level: 4
       show_root_heading: false
       show_root_toc_entry: false
       show_signature: false
-      separate_signature: false
+      show_docstring_description: false
       show_docstring_returns: false
       docstring_section_style: spacy
 
-`aridity_index` is not: it is PET over precipitation, both accumulated over the record, and PET comes from [SPLASH](splash.md).
-`recipes/config.toml` derives it in a `[[node]]` rather than hiding the choice of PET inside a wrapper.
+#### Climatology, for `sandoval` quantum yield
+
+Required when `method_kphio = "sandoval"`.
+
+::: viresco.models.pmodel.kphio_inputs__sandoval
+    options:
+      show_root_full_path: false
+      separate_signature: false
+      heading_level: 4
+      show_root_heading: false
+      show_root_toc_entry: false
+      show_signature: false
+      show_docstring_description: false
+      show_docstring_returns: false
+      docstring_section_style: spacy
+
+The PET in `aridity_index` comes from [SPLASH](splash.md).
+`recipes/config.toml` derives the index in a `[[node]]` rather than hiding the choice of PET inside a wrapper.
+`mean_growth_temperature` is derived for you; see [below](#inputs-mean-growth-temperature).
+
+#### Growth temperature, for `kattge_knorr` Arrhenius scaling
+
+Required when `method_arrhenius = "kattge_knorr"`.
+`mean_growth_temperature` is derived for you; see [below](#inputs-mean-growth-temperature).
+
+::: viresco.models.pmodel.arrhenius_inputs__kattge_knorr
+    options:
+      show_root_full_path: false
+      separate_signature: false
+      heading_level: 4
+      show_root_heading: false
+      show_root_toc_entry: false
+      show_signature: false
+      show_docstring_description: false
+      show_docstring_returns: false
+      docstring_section_style: spacy
+
+#### Mean growth temperature { #inputs-mean-growth-temperature }
+
+`mean_growth_temperature` is not loaded but derived by this module, so a run using `sandoval` or `kattge_knorr` needs this input in its place.
+
+::: viresco.models.pmodel.mean_growth_temperature
+    options:
+      show_root_full_path: false
+      separate_signature: false
+      heading_level: 4
+      show_root_heading: false
+      show_root_toc_entry: false
+      show_signature: false
+      show_docstring_returns: false
+      docstring_section_style: spacy
 
 ### Outputs
 
-::: satterc.models.pmodel.PModelOut
+::: viresco.models.pmodel.PModelOut
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -149,13 +234,13 @@ method_arrhenius = "simple"
       show_bases: false
       members: false
 
-None of these are the units SGAM consumes.
+GPP and LUE are not in the units SGAM consumes.
 `recipes/config.toml` defines `gpp_weekly` and `lue_weekly` as bridge nodes for that purpose, where the conversion factor is visible rather than buried in a wrapper.
 iWUE needs no bridge, because `pyrealm` and SGAM agree on µmol mol⁻¹.
 
 ### Python API
 
-See the [API documentation](../reference/modules/satterc.models/pmodel.md) for full function signatures and parameter details.
+See the [API documentation](../reference/modules/viresco.models/pmodel.md) for full function signatures and parameter details.
 
 ## References
 

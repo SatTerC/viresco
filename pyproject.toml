@@ -3,8 +3,8 @@ requires = ["uv_build>=0.8.10,<0.9.0"]
 build-backend = "uv_build"
 
 [project]
-name = "satterc"
-version = "0.8.0"
+name = "ukceh-viresco"
+version = "0.9.0.dev0"
 description = "Carbon-cycle model modules for conduit pipelines."
 authors = [
     { name = "jmarshrossney", email = "17361029+jmarshrossney@users.noreply.github.com" }
@@ -15,10 +15,10 @@ license-files = ["LICENSE"]
 classifiers = ["Development Status :: 2 - Pre-Alpha"]
 requires-python = ">=3.13"
 dependencies = [
-    "conduit[cli,geo,viz]",
+    "ukceh-catena[cli,geo,viz]",
     "numpy>=2.4.2",
     "xarray>=2026.2.0",
-    "xarray-annotated>=0.6.0",
+    "xarray-annotated>=0.8.0",
     "typer>=0.24.1",
     # pyrealm is capped below 3 in case their units change
     "pyrealm>=2.0.0,<3",
@@ -27,21 +27,21 @@ dependencies = [
 ]
 
 [project.scripts]
-satterc = "satterc.cli:main"
+viresco = "viresco.cli:main"
 
 # Registering the model modules under conduit's entry-point group makes each one
 # addressable by a bare section name, so a config writes `[splash]` with no
 # `_import_path`. The section name and the model name are deliberately the same.
-[project.entry-points."conduit.modules"]
-splash = "satterc.models.splash"
-pmodel = "satterc.models.pmodel"
-sgam = "satterc.models.sgam"
-rothc = "satterc.models.rothc"
+[project.entry-points."catena.modules"]
+splash = "viresco.models.splash"
+pmodel = "viresco.models.pmodel"
+sgam = "viresco.models.sgam"
+rothc = "viresco.models.rothc"
 
 [project.urls]
-Homepage = "https://SatTerC.github.io/satterc"
-Repository = "https://github.com/SatTerC/satterc"
-Documentation = "https://SatTerC.github.io/satterc"
+Homepage = "https://nerc-ceh.github.io/viresco"
+Repository = "https://github.com/NERC-CEH/viresco"
+Documentation = "https://nerc-ceh.github.io/viresco"
 
 [dependency-groups]
 dev = [
@@ -57,7 +57,7 @@ docs = [
     "marimo>=0.23.0",
     "marimo-md-export>=0.5.2",
     "mkdocstrings-python>=2.0.3",
-    "zensical>=0.0.24",
+    "zensical>=0.0.24,<0.0.74",
     "mkdocs-typer2[termynal]>=0.4.1",
 ]
 recipes = [
@@ -69,14 +69,19 @@ test = [
     "pytest-cov>=7.1.0",
 ]
 
+[tool.uv.build-backend]
+# The distribution is ukceh-viresco but the import name is viresco.
+module-name = "viresco"
+
 [tool.uv]
 exclude-newer = "1 week"
-exclude-newer-package = { marimo-md-export = false , xarray-annotated = false , conduit = false , sgam = false , rothc-py = false }
+exclude-newer-package = { marimo-md-export = false , xarray-annotated = false , ukceh-catena = false , sgam = false , rothc-py = false }
 
 [tool.uv.sources]
 rothc-py = { git = "https://github.com/SatTerC/rothc_py.git" }
 sgam = { git = "https://github.com/SatTerC/sgam.git" }
-conduit = { git = "https://github.com/NERC-CEH/conduit" }
+# TODO: pin to a catena release tag once catena and viresco stop changing in step.
+ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
 
 [tool.pyright]
 venvPath = "."
@@ -107,7 +112,7 @@ select = [
 "tests/**" = ["D", "E501"]
 "scripts/**" = ["D"]
 # Typer CLI modules use typer.Option() in function signatures as standard practice.
-"src/satterc/cli/**" = ["B008"]
+"src/viresco/cli/**" = ["B008"]
 # Marimo recipe notebooks use bare expressions for display output (B018),
 # contain prose that naturally exceeds 88 chars (E501),
 # include academic citations with en dashes (RUF001),

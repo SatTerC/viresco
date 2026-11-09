@@ -1,9 +1,9 @@
 """Tests for model helper functions and model execution.
 
 Covers:
-- satterc.models.rothc  — plant_cover_monthly, dpm_rpm_ratio_monthly, farmyard_manure_input_monthly
-- satterc.models.sgam   — _pft_int_to_enum, _build_pft_params_dataset, _pft_params_from_dataset, pft_params
-- satterc.models.pmodel — mean_growth_temperature
+- viresco.models.rothc  — plant_cover_monthly, dpm_rpm_ratio_monthly, farmyard_manure_input_monthly
+- viresco.models.sgam   — _pft_int_to_enum, _build_pft_params_dataset, _pft_params_from_dataset, pft_params
+- viresco.models.pmodel — mean_growth_temperature
 - model execution smoke tests for splash, pmodel (via pipeline_inputs session fixture)
 """
 
@@ -12,9 +12,9 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from satterc.models import pmodel as pmodel_module
-from satterc.models import rothc as rothc_module
-from satterc.models import sgam as sgam_module
+from viresco.models import pmodel as pmodel_module
+from viresco.models import rothc as rothc_module
+from viresco.models import sgam as sgam_module
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -29,7 +29,7 @@ MONTHLY_DATES = pd.date_range("2020-01-01", periods=N_MONTHS, freq="ME")
 DAILY_DATES = pd.date_range("2020-01-01", periods=N_DAYS, freq="D")
 
 #: The RothC bridge nodes take a monthly DataArray purely for its time
-#: coordinate (conduit no longer supplies a `dates_monthly` node), so a bare
+#: coordinate (catena no longer supplies a `dates_monthly` node), so a bare
 #: time axis is all they need — the values and pixel dim are never read.
 MONTHLY_CLOCK = xr.DataArray(
     np.zeros(N_MONTHS), dims=["time"], coords={"time": MONTHLY_DATES}
@@ -139,32 +139,26 @@ class TestRothcBridgeFunctions:
             )
 
     def test_dpm_rpm_ratio_shape(self, plant_type_mixed):
-        result = rothc_module.dpm_rpm_ratio_monthly(
-            plant_type_mixed, MONTHLY_CLOCK, rothc_module.dpm_rpm_ratio_config()
-        )
+        result = rothc_module.dpm_rpm_ratio_monthly(plant_type_mixed, MONTHLY_CLOCK)
         assert result.sizes["pixel"] == 4
         assert result.sizes["time"] == N_MONTHS
 
     def test_dpm_rpm_ratio_positive(self, plant_type_mixed):
-        result = rothc_module.dpm_rpm_ratio_monthly(
-            plant_type_mixed, MONTHLY_CLOCK, rothc_module.dpm_rpm_ratio_config()
-        )
+        result = rothc_module.dpm_rpm_ratio_monthly(plant_type_mixed, MONTHLY_CLOCK)
         assert np.all(result.values > 0)
 
     def test_dpm_rpm_ratio_values_by_type(self, plant_type_mixed):
-        result = rothc_module.dpm_rpm_ratio_monthly(
-            plant_type_mixed, MONTHLY_CLOCK, rothc_module.dpm_rpm_ratio_config()
-        )
+        result = rothc_module.dpm_rpm_ratio_monthly(plant_type_mixed, MONTHLY_CLOCK)
         np.testing.assert_allclose(result.sel(pixel=0).values, 0.25)
         np.testing.assert_allclose(result.sel(pixel=1).values, 1.44)
         np.testing.assert_allclose(result.sel(pixel=2).values, 0.67)
         np.testing.assert_allclose(result.sel(pixel=3).values, 1.44)
 
-    def test_dpm_rpm_ratio_config_override(self, plant_type_mixed):
+    def test_dpm_rpm_ratio_override(self, plant_type_mixed):
         result = rothc_module.dpm_rpm_ratio_monthly(
             plant_type_mixed,
             MONTHLY_CLOCK,
-            rothc_module.dpm_rpm_ratio_config(dpm_rpm_ratio_grass=0.67),
+            dpm_rpm_ratio_grass=0.67,
         )
         np.testing.assert_allclose(result.sel(pixel=1).values, 0.67)
 
@@ -316,7 +310,7 @@ class TestPmodelExecution:
 
     @pytest.fixture(scope="class")
     def pmodel_result(self):
-        from satterc.models.pmodel import _pmodel
+        from viresco.models.pmodel import _pmodel
 
         n_weeks = 52
         n_pixels = 1
@@ -335,9 +329,7 @@ class TestPmodelExecution:
             pressure_weekly=_da(np.full((n_weeks, n_pixels), 101325.0)),
             fapar_weekly=_da(np.full((n_weeks, n_pixels), 0.5)),
             ppfd_weekly=_da(np.full((n_weeks, n_pixels), 500.0)),
-            mean_growth_temperature=_da(np.full((n_weeks, n_pixels), 15.0)),
-            aridity_index=_da(np.full((n_weeks, n_pixels), 0.5)),
-            volumetric_water_content_weekly=_da(np.full((n_weeks, n_pixels), 0.3)),
+            extra_inputs={},
             method_optchi="prentice14",
             method_jmaxlim="wang17",
             method_kphio="temperature",
@@ -369,7 +361,7 @@ class TestRothcExecution:
 
     @pytest.fixture(scope="class")
     def rothc_result(self):
-        from satterc.models.rothc import _rothc
+        from viresco.models.rothc import _rothc
 
         n_months = 24
         n_pixels = 1
@@ -430,15 +422,13 @@ class TestPmodelDriverExecution:
     """Covers the pmodel() public wrapper (line 120) via Hamilton driver execution."""
 
     def test_driver_executes_gpp(self):
-        from conduit import build_driver
+        from catena import build_driver
 
         # 364 days = exactly 52 weeks: ensures the daily→weekly resample produces
         # 52 time steps matching the provided weekly arrays.
         n_weeks = 52
-        n_days = 364
         n_pixels = 1
         time_weekly = pd.date_range("2020-01-01", periods=n_weeks, freq="7D")
-        time_daily = pd.date_range("2020-01-01", periods=n_days, freq="D")
         pixel = np.arange(n_pixels)
 
         def _wda(v):
@@ -449,7 +439,7 @@ class TestPmodelDriverExecution:
             )
 
         dr = build_driver(
-            ["satterc.models.pmodel"],
+            ["viresco.models.pmodel"],
             {
                 "method_optchi": "prentice14",
                 "method_jmaxlim": "wang17",
@@ -461,18 +451,11 @@ class TestPmodelDriverExecution:
             ["gpp_flux_weekly", "lue_photon_weekly", "iwue_weekly"],
             inputs={
                 "temperature_weekly": _wda(15.0),
-                "temperature_daily": xr.DataArray(
-                    np.full((n_days, n_pixels), 15.0),
-                    dims=["time", "pixel"],
-                    coords={"time": time_daily, "pixel": pixel},
-                ),
                 "vpd_weekly": _wda(1000.0),
                 "co2_weekly": _wda(400.0),
                 "pressure_weekly": _wda(101325.0),
                 "fapar_weekly": _wda(0.5),
                 "ppfd_weekly": _wda(500.0),
-                "aridity_index": _wda(0.5),
-                "volumetric_water_content_weekly": _wda(0.3),
             },
         )
         gpp = result["gpp_flux_weekly"]
@@ -484,7 +467,7 @@ class TestRothcDriverExecution:
     """Covers the rothc() public wrapper (line 157) via Hamilton driver execution."""
 
     def test_driver_executes_soc(self):
-        from conduit import build_driver
+        from catena import build_driver
 
         n_months = 24
         n_pixels = 1
@@ -505,7 +488,7 @@ class TestRothcDriverExecution:
                 coords={"pixel": pixel},
             )
 
-        dr = build_driver(["satterc.models.rothc"], {"n_years_spinup": 1})
+        dr = build_driver(["viresco.models.rothc"], {"n_years_spinup": 1})
         result = dr.execute(
             ["soil_organic_carbon_monthly"],
             inputs={
@@ -530,7 +513,7 @@ class TestSgamInnerExecution:
     """Smoke test: _sgam() runs end-to-end with minimal synthetic inputs."""
 
     def test_sgam_inner_returns_dict(self):
-        from satterc.models.sgam import _build_pft_params_dataset, _sgam
+        from viresco.models.sgam import _build_pft_params_dataset, _sgam
 
         n_weeks = 52
         n_pixels = 1
@@ -575,7 +558,7 @@ class TestSgamInnerExecution:
         assert "soil_organic_carbon_monthly" not in result
 
     def test_sgam_outputs_non_negative_pools(self):
-        from satterc.models.sgam import _build_pft_params_dataset, _sgam
+        from viresco.models.sgam import _build_pft_params_dataset, _sgam
 
         n_weeks = 52
         n_pixels = 1
@@ -623,7 +606,7 @@ class TestDisturbancesDaily:
     """Smoke test: disturbances_daily computes disturbance indicators."""
 
     def test_disturbances_output_shape(self):
-        from satterc.models.sgam import disturbances_daily
+        from viresco.models.sgam import disturbances_daily
 
         n_days = 365
         n_pixels = 2
@@ -638,14 +621,13 @@ class TestDisturbancesDaily:
         def _static_da(values):
             return xr.DataArray(values, dims=["pixel"], coords={"pixel": pixel})
 
-        from satterc.models.sgam import disturbances_config, pft_params
+        from viresco.models.sgam import pft_params
 
         result = disturbances_daily(
             temperature_daily=_da(np.full((n_days, n_pixels), 15.0)),
             gpp_daily=_da(np.full((n_days, n_pixels), 5.0)),
             lai_daily=_da(np.full((n_days, n_pixels), 2.0)),
             pft_params=pft_params(_static_da(np.array([0, 3]))),
-            disturbances_config=disturbances_config(),
         )
         assert isinstance(result, xr.DataArray)
         assert result.sizes["time"] == n_days
@@ -657,7 +639,7 @@ class TestSplashExecution:
 
     @pytest.fixture(scope="class")
     def splash_result(self):
-        from satterc.models.splash import _splash
+        from viresco.models.splash import _splash
 
         n_days = 366  # 2020 is a leap year; SPLASH needs a full year
         n_pixels = 2
@@ -691,9 +673,9 @@ class TestSplashExecution:
         assert isinstance(splash_result, dict)
 
     def test_output_keys(self, splash_result):
-        assert "actual_evapotranspiration_daily" in splash_result
-        assert "soil_moisture_daily" in splash_result
-        assert "runoff_daily" in splash_result
+        from viresco.models.splash import SplashOut
+
+        assert set(splash_result) == set(SplashOut.__annotations__)
 
     def test_aet_is_dataarray(self, splash_result):
         assert isinstance(
@@ -716,7 +698,7 @@ class TestSplashExecution:
 
     def test_public_splash_wrapper_returns_dict(self):
         """Test the public splash() function (covers the 'return _splash(...)' line)."""
-        from satterc.models.splash import splash, splash_config
+        from viresco.models.splash import splash
 
         n_days = 366
         n_pixels = 1
@@ -742,7 +724,7 @@ class TestSplashExecution:
             elevation=_static_da(np.array([50.0])),
             latitude=_static_da(np.array([51.5])),
             max_soil_moisture=_static_da(np.array([150.0])),
-            splash_config=splash_config(),
+            soil_moisture_init_inputs={},
         )
         assert isinstance(result, dict)
         assert "actual_evapotranspiration_daily" in result

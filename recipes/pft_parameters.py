@@ -4,14 +4,15 @@
 #     "marimo",
 #     "matplotlib==3.10.9",
 #     "numpy==2.4.4",
-#     "satterc==0.8.0",
-#     "conduit",
+#     "ukceh-viresco==0.8.0",
+#     "ukceh-catena",
 #     "scipy==1.17.1",
 # ]
 #
 # [tool.uv.sources]
-# satterc = { path = ".." }
-# conduit = { git = "https://github.com/NERC-CEH/conduit", rev = "develop" }
+# ukceh-viresco = { path = ".." }
+# # TODO: pin to a catena release tag once catena and viresco stop changing in step.
+# ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
 # ///
 
 import marimo
@@ -47,11 +48,11 @@ def _():
     import marimo as mo
     import matplotlib.pyplot as plt
     import numpy as np
-    from conduit import build_driver, load_inputs
-    from conduit.config import Config
+    from catena import build_driver, load_inputs
+    from catena.config import Config
     from scipy.optimize import minimize
 
-    from satterc.scaffold.data_gen import generate_synthetic_data
+    from viresco.scaffold.data_gen import generate_synthetic_data
 
     return (
         Config,
@@ -133,6 +134,7 @@ def _(mo):
     inputs = ["potential_evapotranspiration_daily", "precipitation_daily"]
     expression = "potential_evapotranspiration_daily.sum('time') / precipitation_daily.sum('time')"
     units = "1"  # ratio of two mm totals -> dimensionless
+    overwrite_units = true
 
     # Both the P-model (as pyrealm's `theta`) and SGAM (against the PFT's
     # `wilting_point`/`field_capacity`) want volumetric water content (m3 m-3).
@@ -145,9 +147,10 @@ def _(mo):
     inputs = ["soil_moisture_weekly", "max_soil_moisture"]
     expression = "soil_moisture_weekly / max_soil_moisture * 0.45"
     units = "m3 m-3"
+    overwrite_units = true
     freq = "7D"
 
-    # satterc.models.pmodel reports GPP and LUE in pyrealm's own units, which are
+    # viresco.models.pmodel reports GPP and LUE in pyrealm's own units, which are
     # not the ones SGAM consumes. These two nodes are the explicit bridge.
     # GPP goes ug C m-2 s-1 -> g C m-2 d-1 (86400 s d-1 x 1e-6 g ug-1 = 0.0864).
     [[node]]
@@ -155,6 +158,7 @@ def _(mo):
     inputs = ["gpp_flux_weekly"]
     expression = "gpp_flux_weekly * 0.0864"
     units = "g m-2 d-1"
+    overwrite_units = true
     freq = "7D"
 
     # For LUE, pyrealm's denominator is moles of photons and SGAM's is MJ of PAR.
@@ -163,6 +167,7 @@ def _(mo):
     inputs = ["lue_photon_weekly"]
     expression = "lue_photon_weekly * 4.57"
     units = "g MJ-1"
+    overwrite_units = true
     freq = "7D"
 
     [[resample]]

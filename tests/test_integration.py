@@ -1,4 +1,4 @@
-"""End-to-end integration tests for the full satterc pipeline.
+"""End-to-end integration tests for the full viresco pipeline.
 
 These tests call load_inputs() with the test config and synthetic data,
 then execute pipeline nodes to verify the full stack — config → load_inputs
@@ -6,7 +6,7 @@ then execute pipeline nodes to verify the full stack — config → load_inputs
 """
 
 import numpy as np
-from conduit import IOSpec, get_final_vars
+from catena import IOSpec, get_final_vars
 
 N_PIXELS = 4  # 2x2 grid
 N_DAYS = 365

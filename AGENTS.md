@@ -1,24 +1,24 @@
 # AGENTS.md
 
-SatTerC is in **alpha** with no users outside the core collaboration. Backwards
+Viresco is in **alpha** with no users outside the core collaboration. Backwards
 compatibility is *not* a constraint: prefer the cleanest design and make breaking
 changes (config schema, public APIs, behaviour) freely rather than adding
 compatibility shims.
 
 ## Architecture / what lives where
 
-SatTerC is a thin domain package on top of [**conduit**](https://github.com/NERC-CEH/conduit), which owns the framework:
+Viresco is a thin domain package on top of [**catena**](https://github.com/NERC-CEH/catena), which owns the framework:
 config parsing, the DAG, contract validation, I/O, caching, blocking, subsetting,
 the gridded/Zarr layer, and the `run` / `graph` / `gridded` CLI commands.
-conduit's **`main` branch is the source of truth** — read it (or the local
+catena's **`main` branch is the source of truth** — read it (or the local
 checkout, if present) rather than guessing at its API.
 
 ## Gotchas
 
 - All common tasks run via `just` (see `justfile`) — no need to invoke `pytest`/`uv run` directly.
 - Pre-commit hooks only run `uv-lock`, `pyright`, and `ruff` — not the full test suite.
-- Marimo notebooks live directly under `recipes/`, as `recipes/<name>.py`, and `just export <name>` renders one into `docs/recipes/`. They pin `satterc==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
-- Plain config files under `recipes/` are **not** loaded by any code or tooling — they are user-facing references only, so nothing will catch a mistake in them. Check with `satterc run --dry-run`. That covers `recipes/config.toml` and `recipes/graphviz.toml`.
+- Marimo notebooks live directly under `recipes/`, as `recipes/<name>.py`, and `just export <name>` renders one into `docs/recipes/`. They pin `ukceh-viresco==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
+- Plain config files under `recipes/` are **not** loaded by any code or tooling — they are user-facing references only, so nothing will catch a mistake in them. Check with `viresco run --dry-run`. That covers `recipes/config.toml` and `recipes/graphviz.toml`.
 - Documentation uses **zensical** (markdown, mkdocstrings-material-like), **not** Sphinx/rst.
 - Synthetic data is table-driven: a variable is one `Var` row (units, long name,
   one generator lambda) in `scaffold/data_gen/daily.py` or `static.py`. Adding
@@ -36,27 +36,43 @@ checkout, if present) rather than guessing at its API.
   column. A module's non-model public nodes get their own `:::` blocks with
   `show_root_full_path: false`, `separate_signature: false` and
   `heading_level: 4`.
-- Configurable settings live in a `<node>_config` node returning a
-  `<Node>Config` TypedDict, which the consuming node unpacks. `Config`, not
-  `Params`: `params` is already taken by per-pixel scientific parameters that
-  are not pipeline config (`sgam.pft_params`, `rothc_py.RothCParams`).
-  Descriptions and defaults go on that function, never on the TypedDict fields —
-  conduit reads the defaults off its keyword-only arguments. Every
-  settings-bearing node gets its own container, not just the model node: rothc's
-  per-PFT DPM/RPM ratios sit on `dpm_rpm_ratio_config` and sgam's growing-season
-  gate on `disturbances_config`. `get_model_config` in `config_gen.py` scans
-  every public function in the module, so a new container is picked up with no
-  change there; the keys still land flat in the one `[<model>]` section.
+- Configurable settings are keyword-only arguments, after a bare `*`, on the
+  node that consumes them, with their defaults in the signature. Document them
+  under numpydoc `Other Parameters`, not `Parameters`, so a model page can
+  render one node twice: once for its settings (`show_docstring_parameters:
+  false`) and once for its data inputs (`show_docstring_other_parameters:
+  false`). Settings on a non-model node stay on that node: rothc's per-PFT
+  DPM/RPM ratios are on `dpm_rpm_ratio_monthly` and sgam's growing-season gate
+  on `disturbances_daily`. `get_model_config` in `config_gen.py` reads the
+  keyword-only defaults off every public function in the module, so a new
+  setting is picked up with no change there; the keys still land flat in the one
+  `[<model>]` section. Do not group settings into a config node or TypedDict.
 - Model DAG graphs are generated, not committed: `just graph <model>` writes
   `docs/models/_graphs/<model>.svg`, and `just docs` depends on `graph-all` so a
   docs build always renders them fresh. Add a line to `graph-all` for each new
   model.
 - Generic behaviour belongs upstream. If a change would be useful to a pipeline
-  that is not about carbon, it probably belongs in conduit, not here.
+  that is not about carbon, it probably belongs in catena, not here.
+
+## Releasing
+
+Every PR merges to `main`; a release is a tag on it, made by the maintainer only.
+Nothing is published to PyPI: users install a tag from GitHub.
+
+1. `uv version --bump rc` (giving e.g. `0.9.0rc1`), or `--bump stable` for a
+   full release. Update the `ukceh-viresco==` pins in `recipes/*.py` to match, run
+   `just export-all`, and commit. `just tag` refuses if a pin is stale.
+2. `just tag`, then `just release`.
+3. After a full release, `uv version --bump minor --bump dev`, update the recipe
+   pins again, and commit, so a git install of `main` does not report the
+   released version.
+
+The docs site deploys only on a stable release (or a manual `workflow_dispatch`),
+so it documents the latest release.
 
 ## Config schema
 
-The schema is conduit's; there is no satterc-specific config code.
+The schema is catena's; there is no viresco-specific config code.
 
 
 ## Block size is not numerically free

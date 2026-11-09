@@ -1,13 +1,13 @@
 """Regenerate ``tests/data/pyrealm_golden.json``, the pyrealm unit anchor.
 
 The golden file pins *absolute* pyrealm output magnitudes for a fixed set of
-inputs, alongside the unit strings satterc declares for those outputs.
+inputs, alongside the unit strings viresco declares for those outputs.
 `tests/test_pyrealm_units.py` checks both, so a number and its label cannot
 drift apart unnoticed.
 
 Run this ONLY when a pyrealm change has been reviewed and the new values are
 understood. Regenerating to turn a red test green destroys the signal the file
-exists to carry. If pyrealm changed a unit convention, correct satterc's
+exists to carry. If pyrealm changed a unit convention, correct viresco's
 annotation rather than re-recording the numbers.
 
     just regen-pyrealm-golden
@@ -33,8 +33,8 @@ from pyrealm_cases import (  # noqa: E402
     summarize,
 )
 
-from satterc.models.pmodel import PModelOut, _pmodel  # noqa: E402
-from satterc.models.splash import SplashOut, _splash  # noqa: E402
+from viresco.models.pmodel import PModelOut, _pmodel  # noqa: E402
+from viresco.models.splash import SplashOut, _splash  # noqa: E402
 
 
 def build() -> dict[str, Any]:
@@ -45,7 +45,7 @@ def build() -> dict[str, Any]:
         "_comment": (
             "Regenerate with `just regen-pyrealm-golden`, and only after "
             "reviewing why pyrealm's output changed. If a unit convention "
-            "moved, correct satterc's annotation rather than these numbers."
+            "moved, correct viresco's annotation rather than these numbers."
         ),
         "pmodel": {
             "units": declared_units(PModelOut),

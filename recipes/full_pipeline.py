@@ -3,13 +3,14 @@
 # dependencies = [
 #     "marimo",
 #     "matplotlib==3.10.9",
-#     "satterc==0.8.0",
-#     "conduit",
+#     "ukceh-viresco==0.8.0",
+#     "ukceh-catena",
 # ]
 #
 # [tool.uv.sources]
-# satterc = { path = ".." }
-# conduit = { git = "https://github.com/NERC-CEH/conduit", rev = "develop" }
+# ukceh-viresco = { path = ".." }
+# # TODO: pin to a catena release tag once catena and viresco stop changing in step.
+# ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
 # ///
 
 import marimo
@@ -23,11 +24,11 @@ def _(mo):
     mo.md(r"""
     # Wiring four models into one pipeline
 
-    This recipe builds a pipeline out of all four of SatTerC's models at once: SPLASH for the water balance, the P-model for photosynthesis, SGAM for plant carbon allocation, and RothC for soil carbon.
+    This recipe builds a pipeline out of all four of Viresco's models at once: SPLASH for the water balance, the P-model for photosynthesis, SGAM for plant carbon allocation, and RothC for soil carbon.
 
     The models are the easy part.
     None of the four knows the others exist, and none of them imports another.
-    Each declares its inputs by parameter name and its outputs by return value, and conduit matches those names when it builds the DAG.
+    Each declares its inputs by parameter name and its outputs by return value, and catena matches those names when it builds the DAG.
     So the pipeline is not really four models; it is four models plus the joins between them, and the joins are where the work is.
 
     This notebook takes its time over those joins.
@@ -45,12 +46,12 @@ def _():
 
     import marimo as mo  # required for Markdown etc.
     import matplotlib.pyplot as plt
-    from conduit import build_driver, run
-    from conduit.config import Config
-    from conduit.graph import _node_maps as node_maps
-    from conduit.graph import relabel_with_units
+    from catena import build_driver, run
+    from catena.config import Config
+    from catena.graph import _node_maps as node_maps
+    from catena.graph import relabel_with_units
 
-    from satterc.scaffold.data_gen import generate_synthetic_data
+    from viresco.scaffold.data_gen import generate_synthetic_data
 
     return (
         Config,
@@ -98,6 +99,8 @@ def _(mo):
     Everything else in the file exists to connect them:
 
     - `[[node]]` defines a new node from an expression over existing ones, which is how a bridge between two models is written.
+      Nothing converts units between nodes, so a node whose expression changes a unit declares the new one with its `units` key.
+      catena labels the output with it, and `overwrite_units = true` replaces the label the output would otherwise keep from its inputs, as xarray carries it through `x * k` or a sum.
     - `[[resample]]` changes the frequency of a variable, which is how a daily model feeds a weekly one.
     - `[inputs.*]` and `[outputs.*]` say what is read from and written to disk.
 
@@ -167,6 +170,7 @@ def _(mo):
     inputs = ["potential_evapotranspiration_daily", "precipitation_daily"]
     expression = "potential_evapotranspiration_daily.sum('time') / precipitation_daily.sum('time')"
     units = "1"  # ratio of two mm totals -> dimensionless
+    overwrite_units = true
 
     # Both the P-model (as pyrealm's `theta`) and SGAM (against the PFT's
     # `wilting_point`/`field_capacity`) want volumetric water content (m3 m-3).
@@ -179,9 +183,10 @@ def _(mo):
     inputs = ["soil_moisture_weekly", "max_soil_moisture"]
     expression = "soil_moisture_weekly / max_soil_moisture * 0.45"
     units = "m3 m-3"
+    overwrite_units = true
     freq = "7D"
 
-    # satterc.models.pmodel is an honest wrapper. It reports GPP and LUE in
+    # viresco.models.pmodel is an honest wrapper. It reports GPP and LUE in
     # pyrealm's own units, which are not the ones SGAM consumes. These two nodes
     # are the bridge, kept here rather than inside the model node so that a
     # reader can see the conversion factor.
@@ -193,6 +198,7 @@ def _(mo):
     inputs = ["gpp_flux_weekly"]
     expression = "gpp_flux_weekly * 0.0864"
     units = "g m-2 d-1"
+    overwrite_units = true
     freq = "7D"
 
     # pyrealm defines LUE against PPFD, a *photon* flux, so its denominator is
@@ -203,6 +209,7 @@ def _(mo):
     inputs = ["lue_photon_weekly"]
     expression = "lue_photon_weekly * 4.57"
     units = "g MJ-1"
+    overwrite_units = true
     freq = "7D"
 
     # iWUE needs no bridge: pyrealm reports umol mol-1 and SGAM consumes it.
@@ -212,19 +219,21 @@ def _(mo):
     inputs = ["leaf_pool_weekly", "pft_params"]
     expression = 'leaf_pool_weekly / pft_params["leaf_carbon_area"]'
     units = "m2 m-2"  # leaf carbon per ground area / leaf carbon per leaf area
+    overwrite_units = true
 
     # PET, not AET: RothC's water balance is rainfall minus evaporative *demand*.
     # AET is already suppressed by the dryness RothC is trying to compute, so
     # feeding it in double-counts the limitation and holds the soil too wet.
     # SPLASH PET is a daily rate (mm d-1); RothC wants a monthly total (mm).
     # Summing the daily rate over the month integrates it (daily Δt = 1 day, so
-    # Σ mm d-1 is numerically the monthly mm total); units = "mm" relabels the
-    # rate as the resulting total.
+    # Σ mm d-1 is numerically the monthly mm total), so `overwrite_units`
+    # relabels the rate as the resulting total.
     [[node]]
     name = "potential_evapotranspiration_monthly"
     inputs = ["potential_evapotranspiration_daily"]
     expression = "potential_evapotranspiration_daily.resample(time='1ME').sum()"
     units = "mm"
+    overwrite_units = true
 
     # Precipitation is likewise a daily rate (mm d-1); aggregate to a monthly
     # total (mm) for RothC the same way. (Done as a derive rather than a plain
@@ -235,6 +244,7 @@ def _(mo):
     inputs = ["precipitation_daily"]
     expression = "precipitation_daily.resample(time='1ME').sum()"
     units = "mm"
+    overwrite_units = true
 
     # Carbon entering the soil each month = the litter produced that month. SGAM's
     # litter_pool is an accumulate-only stock (no decomposition; that is RothC's
@@ -245,13 +255,13 @@ def _(mo):
     [[node]]
     name = "soil_carbon_input_monthly"
     inputs = ["litter_pool_weekly"]
-    expression = "litter_pool_weekly.diff('time').resample(time='1ME').sum().assign_attrs(units='g m-2').pint.quantify().pint.to('t ha-1').pint.dequantify()"
+    expression = "litter_pool_weekly.diff('time').resample(time='1ME').sum().pint.quantify().pint.to('t ha-1').pint.dequantify()"
     units = "t ha-1"
 
     [[node]]
     name = "inert_organic_matter"
     inputs = ["organic_carbon_stocks"]
-    expression = "0.049 * organic_carbon_stocks**1.139"  # Falloon IOM (t ha-1)
+    expression = "0.049 * organic_carbon_stocks**1.139"  # Falloon IOM
     units = "t ha-1"
 
     [[resample]]
@@ -320,7 +330,7 @@ def _(mo):
     ## Building the driver
 
     Parsing the config gives a `ParsedConfig`, and `build_driver` turns that into a Hamilton driver.
-    Building is also when conduit checks the whole graph's contracts, comparing the units, dimensions and temporal frequency each node declares against what its dependencies actually supply.
+    Building is also when catena checks the whole graph's contracts, comparing the units, dimensions and temporal frequency each node declares against what its dependencies actually supply.
     A mis-wired pipeline therefore fails here, in under a second, rather than part-way through a long run.
     That check is what makes the bridges below safe to get wrong: a missing unit conversion is a build error, not a quietly incorrect carbon budget.
 
@@ -344,9 +354,6 @@ def _(Path, generate_synthetic_data, parsed_config, tempfile):
     parsed_config.input_specs["weekly"].path = str(_tmpdir / "weekly.nc")
     parsed_config.input_specs["static"].path = str(_tmpdir / "static.nc")
 
-    # conduit will not create a missing output directory; it fails rather than
-    # guess. The config asks for `results/*.nc`, so make `results/` first.
-    (_tmpdir / "results").mkdir()
     for _label in ("daily", "weekly", "monthly"):
         parsed_config.output_specs[_label].path = str(
             _tmpdir / "results" / f"{_label}.nc"
@@ -455,7 +462,7 @@ def _(mo):
     ### The P-model to SGAM: carbon, and the unit conversions
 
     This is the join worth studying.
-    Three quantities cross and two of them are in the wrong units, because `satterc.models.pmodel` is an honest wrapper: it reports what pyrealm computes, in pyrealm's units, rather than quietly converting on the way out.
+    Three quantities cross and two of them are in the wrong units, because `viresco.models.pmodel` is an honest wrapper: it reports what pyrealm computes, in pyrealm's units, rather than quietly converting on the way out.
 
     **Gross primary productivity.**
     pyrealm reports an instantaneous flux in ug C m-2 s-1.
@@ -516,7 +523,9 @@ def _(mo):
     The per-call `rankdir` overrides the shared style's without discarding the rest of it.
 
     Two more bridges appear here, and both are about aggregating a daily rate into a monthly total.
-    Summing a rate in mm d-1 over a month integrates it, because the daily timestep is one day, and `units = "mm"` relabels the result as the total it now is.
+    Summing a rate in mm d-1 over a month integrates it, because the daily timestep is one day, but the sum keeps the rate's `mm d-1` label.
+    `units = "mm"` with `overwrite_units = true` relabels the result as the total it now is.
+    That label is stated rather than checked, so the comment beside each bridge is what records why it is right.
 
     The choice of *which* water flux to send RothC matters more than the arithmetic.
     It is potential evapotranspiration, not actual.
@@ -616,7 +625,7 @@ def _(mo):
     That is a deliberate choice and it costs something: the config is long, and an expression in a TOML string gets no help from a type checker.
 
     What it buys is that the factor of 0.0864 is visible to whoever reads the pipeline.
-    A wrapper that quietly converted pyrealm's GPP on the way out would be shorter and would leave the next person with no way to see the assumption, let alone change it without editing SatTerC.
+    A wrapper that quietly converted pyrealm's GPP on the way out would be shorter and would leave the next person with no way to see the assumption, let alone change it without editing Viresco.
     """)
     return
 

@@ -1,5 +1,5 @@
 """Tests for the disturbance-detection ``apply_ufunc`` block seam
-(``satterc.models.sgam._disturbances_daily``).
+(``viresco.models.sgam._disturbances_daily``).
 
 ``sgam.Disturbances.forward`` is a *whole-block* computation: it diffs GPP/LAI along the
 time axis and is otherwise element-wise over pixels, so it vectorises over ``pixel``
@@ -35,7 +35,7 @@ import xarray as xr
 from sgam import Disturbances
 from sgam.pft import PlantFunctionalType, get_default_pft_params
 
-from satterc.models.sgam import _disturbances_daily, pft_params
+from viresco.models.sgam import _disturbances_daily, pft_params
 
 N_DAYS = 120
 N_PIXELS = 3
@@ -194,7 +194,7 @@ class TestCachingIntact:
     """The cached disturbances node matches the uncached one (seam is node-internal)."""
 
     def test_cached_run_matches_uncached(self, tmp_path, disturbance_inputs):
-        from conduit import CacheSpec, build_driver
+        from catena import CacheSpec, build_driver
 
         # disturbances_daily depends on the pft_params node, which the driver builds
         # from plant_type.
@@ -207,7 +207,7 @@ class TestCachingIntact:
         spec = CacheSpec(path=str(tmp_path / "cache"))
 
         def run(cache):
-            dr = build_driver(["satterc.models.sgam"], {}, cache=cache)
+            dr = build_driver(["viresco.models.sgam"], {}, cache=cache)
             return dr.execute(["disturbances_daily"], inputs=inputs)  # type: ignore[reportArgumentType]
 
         uncached = run(None)

@@ -1,4 +1,4 @@
-"""Tests for the RothC ``apply_ufunc`` pixel seam (``satterc.models.rothc._rothc``).
+"""Tests for the RothC ``apply_ufunc`` pixel seam (``viresco.models.rothc._rothc``).
 
 These cover the inner block-level parallelisation seam that replaced the explicit
 ``for i in range(n_pixels)`` loop:
@@ -20,7 +20,7 @@ import pytest
 import xarray as xr
 from rothc_py import RothC, RothCParams, percent_modern_c
 
-from satterc.models.rothc import (
+from viresco.models.rothc import (
     _ROTHC_OUTPUT_KEYS,
     _ROTHC_OUTPUT_NAMES,
     _rothc,
@@ -181,7 +181,7 @@ class TestCachingIntact:
     """The cached rothc node matches the uncached one (seam is internal to the node)."""
 
     def test_cached_run_matches_uncached(self, tmp_path):
-        from conduit import CacheSpec, build_driver
+        from catena import CacheSpec, build_driver
 
         def _mda(v: float) -> xr.DataArray:
             return xr.DataArray(
@@ -209,7 +209,7 @@ class TestCachingIntact:
 
         def run(cache):
             dr = build_driver(
-                ["satterc.models.rothc"], {"n_years_spinup": 1}, cache=cache
+                ["viresco.models.rothc"], {"n_years_spinup": 1}, cache=cache
             )
             return dr.execute(["soil_organic_carbon_monthly"], inputs=inputs)  # type: ignore[reportArgumentType]
 
