@@ -307,7 +307,7 @@ def rothc(
     precipitation_monthly: Annotated[DataArray, Unit("mm"), MONTHLY],
     potential_evapotranspiration_monthly: Annotated[DataArray, Unit("mm"), MONTHLY],
     plant_cover_monthly: Annotated[DataArray, MONTHLY],
-    dpm_rpm_ratio_monthly: Annotated[DataArray, MONTHLY],
+    dpm_rpm_ratio_monthly: Annotated[DataArray, Unit("1"), MONTHLY],
     soil_carbon_input_monthly: Annotated[DataArray, Unit("t ha-1"), MONTHLY],
     farmyard_manure_input_monthly: Annotated[DataArray, Unit("t ha-1"), MONTHLY],
     clay_content: Annotated[DataArray, Unit("percent")],
@@ -492,11 +492,12 @@ def dpm_rpm_ratio_config(
 
 
 @check_annotations
+@stamp_output_units
 def dpm_rpm_ratio_monthly(
     plant_type: DataArray,
     temperature_monthly: Annotated[DataArray, MONTHLY],
     dpm_rpm_ratio_config: DpmRpmRatioConfig,
-) -> Annotated[DataArray, MONTHLY]:
+) -> Annotated[DataArray, Unit("1"), MONTHLY]:
     """Return the DPM/RPM ratio for RothC based on plant type.
 
     Parameters
