@@ -154,10 +154,11 @@ def _(mo):
     xharvest cosmos fetch CHIMN --start 2021-01-01 --end 2022-12-31 \
       --parameter precip --parameter swin --parameter ta --parameter cosmos_vwc \
       --out data/raw
-    xharvest cosmos standardise data/raw/CHIMN_*.json --out data/cosmos.nc
+    xharvest cosmos standardise data/raw/CHIMN_1D_20210101_20221231.json --out data/cosmos.nc
     ```
 
-    To try another site or period, change `CHIMN` and the dates.
+    `fetch` names each file after the site and period, as `<site>_1D_<start>_<end>.json`.
+    To try another site or period, change `CHIMN` and the dates in both commands.
     `xharvest cosmos sites` lists every site and its period of record.
     ///
     """)

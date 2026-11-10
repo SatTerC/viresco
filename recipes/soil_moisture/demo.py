@@ -82,13 +82,13 @@ def _(mo):
     /// tip | From a terminal
     These commands made `data/cosmos.nc`, with xharvest's command-line tool;
     [My first pipeline](my_first_pipeline.md) says how to install it.
-    Change `CHIMN` and the dates to try another site or period.
+    To try another site or period, change `CHIMN` and the dates in both commands; `fetch` names each file `<site>_1D_<start>_<end>.json`.
 
     ```sh
     xharvest cosmos fetch CHIMN --start 2021-01-01 --end 2022-12-31 \
       --parameter cosmos_vwc --parameter precip --parameter snow \
       --parameter swin --parameter ta --out data/raw
-    xharvest cosmos standardise data/raw/CHIMN_*.json --out data/cosmos.nc
+    xharvest cosmos standardise data/raw/CHIMN_1D_20210101_20221231.json --out data/cosmos.nc
     ```
     ///
 

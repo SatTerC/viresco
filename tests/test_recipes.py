@@ -6,6 +6,8 @@ but `marimo-md-export` exits zero when a cell fails, so these tests are what cat
 a recipe that has drifted from the library.
 """
 
+import re
+import tomllib
 from pathlib import Path
 
 import catena
@@ -13,7 +15,8 @@ import pytest
 import xarray_annotated as xra
 from catena.importing import import_user_module
 
-RECIPES = Path(__file__).parent.parent / "recipes"
+ROOT = Path(__file__).parent.parent
+RECIPES = ROOT / "recipes"
 DIRECTORY_RECIPES = sorted(p.parent.name for p in RECIPES.glob("*/config.toml"))
 
 
@@ -50,3 +53,22 @@ def _config(name: str, results_dir: Path) -> catena.ParsedConfig:
     for spec in config.output_specs.values():
         spec.path = str(results_dir / Path(spec.path).name)
     return config
+
+
+def test_documented_recipes_match_the_docs_nav():
+    """``documented_recipes`` in the justfile lists exactly the Recipes in the nav.
+
+    The justfile exports the notebooks the docs build needs, and the nav links them,
+    so a recipe in one and not the other is either a dead link or a stale export.
+    """
+    justfile = (ROOT / "justfile").read_text()
+    match = re.search(r'^documented_recipes := "(.*)"$', justfile, re.MULTILINE)
+    assert match, "justfile defines no documented_recipes"
+    exported = set(match.group(1).split())
+
+    nav = tomllib.loads((ROOT / "zensical.toml").read_text())["project"]["nav"]
+    (recipes,) = [section["Recipes"] for section in nav if "Recipes" in section]
+    linked = {Path(page).stem for page in recipes}
+
+    assert exported == linked
+    assert exported <= set(DIRECTORY_RECIPES)
