@@ -434,7 +434,7 @@ def sgam(
     vpd_weekly: Annotated[xr.DataArray, Unit("Pa"), WEEKLY],
     lue_weekly: Annotated[xr.DataArray, Unit("g MJ-1"), WEEKLY],
     iwue_weekly: Annotated[xr.DataArray, Unit("umol mol-1"), WEEKLY],
-    disturbances_weekly: xr.DataArray,
+    disturbances_weekly: Annotated[xr.DataArray, WEEKLY],
     leaf_pool_init: Annotated[xr.DataArray, Unit("g m-2")],
     stem_pool_init: Annotated[xr.DataArray, Unit("g m-2")],
     root_pool_init: Annotated[xr.DataArray, Unit("g m-2")],
