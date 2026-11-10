@@ -116,7 +116,14 @@ def _(Path, mo, os, shlex, shutil, subprocess, sys):
             raise RuntimeError(f"`{command}` failed:\n{output}")
         return mo.md(f"```console\n$ {command}\n{output}\n```")
 
-    return sh, workdir
+    def show_toml(path: Path, lead: str = "") -> mo.Html:
+        """Show a TOML file as a highlighted block, after an optional sentence.
+
+        One `mo.md` rather than a stack, so the docs export keeps it as markdown.
+        """
+        return mo.md(f"{lead}\n\n```toml\n{path.read_text()}\n```")
+
+    return sh, show_toml, workdir
 
 
 @app.cell(hide_code=True)
@@ -146,36 +153,59 @@ def _(sh):
 
 
 @app.cell(hide_code=True)
-def _(mo, setup, workdir):
+def _(setup, show_toml, workdir):
     assert setup
     config_path = workdir / "config.toml"
 
-    mo.md(rf"""
-    This is the `config.toml` it wrote:
-
-    ```toml
-    {config_path.read_text()}
-    ```
-
-    Every section switches on one part of the pipeline:
-
-    - `[splash]` is the model, with its settings. Viresco registers its models with [catena](https://github.com/NERC-CEH/catena), the framework it is built on, so the section name alone is enough to find it.
-    - `[inputs.daily]` and `[inputs.static]` say which files to read, and which variables to take from each.
-    - `[outputs.daily]` says which results to write, and where.
-
-    Each input variable becomes a node of the pipeline named `{{var}}{{suffix}}`, where the suffix defaults to the section label:
-    `temperature` under `[inputs.daily]` becomes `temperature_daily`, which is what SPLASH's input is called.
-    Static variables are used under their bare names, so that section sets `suffix = ""`.
-    Paths are relative to the config file.
-    catena's [configuration reference](https://github.com/NERC-CEH/catena/blob/main/docs/reference/configuration.md) describes every section.
-    """)
+    show_toml(config_path, "This is the `config.toml` it wrote:")
     return (config_path,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Step 2: Generate synthetic data
+    Every section switches on one part of the pipeline:
+
+    - `[splash]` is the model, with its settings. Viresco registers its models with [catena](https://github.com/NERC-CEH/catena), the framework it is built on, so the section name alone is enough to find it.
+    - `[inputs.daily]` and `[inputs.static]` say which files to read, and which variables to take from each.
+    - `[outputs.daily]` says which results to write, and where.
+
+    Each input variable becomes a node of the pipeline named `{var}{suffix}`, where the suffix defaults to the section label:
+    `temperature` under `[inputs.daily]` becomes `temperature_daily`, which is what SPLASH's input is called.
+    Static variables are used under their bare names, so that section sets an empty `suffix`.
+    Paths are relative to the config file.
+    catena's [configuration reference](https://github.com/NERC-CEH/catena/blob/main/docs/reference/configuration.md) describes every section.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Step 2: Edit the config
+
+    `setup` asks for every result SPLASH can produce.
+    We only want soil moisture, so delete the other variables from `vars` under `[outputs.daily]`, leaving `"soil_moisture"`.
+    In a terminal, open `config.toml` in any text editor and delete those lines; the notebook makes the same edit for you.
+    The file is now:
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(catena, config_path, show_toml, tomllib):
+    _config = tomllib.loads(config_path.read_text())
+    _config["outputs"]["daily"]["vars"] = ["soil_moisture"]
+    config_path.write_text(catena.config.Config(_config).dumps())
+    trimmed = True
+    show_toml(config_path)
+    return (trimmed,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Step 3: Generate synthetic data
 
     The config says which variables the pipeline needs, so `viresco data-gen` can make up plausible values for each, with the right units, and write them to the input paths.
     `--grid 1 1` asks for a single pixel, and `--seed` makes the values reproducible.
@@ -192,8 +222,8 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(config_path, sh):
-    assert config_path.exists()
+def _(sh, trimmed):
+    assert trimmed
     data_gen = sh("viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42")
     data_gen
     return (data_gen,)
@@ -202,7 +232,7 @@ def _(config_path, sh):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Step 3: Check the pipeline
+    ### Step 4: Check the pipeline
 
     A dry run checks everything a real run depends on without running the model:
     that the config parses, the inputs load, every node finds its inputs, the units agree, and the outputs can be written.
@@ -226,7 +256,7 @@ def _(data_gen, sh):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Step 4: Draw the pipeline
+    ### Step 5: Draw the pipeline
 
     Viresco represents a pipeline as a graph: each node is an input or a computation, and an arrow runs from each node to those that use it.
     `viresco graph` draws it, and needs [graphviz](https://graphviz.org/download/) installed.
@@ -257,12 +287,14 @@ def _(graph, mo, workdir):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Read from left to right: the dashed boxes are the inputs, the blue box is SPLASH itself, and the outputs `[outputs.daily]` asks for are outlined.
+    Read from left to right: the dashed box lists the inputs, the note lists SPLASH's settings, and the blue boxes are functions, SPLASH itself and the one that sets up its starting soil moisture.
+    On the right is everything SPLASH computes.
+    The drawing shows the whole pipeline, so every SPLASH result appears; the one the config asks for, `soil_moisture_daily`, is outlined.
     Each node shows its unit, which is what the dry run checked.
 
-    ### Step 5: Run the pipeline
+    ### Step 6: Run the pipeline
 
-    `viresco run` reads the inputs, runs the model and writes `outputs/daily.nc`.
+    `viresco run` reads the inputs, runs the model and writes soil moisture to `outputs/daily.nc`.
     The config that produced the file, and a hash of it, are stored in its attributes, so a result can be traced back to the config that made it.
 
     /// tip | From Python
@@ -307,23 +339,16 @@ def _(run, workdir, xr):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Two of the outputs tell the model's story.
-    *Potential* evapotranspiration is the water the weather could evaporate if the soil were wet, and *actual* evapotranspiration is what the soil could supply.
-    While the soil is wet they agree; as it dries, actual falls below potential.
+    The soil fills to SPLASH's capacity each winter, and dries through the summer as evaporation outpaces rain.
     """)
     return
 
 
 @app.cell
 def _(plt, results):
-    _site = results.squeeze()  # the grid is a single pixel
-    _fig, (_top, _bottom) = plt.subplots(2, 1, figsize=(10, 5), sharex=True)
-    _site["potential_evapotranspiration"].plot(ax=_top, label="potential", lw=1)
-    _site["actual_evapotranspiration"].plot(ax=_top, label="actual", lw=1)
-    _top.set(title="", xlabel="", ylabel="Evapotranspiration (mm/day)")
-    _top.legend()
-    _site["soil_moisture"].plot(ax=_bottom, color="k", lw=1)
-    _bottom.set(title="", ylabel="Soil moisture (mm)")
+    _fig, _ax = plt.subplots(figsize=(10, 3))
+    results["soil_moisture"].squeeze().plot(ax=_ax, color="k", lw=1)
+    _ax.set(title="", ylabel="Soil moisture (mm)")
     _fig.tight_layout()
     _fig
     return
@@ -354,7 +379,7 @@ def _(mo):
     catena's `[[resample]]` section aggregates a variable to a coarser step, so two additions give one:
     a `[[resample]]` that turns `soil_moisture_daily` into a weekly mean, `soil_moisture_weekly`,
     and an `[outputs.weekly]` section that writes it.
-    Below they are added to the dictionary, which is written back to `config.toml`;
+    Below they are added to the dictionary, which is written back to `config.toml`, as Step 2 did;
     in a text editor you would add the same lines by hand.
     """)
     return
@@ -376,7 +401,14 @@ def _(catena, config, config_path):
         "vars": ["soil_moisture"],
     }
     config_path.write_text(catena.config.Config(config).dumps())
-    print(config_path.read_text())
+    resampled = True
+    return (resampled,)
+
+
+@app.cell(hide_code=True)
+def _(config_path, resampled, show_toml):
+    assert resampled
+    show_toml(config_path, "The config is now:")
     return
 
 
@@ -394,7 +426,8 @@ def _(mo):
 
 
 @app.cell
-def _(catena, config_path):
+def _(catena, config_path, resampled):
+    assert resampled
     report = catena.run(config_path)
     report.outputs["weekly"]
     return (report,)
