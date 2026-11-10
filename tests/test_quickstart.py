@@ -156,12 +156,15 @@ class TestGeneratedConfigShape:
             assert f"{name.rsplit('_', 1)[0]}_daily.resample" in config
 
 
+@pytest.mark.skipif(not shutil.which("dot"), reason="graphviz not installed")
 def test_quickstart_notebook_runs(tmp_path):
     """The quickstart guide is a notebook that runs the CLI route, then Python.
 
     `marimo-md-export` exits zero when a cell fails, so the docs build would
     publish a broken guide; run as a script, a marimo notebook exits non-zero.
-    The copy keeps the notebook's working directory out of the repository.
+    The copy keeps the notebook's working directory out of the repository. The
+    notebook draws its graph with `viresco graph --png`, which needs graphviz; CI
+    installs it, so the skip only applies to a local run without it.
     """
     notebook = Path(__file__).parent.parent / "recipes" / "quickstart" / "demo.py"
     shutil.copy(notebook, tmp_path / "demo.py")
