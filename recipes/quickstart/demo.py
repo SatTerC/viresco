@@ -171,7 +171,7 @@ def _(mo):
     - `[outputs.daily]` says which results to write, and where.
 
     Each input variable becomes a node of the pipeline named `{var}{suffix}`, where the suffix defaults to `_<section label>`.
-    Viresco gives daily and static variables bare names, so both sections set an empty `suffix`: `temperature` under `[inputs.daily]` becomes the node `temperature`, which is what SPLASH's input is called.
+    Viresco gives daily and static variables [bare names](../models/index.md#node-names), so both sections set an empty `suffix`: `temperature` under `[inputs.daily]` becomes the node `temperature`, which is what SPLASH's input is called.
     Paths are relative to the config file.
     catena's [configuration reference](https://github.com/NERC-CEH/catena/blob/main/docs/reference/configuration.md) describes every section.
     """)

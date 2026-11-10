@@ -28,4 +28,23 @@ A node a model needs that runs at another lives in the `shared` module instead, 
 Today that is the mean growth temperature some P-model methods need, reduced from daily temperature, and the daily disturbance detection whose weekly maximum SGAM consumes.
 `viresco setup` adds the section whenever a chosen model needs it.
 
+## Node names { #node-names }
+
+Each node of a pipeline is named for the variable it holds, with a suffix for its temporal resolution:
+
+| Resolution | Name | Example |
+|------------|------|---------|
+| Daily | bare | `temperature` |
+| Weekly | `_weekly` | `temperature_weekly` |
+| Monthly | `_monthly` | `temperature_monthly` |
+| Static, with no time axis | bare | `elevation` |
+
+Daily is the finest resolution Viresco models; sub-daily work belongs in a separate package.
+
+This is a Viresco convention, not a catena one.
+catena names an input `{var}{suffix}`, with the suffix defaulting to `_<section label>`, so a Viresco config sets `suffix = ""` on its `[inputs.daily]`, `[inputs.static]` and `[outputs.daily]` sections, and `from = ""` on each `[[resample]]` from daily.
+`viresco setup` writes them that way.
+
+Because daily and static names are both bare, a name alone does not say which a node is: its declared frequency does.
+
 

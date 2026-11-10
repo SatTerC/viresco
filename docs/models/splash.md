@@ -70,8 +70,8 @@ That skips the spin-up, so the year minimum and the dependence on block size no 
 SPLASH works out all of its radiation from the sunshine fraction $s_f$: the shortwave reaching the ground as $\tau R_a$, with transmissivity $\tau = (0.25 + 0.5\,s_f)(1 + 2.67\times10^{-5} z)$ (Linacre, 1968) and $R_a$ the radiation at the top of the atmosphere, and the net longwave from $s_f$ and temperature.
 It has no way to take measured radiation instead.
 
-Sites with a radiometer but no sunshine recorder, such as COSMOS-UK's, can set `sunshine_fraction_method = "shortwave"` and supply `shortwave_radiation_daily`.
-`sunshine_fraction_daily` is then computed by inverting the transmissivity relation, with pyrealm's own $R_a$ and coefficients, so SPLASH's modelled shortwave reproduces the measurement.
+Sites with a radiometer but no sunshine recorder, such as COSMOS-UK's, can set `sunshine_fraction_method = "shortwave"` and supply `shortwave_radiation`.
+`sunshine_fraction` is then computed by inverting the transmissivity relation, with pyrealm's own $R_a$ and coefficients, so SPLASH's modelled shortwave reproduces the measurement.
 
 Two things follow:
 
@@ -166,9 +166,9 @@ Required when `soil_moisture_init_method` is `prescribed`.
 
 #### Shortwave radiation, for `shortwave` sunshine fraction
 
-Required, in place of `sunshine_fraction_daily`, when `sunshine_fraction_method` is `shortwave`.
+Required, in place of `sunshine_fraction`, when `sunshine_fraction_method` is `shortwave`.
 
-::: viresco.models.splash.sunshine_fraction_daily__shortwave
+::: viresco.models.splash.sunshine_fraction__shortwave
     options:
       show_root_full_path: false
       separate_signature: false

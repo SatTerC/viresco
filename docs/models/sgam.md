@@ -160,7 +160,7 @@ strict_mass_balance = false
 
 Disturbance detection runs on daily observations, so it lives in the `shared` module rather than in this weekly one, and its one setting is a key of the `[shared]` section:
 
-::: viresco.models.shared.disturbances_daily
+::: viresco.models.shared.disturbances
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -197,7 +197,7 @@ Two of those inputs are derived rather than loaded: `pft_params` by this module,
       heading_level: 4
       docstring_section_style: spacy
 
-::: viresco.models.shared.disturbances_daily
+::: viresco.models.shared.disturbances
     options:
       show_root_heading: true
       show_root_full_path: false

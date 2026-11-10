@@ -93,6 +93,7 @@ def _(config_path, mo):
     - `[splash]` loads the SPLASH model, which Viresco registers with catena, so the section name alone is enough to find it.
       `sunshine_fraction_method = "shortwave"` tells it to work out the sunshine fraction it needs from measured radiation, as Step 3 explains.
     - `[outputs.daily]` saves the named variables to disk when the pipeline finishes.
+      It sets `suffix = ""` because Viresco's daily nodes have [bare names](../models/index.md#node-names).
 
     Paths are relative to the config file.
     """)
