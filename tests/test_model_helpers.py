@@ -3,7 +3,7 @@
 Covers:
 - viresco.models.rothc  — plant_cover_monthly, dpm_rpm_ratio_monthly, farmyard_manure_input_monthly
 - viresco.models.sgam   — _pft_int_to_enum, _build_pft_params_dataset, _pft_params_from_dataset, pft_params
-- viresco.models.shared — mean_growth_temperature, disturbances_daily
+- viresco.models.shared — mean_growth_temperature, disturbances
 - model execution smoke tests for splash, pmodel (via pipeline_inputs session fixture)
 """
 
@@ -603,10 +603,10 @@ class TestSgamInnerExecution:
 
 
 class TestDisturbancesDaily:
-    """Smoke test: disturbances_daily computes disturbance indicators."""
+    """Smoke test: disturbances computes disturbance indicators."""
 
     def test_disturbances_output_shape(self):
-        from viresco.models.shared import disturbances_daily
+        from viresco.models.shared import disturbances
 
         n_days = 365
         n_pixels = 2
@@ -623,10 +623,10 @@ class TestDisturbancesDaily:
 
         from viresco.models.sgam import pft_params
 
-        result = disturbances_daily(
-            temperature_daily=_da(np.full((n_days, n_pixels), 15.0)),
-            gpp_daily=_da(np.full((n_days, n_pixels), 5.0)),
-            lai_daily=_da(np.full((n_days, n_pixels), 2.0)),
+        result = disturbances(
+            temperature=_da(np.full((n_days, n_pixels), 15.0)),
+            gpp=_da(np.full((n_days, n_pixels), 5.0)),
+            lai=_da(np.full((n_days, n_pixels), 2.0)),
             pft_params=pft_params(_static_da(np.array([0, 3]))),
         )
         assert isinstance(result, xr.DataArray)
@@ -656,17 +656,17 @@ class TestSplashExecution:
             return xr.DataArray(values, dims=["pixel"], coords={"pixel": pixel})
 
         return _splash(
-            sunshine_fraction_daily=_da(
+            sunshine_fraction=_da(
                 np.clip(rng.normal(0.5, 0.2, (n_days, n_pixels)), 0, 1)
             ),
-            temperature_daily=_da(rng.normal(10, 5, (n_days, n_pixels))),
-            precipitation_daily=_da(np.abs(rng.normal(2, 1, (n_days, n_pixels)))),
+            temperature=_da(rng.normal(10, 5, (n_days, n_pixels))),
+            precipitation=_da(np.abs(rng.normal(2, 1, (n_days, n_pixels)))),
             elevation=_static_da(np.array([50.0, 100.0])),
             latitude=_static_da(np.array([51.5, 52.0])),
             max_soil_moisture=_static_da(np.array([150.0, 150.0])),
             soil_moisture_init_max_iter=5,
             soil_moisture_init_max_diff=1.0,
-            dates_daily=time,
+            dates=time,
         )
 
     def test_returns_dict(self, splash_result):
@@ -678,21 +678,19 @@ class TestSplashExecution:
         assert set(splash_result) == set(SplashOut.__annotations__)
 
     def test_aet_is_dataarray(self, splash_result):
-        assert isinstance(
-            splash_result["actual_evapotranspiration_daily"], xr.DataArray
-        )
+        assert isinstance(splash_result["actual_evapotranspiration"], xr.DataArray)
 
     def test_aet_non_negative(self, splash_result):
-        aet = splash_result["actual_evapotranspiration_daily"]
+        aet = splash_result["actual_evapotranspiration"]
         assert np.all(aet.values >= 0)
 
     def test_soil_moisture_bounded(self, splash_result):
-        sm = splash_result["soil_moisture_daily"]
+        sm = splash_result["soil_moisture"]
         assert np.all(sm.values >= 0)
         assert np.all(sm.values <= 150.0)
 
     def test_output_shape(self, splash_result):
-        aet = splash_result["actual_evapotranspiration_daily"]
+        aet = splash_result["actual_evapotranspiration"]
         assert aet.sizes["time"] == 366
         assert aet.sizes["pixel"] == 2
 
@@ -714,17 +712,17 @@ class TestSplashExecution:
         def _static_da(values):
             return xr.DataArray(values, dims=["pixel"], coords={"pixel": pixel})
 
-        # The daily calendar is read off temperature_daily's time coord.
+        # The daily calendar is read off temperature's time coord.
         result = splash(
-            sunshine_fraction_daily=_da(
+            sunshine_fraction=_da(
                 np.clip(rng.normal(0.5, 0.2, (n_days, n_pixels)), 0, 1)
             ),
-            temperature_daily=_da(rng.normal(10, 5, (n_days, n_pixels))),
-            precipitation_daily=_da(np.abs(rng.normal(2, 1, (n_days, n_pixels)))),
+            temperature=_da(rng.normal(10, 5, (n_days, n_pixels))),
+            precipitation=_da(np.abs(rng.normal(2, 1, (n_days, n_pixels)))),
             elevation=_static_da(np.array([50.0])),
             latitude=_static_da(np.array([51.5])),
             max_soil_moisture=_static_da(np.array([150.0])),
             soil_moisture_init_inputs={},
         )
         assert isinstance(result, dict)
-        assert "actual_evapotranspiration_daily" in result
+        assert "actual_evapotranspiration" in result

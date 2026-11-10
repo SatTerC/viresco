@@ -30,15 +30,15 @@ from ..temporal import DAILY, time_index
 class SplashOut(TypedDict):
     """Outputs of the `splash` node, at daily resolution."""
 
-    actual_evapotranspiration_daily: Annotated[DataArray, Unit("mm d-1"), DAILY]
+    actual_evapotranspiration: Annotated[DataArray, Unit("mm d-1"), DAILY]
     """Actual evapotranspiration: the daily water loss to the atmosphere
     (millimetres per day)."""
-    soil_moisture_daily: Annotated[DataArray, Unit("mm"), DAILY]
+    soil_moisture: Annotated[DataArray, Unit("mm"), DAILY]
     """Soil moisture content at the end of the day (millimetres)."""
-    runoff_daily: Annotated[DataArray, Unit("mm"), DAILY]
+    runoff: Annotated[DataArray, Unit("mm"), DAILY]
     """Runoff: the soil-moisture overflow amount above capacity for the day
     (millimetres, an amount rather than a rate)."""
-    potential_evapotranspiration_daily: Annotated[DataArray, Unit("mm d-1"), DAILY]
+    potential_evapotranspiration: Annotated[DataArray, Unit("mm d-1"), DAILY]
     """Potential evapotranspiration: the water that *would* be lost to the
     atmosphere given the available energy, if soil moisture were not limiting
     (millimetres per day).
@@ -48,51 +48,51 @@ class SplashOut(TypedDict):
     evapotranspiration follows from daytime net radiation and ``k_w = 0.26``. It
     is the demand term in an aridity index, which `viresco.models.pmodel` needs
     for ``method_kphio = "sandoval"``."""
-    equilibrium_evapotranspiration_daily: Annotated[DataArray, Unit("mm d-1"), DAILY]
+    equilibrium_evapotranspiration: Annotated[DataArray, Unit("mm d-1"), DAILY]
     """Equilibrium evapotranspiration: the energy-limited loss from daytime net
     radiation, before the Priestley-Taylor scaling that gives potential
     evapotranspiration (millimetres per day)."""
-    condensation_daily: Annotated[DataArray, Unit("mm d-1"), DAILY]
+    condensation: Annotated[DataArray, Unit("mm d-1"), DAILY]
     """Condensation, from nighttime net radiation (millimetres per day). With
     precipitation, this is the supply side of the daily water balance."""
-    extraterrestrial_radiation_daily: Annotated[DataArray, Unit("J m-2 d-1"), DAILY]
+    extraterrestrial_radiation: Annotated[DataArray, Unit("J m-2 d-1"), DAILY]
     """Solar radiation arriving at the top of the atmosphere over the day."""
-    transmissivity_daily: Annotated[DataArray, Unit("1"), DAILY]
+    transmissivity: Annotated[DataArray, Unit("1"), DAILY]
     """Bulk atmospheric transmissivity, from sunshine fraction and elevation."""
-    estimated_ppfd_daily: Annotated[DataArray, Unit("mol m-2 d-1"), DAILY]
+    estimated_ppfd: Annotated[DataArray, Unit("mol m-2 d-1"), DAILY]
     """Photosynthetic photon flux density estimated from the radiation model.
 
     The units follow the calculation, which converts a daily radiation total.
     pyrealm's docstrings say micromoles per square metre per second, but its
     values are moles per square metre per day. This is a daily total, unlike the
     instantaneous rate `viresco.models.pmodel` takes as ``ppfd_weekly``."""
-    net_longwave_radiation_daily: Annotated[DataArray, Unit("W m-2"), DAILY]
+    net_longwave_radiation: Annotated[DataArray, Unit("W m-2"), DAILY]
     """Net longwave radiation, as a rate that is constant over the day."""
-    daytime_net_radiation_daily: Annotated[DataArray, Unit("J m-2 d-1"), DAILY]
+    daytime_net_radiation: Annotated[DataArray, Unit("J m-2 d-1"), DAILY]
     """Net radiation over the hours when it is positive."""
-    nighttime_net_radiation_daily: Annotated[DataArray, Unit("J m-2 d-1"), DAILY]
+    nighttime_net_radiation: Annotated[DataArray, Unit("J m-2 d-1"), DAILY]
     """Net radiation over the hours when it is negative, so this is negative."""
 
 
 #: `SplashOut` field -> where pyrealm's `SplashModel` holds it. These are computed on
 #: construction, independently of the soil moisture iteration, so are simply read off.
 _FLUX_ATTRIBUTES = {
-    "potential_evapotranspiration_daily": "evap.pet_d",
-    "equilibrium_evapotranspiration_daily": "evap.eet_d",
-    "condensation_daily": "evap.cond",
-    "extraterrestrial_radiation_daily": "solar.daily_solar_radiation",
-    "transmissivity_daily": "solar.transmissivity",
-    "estimated_ppfd_daily": "solar.daily_ppfd",
-    "net_longwave_radiation_daily": "solar.net_longwave_radiation",
-    "daytime_net_radiation_daily": "solar.daytime_net_radiation",
-    "nighttime_net_radiation_daily": "solar.nighttime_net_radiation",
+    "potential_evapotranspiration": "evap.pet_d",
+    "equilibrium_evapotranspiration": "evap.eet_d",
+    "condensation": "evap.cond",
+    "extraterrestrial_radiation": "solar.daily_solar_radiation",
+    "transmissivity": "solar.transmissivity",
+    "estimated_ppfd": "solar.daily_ppfd",
+    "net_longwave_radiation": "solar.net_longwave_radiation",
+    "daytime_net_radiation": "solar.daytime_net_radiation",
+    "nighttime_net_radiation": "solar.nighttime_net_radiation",
 }
 
 #: `SplashOut` fields, in the order `_splash_block` returns them.
 _OUTPUT_FIELDS = (
-    "actual_evapotranspiration_daily",
-    "soil_moisture_daily",
-    "runoff_daily",
+    "actual_evapotranspiration",
+    "soil_moisture",
+    "runoff",
     *_FLUX_ATTRIBUTES,
 )
 
@@ -282,7 +282,7 @@ def _splash_block(
     for output, result in zip(outputs, results, strict=True):
         output[valid] = np.moveaxis(result, 0, -1)
 
-    moisture = outputs[_OUTPUT_FIELDS.index("soil_moisture_daily")]
+    moisture = outputs[_OUTPUT_FIELDS.index("soil_moisture")]
     failed = valid & np.isnan(moisture).any(axis=-1)
     if failed.any():
         warnings.warn(
@@ -295,13 +295,13 @@ def _splash_block(
 
 
 def _splash(
-    sunshine_fraction_daily: DataArray,
-    temperature_daily: DataArray,
-    precipitation_daily: DataArray,
+    sunshine_fraction: DataArray,
+    temperature: DataArray,
+    precipitation: DataArray,
     elevation: DataArray,
     latitude: DataArray,
     max_soil_moisture: DataArray,
-    dates_daily: DatetimeIndex,
+    dates: DatetimeIndex,
     *,
     soil_moisture_init_max_iter: int,
     soil_moisture_init_max_diff: float,
@@ -317,29 +317,29 @@ def _splash(
     backend can still chunk over space.
     Unset, ``initial_soil_moisture`` means the initial state comes from the spin-up.
     """
-    _require_consecutive_days(dates_daily)
-    time = sole_time_dim(temperature_daily, "temperature_daily")
+    _require_consecutive_days(dates)
+    time = sole_time_dim(temperature, "temperature")
     space = space_dim(
-        sunshine_fraction_daily=sunshine_fraction_daily,
-        temperature_daily=temperature_daily,
-        precipitation_daily=precipitation_daily,
+        sunshine_fraction=sunshine_fraction,
+        temperature=temperature,
+        precipitation=precipitation,
         elevation=elevation,
         latitude=latitude,
         max_soil_moisture=max_soil_moisture,
     )
     prescribed = [] if initial_soil_moisture is None else [initial_soil_moisture]
-    calendar = pyrealm.core.calendar.Calendar(dates_daily.values)
+    calendar = pyrealm.core.calendar.Calendar(dates.values)
 
     n_outputs = len(_OUTPUT_FIELDS)
     outputs = xr.apply_ufunc(
         _splash_block,
-        sunshine_fraction_daily,
-        temperature_daily,
-        precipitation_daily,
+        sunshine_fraction,
+        temperature,
+        precipitation,
         elevation,
         latitude,
         max_soil_moisture,
-        sunshine_fraction_daily[space],
+        sunshine_fraction[space],
         *prescribed,
         input_core_dims=[[time]] * 3 + [[]] * (4 + len(prescribed)),
         output_core_dims=[[time]] * n_outputs,
@@ -355,7 +355,7 @@ def _splash(
 
     # apply_ufunc drops the time coord (a core dim) and orders outputs as
     # (space, time); reattach the coord and restore the canonical (time, space).
-    time_coord = temperature_daily.coords[time]
+    time_coord = temperature.coords[time]
     return cast(
         SplashOut,
         {
@@ -438,8 +438,8 @@ def _extraterrestrial_radiation(
 @config.when_in(sunshine_fraction_method=["shortwave"])
 @check_annotations
 @stamp_output_units(overwrite=True)
-def sunshine_fraction_daily__shortwave(
-    shortwave_radiation_daily: Annotated[DataArray, Unit("J m-2 d-1"), DAILY],
+def sunshine_fraction__shortwave(
+    shortwave_radiation: Annotated[DataArray, Unit("J m-2 d-1"), DAILY],
     elevation: Annotated[DataArray, Unit("m")],
     latitude: Annotated[DataArray, Unit("degrees")],
 ) -> Annotated[DataArray, Unit("1"), DAILY]:
@@ -460,7 +460,7 @@ def sunshine_fraction_daily__shortwave(
 
     Parameters
     ----------
-    shortwave_radiation_daily
+    shortwave_radiation
         Incoming shortwave radiation at the surface over the day (joules per
         square metre per day), with no gaps.
     elevation
@@ -469,13 +469,13 @@ def sunshine_fraction_daily__shortwave(
         Latitude of the site (degrees).
     """
     c, d, f = pyrealm.constants.CoreConst().transmissivity_coef
-    time = sole_time_dim(shortwave_radiation_daily, "shortwave_radiation_daily")
+    time = sole_time_dim(shortwave_radiation, "shortwave_radiation")
     extraterrestrial = _extraterrestrial_radiation(
         latitude,
-        time_index(shortwave_radiation_daily, "shortwave_radiation_daily"),
+        time_index(shortwave_radiation, "shortwave_radiation"),
         time,
     )
-    transmissivity = shortwave_radiation_daily / extraterrestrial
+    transmissivity = shortwave_radiation / extraterrestrial
     return ((transmissivity / (1 + f * elevation) - c) / d).clip(0, 1)
 
 
@@ -483,9 +483,9 @@ def sunshine_fraction_daily__shortwave(
 @check_annotations
 @stamp_output_units
 def splash(
-    sunshine_fraction_daily: Annotated[DataArray, Unit("1"), DAILY],
-    temperature_daily: Annotated[DataArray, Unit("degC"), DAILY],
-    precipitation_daily: Annotated[DataArray, Unit("mm d-1"), DAILY],
+    sunshine_fraction: Annotated[DataArray, Unit("1"), DAILY],
+    temperature: Annotated[DataArray, Unit("degC"), DAILY],
+    precipitation: Annotated[DataArray, Unit("mm d-1"), DAILY],
     elevation: Annotated[DataArray, Unit("m")],
     latitude: Annotated[DataArray, Unit("degrees")],
     max_soil_moisture: Annotated[DataArray, Unit("mm")],
@@ -498,17 +498,17 @@ def splash(
 ) -> SplashOut:
     """Run the SPLASH water balance model.
 
-    The daily calendar SPLASH needs is read off ``temperature_daily``'s time
+    The daily calendar SPLASH needs is read off ``temperature``'s time
     coordinate, and must have no missing days.
 
     Parameters
     ----------
-    sunshine_fraction_daily
+    sunshine_fraction
         Fraction of daylight hours that are sunny (dimensionless, 0-1). An input
         unless ``sunshine_fraction_method`` derives it.
-    temperature_daily
+    temperature
         Daily mean air temperature (degrees Celsius).
-    precipitation_daily
+    precipitation
         Precipitation (millimetres per day).
     elevation
         Elevation of the site (metres). Values outside -500 to 9000 warn, as they
@@ -524,9 +524,9 @@ def splash(
     Other Parameters
     ----------------
     sunshine_fraction_method
-        Where ``sunshine_fraction_daily`` comes from: ``input`` reads it as an
+        Where ``sunshine_fraction`` comes from: ``input`` reads it as an
         input, and ``shortwave`` recovers it from measured shortwave radiation;
-        see `sunshine_fraction_daily__shortwave`.
+        see `sunshine_fraction__shortwave`.
     soil_moisture_init_method
         Where the initial soil moisture comes from: ``equilibrate`` repeats the
         first year until soil moisture stabilises, and ``prescribed`` takes it
@@ -545,17 +545,17 @@ def splash(
     SplashOut
         Dictionary of daily outputs:
 
-        - actual_evapotranspiration_daily: actual evapotranspiration
+        - actual_evapotranspiration: actual evapotranspiration
           (millimetres per day)
-        - soil_moisture_daily: soil moisture content (millimetres)
-        - runoff_daily: runoff overflow amount (millimetres)
-        - potential_evapotranspiration_daily: energy-limited water demand
+        - soil_moisture: soil moisture content (millimetres)
+        - runoff: runoff overflow amount (millimetres)
+        - potential_evapotranspiration: energy-limited water demand
           (millimetres per day)
-        - equilibrium_evapotranspiration_daily, condensation_daily: the other
+        - equilibrium_evapotranspiration, condensation: the other
           water fluxes (millimetres per day)
-        - extraterrestrial_radiation_daily, transmissivity_daily,
-          estimated_ppfd_daily, net_longwave_radiation_daily,
-          daytime_net_radiation_daily, nighttime_net_radiation_daily: the
+        - extraterrestrial_radiation, transmissivity,
+          estimated_ppfd, net_longwave_radiation,
+          daytime_net_radiation, nighttime_net_radiation: the
           radiation fluxes
 
         See `SplashOut` for per-output detail.
@@ -578,13 +578,13 @@ def splash(
             f"expected one of {', '.join(map(repr, _INIT_METHODS))}."
         )
     return _splash(
-        sunshine_fraction_daily=sunshine_fraction_daily,
-        temperature_daily=temperature_daily,
-        precipitation_daily=precipitation_daily,
+        sunshine_fraction=sunshine_fraction,
+        temperature=temperature,
+        precipitation=precipitation,
         elevation=elevation,
         latitude=latitude,
         max_soil_moisture=max_soil_moisture,
-        dates_daily=time_index(temperature_daily, "temperature_daily"),
+        dates=time_index(temperature, "temperature"),
         initial_soil_moisture=soil_moisture_init_inputs.get("initial_soil_moisture"),
         soil_moisture_init_max_iter=soil_moisture_init_max_iter,
         soil_moisture_init_max_diff=soil_moisture_init_max_diff,

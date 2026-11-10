@@ -92,17 +92,15 @@ def splash_inputs() -> dict[str, Any]:
     """Fixed SPLASH drivers, in the units `viresco.models.splash` declares."""
     season = _seasonal(N_DAYS)
     return {
-        "sunshine_fraction_daily": _daily(
+        "sunshine_fraction": _daily(
             np.tile(np.clip(0.5 + 0.05 * season, 0.0, 1.0)[:, None], (1, N_PIXELS))
         ),
-        "temperature_daily": _daily(
-            10.0 + 8.0 * season[:, None] + _offsets(4.0)[None, :]
-        ),
-        "precipitation_daily": _daily(np.full((N_DAYS, N_PIXELS), 2.0)),
+        "temperature": _daily(10.0 + 8.0 * season[:, None] + _offsets(4.0)[None, :]),
+        "precipitation": _daily(np.full((N_DAYS, N_PIXELS), 2.0)),
         "elevation": _static(ELEVATION),
         "latitude": _static(LATITUDE),
         "max_soil_moisture": _static(MAX_SOIL_MOISTURE),
-        "dates_daily": DAILY_DATES,
+        "dates": DAILY_DATES,
         "soil_moisture_init_max_iter": SPLASH_MAX_ITER,
         "soil_moisture_init_max_diff": SPLASH_MAX_DIFF,
     }

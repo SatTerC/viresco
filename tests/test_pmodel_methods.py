@@ -87,7 +87,7 @@ INPUTS = {
     "rootzonestress_weekly": _weekly(0.7),
     "aridity_index": _static(1.0),
     # Feeds the `mean_growth_temperature` node.
-    "temperature_daily": xr.DataArray(
+    "temperature": xr.DataArray(
         np.full((N_WEEKS * 7, N_PIXELS), 15.0),
         dims=["time", "pixel"],
         coords={
@@ -174,7 +174,7 @@ def test_mean_growth_temperature_exists_only_for_its_consumers(config, derived):
     dr = build_driver(MODULES, config)
     names = {v.name for v in dr.list_available_variables()}
     assert ("mean_growth_temperature" in names) == derived
-    assert ("temperature_daily" in _required_inputs(dr)) == derived
+    assert ("temperature" in _required_inputs(dr)) == derived
 
 
 def test_arrhenius_method_changes_only_the_standard_temperature_rates():

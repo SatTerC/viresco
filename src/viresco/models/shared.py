@@ -3,7 +3,7 @@
 Each model module runs at a single frequency (see `viresco.temporal`). A node
 that a model needs but that does not run at that model's frequency lives here
 instead: `mean_growth_temperature` reduces a daily series to one value per
-pixel for the P-model, and `disturbances_daily` detects disturbance events in
+pixel for the P-model, and `disturbances` detects disturbance events in
 daily observations for SGAM, which a config then resamples to weekly.
 
 viresco registers this module under catena's ``catena.modules`` entry-point
@@ -36,7 +36,7 @@ from .pmodel import _ARRHENIUS_KATTGE_KNORR, _KPHIO_SANDOVAL
 )
 @check_annotations
 def mean_growth_temperature(
-    temperature_daily: Annotated[DataArray, Unit("degC"), DAILY],
+    temperature: Annotated[DataArray, Unit("degC"), DAILY],
 ) -> Annotated[DataArray, Unit("degC")]:
     """Mean temperature over the growing days of the record, one value per pixel.
 
@@ -56,13 +56,13 @@ def mean_growth_temperature(
 
     Parameters
     ----------
-    temperature_daily
+    temperature
         Daily mean air temperature (degrees Celsius).
     """
     # Reduce over the whole record, not per week: a winter week with no day above
     # 0 degC is an ordinary week, and windowing turned it into a NaN in GPP.
-    growing_days = temperature_daily.where(temperature_daily > 0.0)
-    return growing_days.mean(sole_time_dim(temperature_daily, "temperature_daily"))
+    growing_days = temperature.where(temperature > 0.0)
+    return growing_days.mean(sole_time_dim(temperature, "temperature"))
 
 
 def _disturbances_block(
@@ -102,10 +102,10 @@ def _disturbances_block(
     return np.moveaxis(result, 0, -1)
 
 
-def _disturbances_daily(
-    temperature_daily: xr.DataArray,
-    gpp_daily: xr.DataArray,
-    lai_daily: xr.DataArray,
+def _disturbances(
+    temperature: xr.DataArray,
+    gpp: xr.DataArray,
+    lai: xr.DataArray,
     disturbance_threshold: xr.DataArray,
     growing_season_limit: float,
 ) -> xr.DataArray:
@@ -119,18 +119,18 @@ def _disturbances_daily(
     one call; ``dask="parallelized"`` keeps a future dask-backed (chunked over
     space) run reachable.
     """
-    time = sole_time_dim(temperature_daily, "temperature_daily")
+    time = sole_time_dim(temperature, "temperature")
     space = space_dim(
-        temperature_daily=temperature_daily,
-        gpp_daily=gpp_daily,
-        lai_daily=lai_daily,
+        temperature=temperature,
+        gpp=gpp,
+        lai=lai,
         disturbance_threshold=disturbance_threshold,
     )
     out = xr.apply_ufunc(
         _disturbances_block,
-        temperature_daily,
-        gpp_daily,
-        lai_daily,
+        temperature,
+        gpp,
+        lai,
         disturbance_threshold,
         input_core_dims=[[time]] * 3 + [[]],
         output_core_dims=[[time]],
@@ -142,17 +142,15 @@ def _disturbances_daily(
 
     # apply_ufunc drops the time coord (a core dim) and orders the output as
     # (space, time); reattach the coord and restore the canonical (time, space).
-    return out.assign_coords({time: temperature_daily.coords[time]}).transpose(
-        time, space
-    )
+    return out.assign_coords({time: temperature.coords[time]}).transpose(time, space)
 
 
 @check_annotations
 @stamp_output_units
-def disturbances_daily(
-    temperature_daily: Annotated[xr.DataArray, Unit("degC"), DAILY],
-    gpp_daily: Annotated[xr.DataArray, Unit("g m-2 d-1"), DAILY],
-    lai_daily: Annotated[xr.DataArray, Unit("1"), DAILY],
+def disturbances(
+    temperature: Annotated[xr.DataArray, Unit("degC"), DAILY],
+    gpp: Annotated[xr.DataArray, Unit("g m-2 d-1"), DAILY],
+    lai: Annotated[xr.DataArray, Unit("1"), DAILY],
     pft_params: xr.Dataset,
     *,
     growing_season_limit: float = 10.0,
@@ -171,12 +169,12 @@ def disturbances_daily(
 
     Parameters
     ----------
-    temperature_daily
+    temperature
         Daily mean air temperature (degrees Celsius).
-    gpp_daily
+    gpp
         Daily gross primary productivity (grams of carbon per square metre per
         day).
-    lai_daily
+    lai
         Daily leaf area index (dimensionless).
     pft_params
         PFT parameters for each pixel. Output of the
@@ -189,7 +187,7 @@ def disturbances_daily(
         Minimum daily mean temperature for a day to count as within the growing
         season (degrees Celsius). This is a temperature gate, not a calendar
         one, so it needs no hemisphere correction: the seasonal phase is already
-        carried by ``temperature_daily``.
+        carried by ``temperature``.
 
     Returns
     -------
@@ -198,10 +196,10 @@ def disturbances_daily(
         a disturbance, in [0, 1] where 0 is no disturbance and 1 is a total loss
         (dimensionless).
     """
-    return _disturbances_daily(
-        temperature_daily,
-        gpp_daily,
-        lai_daily,
+    return _disturbances(
+        temperature,
+        gpp,
+        lai,
         pft_params["disturbance_threshold"],
         growing_season_limit=growing_season_limit,
     )

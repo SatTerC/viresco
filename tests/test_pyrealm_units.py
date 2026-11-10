@@ -156,9 +156,9 @@ PMODEL_INPUT_UNITS = [
 ]
 
 SPLASH_INPUT_UNITS = [
-    ("sunshine_fraction_daily", "sf"),
-    ("temperature_daily", "tc"),
-    ("precipitation_daily", "pn"),
+    ("sunshine_fraction", "sf"),
+    ("temperature", "tc"),
+    ("precipitation", "pn"),
     ("max_soil_moisture", "kWm"),
     ("latitude", "lat"),
 ]
@@ -456,41 +456,39 @@ class TestSplashInvariants:
         its previous state is the spin-up result, which is not an output.
         """
         change = (
-            splash_result["soil_moisture_daily"].values[1:]
-            - (splash_result["soil_moisture_daily"].values[:-1])
+            splash_result["soil_moisture"].values[1:]
+            - (splash_result["soil_moisture"].values[:-1])
         )
         supply = (
-            splash_inputs()["precipitation_daily"].values[1:]
-            + splash_result["condensation_daily"].values[1:]
-            - splash_result["actual_evapotranspiration_daily"].values[1:]
-            - splash_result["runoff_daily"].values[1:]
+            splash_inputs()["precipitation"].values[1:]
+            + splash_result["condensation"].values[1:]
+            - splash_result["actual_evapotranspiration"].values[1:]
+            - splash_result["runoff"].values[1:]
         )
         np.testing.assert_allclose(change, supply, atol=1e-9)
 
     def test_condensation_is_a_material_part_of_the_balance(self, splash_result):
         """The balance test above would prove little if condensation were tiny."""
-        assert splash_result["condensation_daily"].values.mean() > 0.1
+        assert splash_result["condensation"].values.mean() > 0.1
 
     def test_pet_is_scaled_equilibrium_evapotranspiration(self, splash_result):
         np.testing.assert_allclose(
-            splash_result["potential_evapotranspiration_daily"].values,
+            splash_result["potential_evapotranspiration"].values,
             (1.0 + CoreConst().k_w)
-            * splash_result["equilibrium_evapotranspiration_daily"].values,
+            * splash_result["equilibrium_evapotranspiration"].values,
         )
 
     def test_ppfd_is_a_daily_total_in_moles(self, splash_result):
         """Tens of mol m-2 d-1. As a rate in umol m-2 s-1 it would be hundreds."""
-        assert 5.0 < float(splash_result["estimated_ppfd_daily"].max()) < 80.0
+        assert 5.0 < float(splash_result["estimated_ppfd"].max()) < 80.0
 
     def test_nighttime_net_radiation_is_negative(self, splash_result):
-        assert float(splash_result["nighttime_net_radiation_daily"].max()) < 0.0
-        assert float(splash_result["daytime_net_radiation_daily"].min()) > 0.0
+        assert float(splash_result["nighttime_net_radiation"].max()) < 0.0
+        assert float(splash_result["daytime_net_radiation"].min()) > 0.0
 
     def test_soil_moisture_is_a_depth_bounded_by_capacity(self, splash_result):
         """0 <= SM <= kWm pins soil moisture to mm, on capacity's own scale."""
-        moisture = (
-            splash_result["soil_moisture_daily"].transpose("time", "pixel").values
-        )
+        moisture = splash_result["soil_moisture"].transpose("time", "pixel").values
         assert moisture.min() >= 0.0
         for pixel in range(N_PIXELS):
             assert moisture[:, pixel].max() <= MAX_SOIL_MOISTURE[pixel] + 1e-9
@@ -498,13 +496,13 @@ class TestSplashInvariants:
         assert moisture.max() > 1.0
 
     def test_actual_never_exceeds_potential_evapotranspiration(self, splash_result):
-        aet = splash_result["actual_evapotranspiration_daily"].values
-        pet = splash_result["potential_evapotranspiration_daily"].values
+        aet = splash_result["actual_evapotranspiration"].values
+        pet = splash_result["potential_evapotranspiration"].values
         assert np.all(aet <= pet + 1e-9)
 
     def test_pet_magnitude_is_millimetres_per_day(self, splash_result):
         """Daily PET sits in single-figure mm, not metres and not W m-2."""
-        pet = splash_result["potential_evapotranspiration_daily"].values
+        pet = splash_result["potential_evapotranspiration"].values
         assert pet.min() >= 0.0
         assert 0.1 < float(np.nanmax(pet)) < 15.0
 
@@ -519,8 +517,7 @@ class TestSplashInvariants:
         high = _splash(**{**inputs, "elevation": inputs["elevation"] * 0.0 + 3000.0})
         _, _, per_metre = CoreConst().transmissivity_coef
         np.testing.assert_allclose(
-            high["transmissivity_daily"].values
-            / sea_level["transmissivity_daily"].values,
+            high["transmissivity"].values / sea_level["transmissivity"].values,
             1.0 + per_metre * 3000.0,
         )
 
