@@ -3,7 +3,7 @@
 Covers:
 - viresco.models.rothc  — plant_cover_monthly, dpm_rpm_ratio_monthly, farmyard_manure_input_monthly
 - viresco.models.sgam   — _pft_int_to_enum, _build_pft_params_dataset, _pft_params_from_dataset, pft_params
-- viresco.models.pmodel — mean_growth_temperature
+- viresco.models.shared — mean_growth_temperature, disturbances_daily
 - model execution smoke tests for splash, pmodel (via pipeline_inputs session fixture)
 """
 
@@ -12,9 +12,9 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from viresco.models import pmodel as pmodel_module
 from viresco.models import rothc as rothc_module
 from viresco.models import sgam as sgam_module
+from viresco.models import shared as shared_module
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -245,18 +245,18 @@ class TestSgamHelpers:
 # ---------------------------------------------------------------------------
 
 
-class TestPmodelHelpers:
+class TestMeanGrowthTemperature:
     """mean_growth_temperature."""
 
     def test_returns_dataarray(self):
         da = _daily(RNG.normal(10, 5, (N_DAYS, N_PIXELS)))
-        result = pmodel_module.mean_growth_temperature(da)
+        result = shared_module.mean_growth_temperature(da)
         assert isinstance(result, xr.DataArray)
 
     def test_reduces_the_whole_record_to_one_value_per_pixel(self):
         """It is an acclimation quantity, so it has no time axis at all."""
         da = _daily(np.full((N_DAYS, N_PIXELS), 15.0))
-        result = pmodel_module.mean_growth_temperature(da)
+        result = shared_module.mean_growth_temperature(da)
         assert result.dims == ("pixel",)
         assert result.sizes["pixel"] == N_PIXELS
         assert np.allclose(result.values, 15.0)
@@ -265,7 +265,7 @@ class TestPmodelHelpers:
         """The case the old weekly window turned into NaN, and nan_to_num hid."""
         values = np.full((N_DAYS, N_PIXELS), 15.0)
         values[:7] = -5.0  # a week in which nothing grows
-        result = pmodel_module.mean_growth_temperature(_daily(values))
+        result = shared_module.mean_growth_temperature(_daily(values))
         assert not np.isnan(result.values).any()
 
     def test_below_zero_becomes_nan(self):
@@ -279,7 +279,7 @@ class TestPmodelHelpers:
                 "pixel": [0],
             },
         )
-        result = pmodel_module.mean_growth_temperature(da)
+        result = shared_module.mean_growth_temperature(da)
         # A pixel that never rises above 0 degC over the *whole record* is a real
         # gap, not a windowing artifact, so NaN is left to propagate.
         assert np.all(np.isnan(result.values))
@@ -296,7 +296,7 @@ class TestPmodelHelpers:
                 "pixel": [0],
             },
         )
-        result = pmodel_module.mean_growth_temperature(da)
+        result = shared_module.mean_growth_temperature(da)
         np.testing.assert_allclose(result.values[~np.isnan(result.values)], value)
 
 
@@ -606,7 +606,7 @@ class TestDisturbancesDaily:
     """Smoke test: disturbances_daily computes disturbance indicators."""
 
     def test_disturbances_output_shape(self):
-        from viresco.models.sgam import disturbances_daily
+        from viresco.models.shared import disturbances_daily
 
         n_days = 365
         n_pixels = 2

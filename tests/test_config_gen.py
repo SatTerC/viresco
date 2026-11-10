@@ -162,6 +162,20 @@ class TestGenerateConfigBuiltinModels:
         assert "pmodel" in config._data
         assert "_import_path" not in config._data["pmodel"]
 
+    def test_shared_section_follows_its_consumers(self):
+        # SGAM consumes the weekly maximum of the shared module's daily
+        # disturbances, so choosing it brings in `[shared]` and its setting;
+        # nothing SPLASH needs comes from there.
+        with_sgam = generate_config(
+            builtin_models=["sgam"], custom_modules=[], paths=PATH_DEFAULTS
+        )._data
+        assert with_sgam["shared"] == {"growing_season_limit": 10.0}
+        assert "disturbances" in with_sgam["outputs"]["daily"]["vars"]
+        splash_only = generate_config(
+            builtin_models=["splash"], custom_modules=[], paths=PATH_DEFAULTS
+        )._data
+        assert "shared" not in splash_only
+
     def test_unset_settings_stay_out_of_the_config(self):
         # TOML has no null, so a setting defaulting to None cannot be written.
         assert "reference_kphio" not in get_model_config("pmodel")

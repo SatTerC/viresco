@@ -210,9 +210,10 @@ Required when `method_arrhenius = "kattge_knorr"`.
 
 #### Mean growth temperature { #inputs-mean-growth-temperature }
 
-`mean_growth_temperature` is not loaded but derived by this module, so a run using `sandoval` or `kattge_knorr` needs this input in its place.
+`mean_growth_temperature` is not loaded but derived from daily temperature.
+That makes it no part of this weekly module: it lives in the `shared` module, so a run using `sandoval` or `kattge_knorr` needs a `[shared]` section, and this input in place of `mean_growth_temperature`.
 
-::: viresco.models.pmodel.mean_growth_temperature
+::: viresco.models.shared.mean_growth_temperature
     options:
       show_root_full_path: false
       separate_signature: false
