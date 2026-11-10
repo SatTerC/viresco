@@ -26,5 +26,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: ${{ matrix.python-version }}
+      # The quickstart notebook draws its graph with `viresco graph --png`.
+      - uses: ts-graphviz/setup-graphviz@v2
       - run: uv sync --group dev --locked
       - run: uv run just test-cov

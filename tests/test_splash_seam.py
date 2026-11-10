@@ -37,6 +37,7 @@ from viresco.models.splash import (
     _describe_pixels,
     _splash,
     splash,
+    sunshine_fraction_daily__shortwave,
 )
 
 N_DAYS = 366  # 2020 is a leap year; SPLASH needs a full year for spin-up
@@ -608,3 +609,72 @@ class TestLatitudeCheck:
                 soil_moisture_init_inputs={},
             )
         assert out["soil_moisture_daily"].attrs["units"] == "mm"
+
+
+class TestSunshineFractionFromShortwave:
+    """``sunshine_fraction_method = "shortwave"`` inverts SPLASH's own radiation model."""
+
+    @staticmethod
+    def _shortwave(sf: np.ndarray) -> xr.DataArray:
+        """The surface shortwave pyrealm's SPLASH models from ``sf``, in J m-2 d-1."""
+        model = pyrealm.splash.splash.SplashModel(
+            lat=LATITUDE[None, :],
+            elv=ELEVATION[None, :],
+            sf=sf,
+            tc=np.full(sf.shape, 10.0),
+            pn=np.zeros(sf.shape),
+            dates=pyrealm.core.calendar.Calendar(DAILY_DATES.values),
+        )
+        shortwave = model.solar.transmissivity * model.solar.daily_solar_radiation
+        return _temporal(shortwave).assign_attrs(units="J m-2 d-1")
+
+    @staticmethod
+    def _statics() -> dict:
+        return {
+            "elevation": _static(ELEVATION).assign_attrs(units="m"),
+            "latitude": _static(LATITUDE).assign_attrs(units="degrees"),
+        }
+
+    def test_round_trips_pyrealm_shortwave(self):
+        sf = 0.5 + 0.4 * np.sin(np.arange(N_DAYS * N_PIXELS)).reshape(N_DAYS, -1)
+        recovered = sunshine_fraction_daily__shortwave(
+            self._shortwave(sf), **self._statics()
+        )
+        assert recovered.dims == ("time", "pixel")
+        assert recovered.attrs["units"] == "1"
+        np.testing.assert_allclose(recovered.values, sf, rtol=1e-10)
+
+    def test_clips_to_unit_interval(self):
+        sf = np.where(np.arange(N_DAYS)[:, None] % 2, 0.0, 1.0) * np.ones(N_PIXELS)
+        shortwave = self._shortwave(sf) * np.where(sf == 0, 0.5, 1.5)
+        recovered = sunshine_fraction_daily__shortwave(
+            shortwave.assign_attrs(units="J m-2 d-1"), **self._statics()
+        )
+        np.testing.assert_array_equal(recovered.values, sf)
+
+    def test_replaces_the_sunshine_fraction_input(self):
+        from catena import build_driver
+
+        def external(**settings):
+            dr = build_driver(["viresco.models.splash"], settings)
+            return {
+                v.name for v in dr.list_available_variables() if v.is_external_input
+            }
+
+        assert "sunshine_fraction_daily" in external()
+        derived = external(sunshine_fraction_method="shortwave")
+        assert "sunshine_fraction_daily" not in derived
+        assert "shortwave_radiation_daily" in derived
+
+    def test_misspelt_method_is_rejected(self, splash_inputs):
+        inputs = {
+            key: value
+            for key, value in splash_inputs.items()
+            if isinstance(value, xr.DataArray)
+        }
+        with pytest.raises(ValueError, match="Unknown sunshine_fraction_method"):
+            splash(
+                **inputs,
+                soil_moisture_init_inputs={},
+                sunshine_fraction_method="shortwav",
+            )

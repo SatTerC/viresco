@@ -21,9 +21,7 @@ jobs:
       - uses: extractions/setup-just@v4
       - uses: ts-graphviz/setup-graphviz@v2
       - run: uv sync --group docs --locked
-      # Pull requests use synthetic data, so CI does not depend on the COSMOS-UK API.
-      # A deployed site shows the recipe as users run it, on real data.
-      - run: uv run just export-all ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && '--data synthetic' || '' }}
+      - run: uv run just export-all
       - run: uv run just docs
       - uses: actions/upload-pages-artifact@v4
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'release' && !github.event.release.prerelease)

@@ -27,9 +27,7 @@ nav = [
   ]},
   { "Recipes" = [
       "recipes/my_first_pipeline.md",
-      "recipes/full_pipeline.md",
       "recipes/soil_moisture.md",
-      "recipes/pft_parameters.md",
   ]},
   { "Reference" = [
       "reference/index.md",

@@ -8,7 +8,7 @@
 # ]
 #
 # [tool.uv.sources]
-# ukceh-viresco = { path = ".." }
+# ukceh-viresco = { path = "../.." }
 # # TODO: pin to a catena release tag once catena and viresco stop changing in step.
 # ukceh-catena = { git = "https://github.com/NERC-CEH/catena", branch = "main" }
 # ///
@@ -16,7 +16,7 @@
 import marimo
 
 __generated_with = "0.24.0"
-app = marimo.App(width="medium")
+app = marimo.App(width="medium", app_title="Full pipeline")
 
 
 @app.cell(hide_code=True)
@@ -32,39 +32,53 @@ def _(mo):
     So the pipeline is not really four models; it is four models plus the joins between them, and the joins are where the work is.
 
     This notebook takes its time over those joins.
-    Two models connect only when the name *and* the units line up, and between these four they mostly do not, so most of the configuration below exists to convert one model's output into the next one's input.
+    Two models connect only when the name *and* the units line up, and between these four they mostly do not, so the recipe carries a module of bridges, each converting one model's output into the next one's input.
     We will draw each join as its own small graph before running anything.
+
+    The recipe is a directory, [`recipes/full_pipeline`](https://github.com/SatTerC/viresco/tree/main/recipes/full_pipeline):
+
+    | File | Contents |
+    |---|---|
+    | `config.toml` | The pipeline: the four models, the bridges, the inputs and the outputs |
+    | `nodes.py` | The bridges between the models |
+    | `make_data.py` | Writes stand-in inputs to `data/` |
+    | `demo.py` | This notebook |
+
+    To run it, download the directory, or clone the repository, and open the notebook with [marimo](https://marimo.io):
+
+    ```sh
+    git clone https://github.com/SatTerC/viresco.git
+    marimo edit --sandbox viresco/recipes/full_pipeline/demo.py
+    ```
     """)
     return
 
 
 @app.cell
 def _():
-    import tempfile
-    import tomllib
     from pathlib import Path
 
-    import marimo as mo  # required for Markdown etc.
+    import catena
+    import marimo as mo
     import matplotlib.pyplot as plt
-    from catena import build_driver, run
-    from catena.config import Config
     from catena.graph import _node_maps as node_maps
     from catena.graph import relabel_with_units
+    from catena.importing import import_user_module
 
-    from viresco.scaffold.data_gen import generate_synthetic_data
-
+    recipe_dir = Path(__file__).parent
+    config_path = recipe_dir / "config.toml"
+    nodes_path = recipe_dir / "nodes.py"
+    (recipe_dir / "results").mkdir(exist_ok=True)
     return (
-        Config,
-        Path,
-        build_driver,
-        generate_synthetic_data,
+        catena,
+        config_path,
+        import_user_module,
         mo,
         node_maps,
+        nodes_path,
         plt,
+        recipe_dir,
         relabel_with_units,
-        run,
-        tempfile,
-        tomllib,
     )
 
 
@@ -91,237 +105,39 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
+def _(config_path, mo):
+    mo.md(f"""
     ## The configuration
 
     Four `[<model>]` sections activate the modules.
     Everything else in the file exists to connect them:
 
-    - `[[node]]` defines a new node from an expression over existing ones, which is how a bridge between two models is written.
-      Nothing converts units between nodes, so a node whose expression changes a unit declares the new one with its `units` key.
-      catena labels the output with it, and `overwrite_units = true` replaces the label the output would otherwise keep from its inputs, as xarray carries it through `x * k` or a sum.
+    - `[bridges]` imports `nodes.py`, below, which defines the bridges between the models, and sets their two settings.
     - `[[resample]]` changes the frequency of a variable, which is how a daily model feeds a weekly one.
     - `[inputs.*]` and `[outputs.*]` say what is read from and written to disk.
 
-    The comments are worth reading; each bridge records why its conversion factor is what it is.
+    ```toml
+    {config_path.read_text()}
+    ```
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    import textwrap
+def _(mo, nodes_path):
+    mo.md(f"""
+    ## The bridges
 
-    config_toml = textwrap.dedent("""\
-    [splash]
+    Each bridge is an ordinary function, named for the node it produces, whose parameters name the nodes it consumes.
+    Its annotations declare the units and frequency of what goes in and comes out, and catena checks them across the whole DAG before anything runs.
+    Nothing converts units between nodes, so a bridge that changes a unit says so: `xra.units.convert` where the change is a conversion, and `@xra.stamp_output_units(overwrite=True)` to label the output with its declared unit where the arithmetic leaves the input's label on it.
+    The docstrings are worth reading; each records why its conversion is what it is.
 
-    [pmodel]
-    method_kphio = "sandoval"
-    method_optchi = "lavergne20_c3"
-
-    [sgam]
-
-    [rothc]
-    n_years_spinup = 1
-    equilibrium_threshold = 0.0001
-
-
-    [inputs.daily]
-    path = "daily.nc"
-    vars = [
-      "precipitation",
-      "sunshine_fraction",
-      "temperature",
-      "lai",
-      "gpp",
-    ]
-
-    [inputs.weekly]
-    path = "weekly.nc"
-    vars = [
-      "co2",
-      "fapar",
-      "ppfd",
-      "pressure",
-      "vpd",
-    ]
-
-    [inputs.static]
-    path = "static.nc"
-    suffix = ""
-    vars = [
-      "elevation",
-      "plant_type",
-      "max_soil_moisture",
-      "clay_content",
-      "soil_depth",
-      "organic_carbon_stocks",
-      "root_pool_init",
-      "leaf_pool_init",
-      "stem_pool_init",
-    ]
-
-    # pyrealm's `aridity_index` is climatological and oriented PET/P: both terms
-    # accumulate over the whole record, giving one value per pixel rather than a
-    # time series. SPLASH computes PET on its way to AET and exposes it.
-    [[node]]
-    name = "aridity_index"
-    inputs = ["potential_evapotranspiration_daily", "precipitation_daily"]
-    expression = "potential_evapotranspiration_daily.sum('time') / precipitation_daily.sum('time')"
-    units = "1"  # ratio of two mm totals -> dimensionless
-    overwrite_units = true
-
-    # Both the P-model (as pyrealm's `theta`) and SGAM (against the PFT's
-    # `wilting_point`/`field_capacity`) want volumetric water content (m3 m-3).
-    # SPLASH reports a depth of water in mm held in a bucket of capacity
-    # `max_soil_moisture`, so dividing gives relative saturation (0-1) and
-    # multiplying by a representative mineral-soil porosity (0.45) turns that
-    # into a volume fraction.
-    [[node]]
-    name = "volumetric_water_content_weekly"
-    inputs = ["soil_moisture_weekly", "max_soil_moisture"]
-    expression = "soil_moisture_weekly / max_soil_moisture * 0.45"
-    units = "m3 m-3"
-    overwrite_units = true
-    freq = "7D"
-
-    # viresco.models.pmodel is an honest wrapper. It reports GPP and LUE in
-    # pyrealm's own units, which are not the ones SGAM consumes. These two nodes
-    # are the bridge, kept here rather than inside the model node so that a
-    # reader can see the conversion factor.
-    #
-    # pyrealm's GPP is an instantaneous flux in ug C m-2 s-1. SGAM wants a daily
-    # rate in g C m-2 d-1, so 86400 s d-1 x 1e-6 g ug-1 = 0.0864.
-    [[node]]
-    name = "gpp_weekly"
-    inputs = ["gpp_flux_weekly"]
-    expression = "gpp_flux_weekly * 0.0864"
-    units = "g m-2 d-1"
-    overwrite_units = true
-    freq = "7D"
-
-    # pyrealm defines LUE against PPFD, a *photon* flux, so its denominator is
-    # moles of photons. SGAM wants carbon per MJ of absorbed PAR, and 4.57 mol
-    # MJ-1 is the standard photon content of PAR over the 400-700 nm band.
-    [[node]]
-    name = "lue_weekly"
-    inputs = ["lue_photon_weekly"]
-    expression = "lue_photon_weekly * 4.57"
-    units = "g MJ-1"
-    overwrite_units = true
-    freq = "7D"
-
-    # iWUE needs no bridge: pyrealm reports umol mol-1 and SGAM consumes it.
-
-    [[node]]
-    name = "leaf_area_index_weekly"
-    inputs = ["leaf_pool_weekly", "pft_params"]
-    expression = 'leaf_pool_weekly / pft_params["leaf_carbon_area"]'
-    units = "m2 m-2"  # leaf carbon per ground area / leaf carbon per leaf area
-    overwrite_units = true
-
-    # PET, not AET: RothC's water balance is rainfall minus evaporative *demand*.
-    # AET is already suppressed by the dryness RothC is trying to compute, so
-    # feeding it in double-counts the limitation and holds the soil too wet.
-    # SPLASH PET is a daily rate (mm d-1); RothC wants a monthly total (mm).
-    # Summing the daily rate over the month integrates it (daily Δt = 1 day, so
-    # Σ mm d-1 is numerically the monthly mm total), so `overwrite_units`
-    # relabels the rate as the resulting total.
-    [[node]]
-    name = "potential_evapotranspiration_monthly"
-    inputs = ["potential_evapotranspiration_daily"]
-    expression = "potential_evapotranspiration_daily.resample(time='1ME').sum()"
-    units = "mm"
-    overwrite_units = true
-
-    # Precipitation is likewise a daily rate (mm d-1); aggregate to a monthly
-    # total (mm) for RothC the same way. (Done as a derive rather than a plain
-    # [[resample]] because that would feed the mm d-1 rate straight into RothC's
-    # mm input and the resample output name would collide with this one.)
-    [[node]]
-    name = "precipitation_monthly"
-    inputs = ["precipitation_daily"]
-    expression = "precipitation_daily.resample(time='1ME').sum()"
-    units = "mm"
-    overwrite_units = true
-
-    # Carbon entering the soil each month = the litter produced that month. SGAM's
-    # litter_pool is an accumulate-only stock (no decomposition; that is RothC's
-    # job), so the monthly litterfall is its *increment*: diff the weekly pool and
-    # sum within each month. Using the increment (rather than summing turnover_*)
-    # also captures litter from disturbance events, which the turnover outputs omit.
-    # SGAM reports g m-2; RothC wants t ha-1, so convert with pint (factor 100).
-    [[node]]
-    name = "soil_carbon_input_monthly"
-    inputs = ["litter_pool_weekly"]
-    expression = "litter_pool_weekly.diff('time').resample(time='1ME').sum().pint.quantify().pint.to('t ha-1').pint.dequantify()"
-    units = "t ha-1"
-
-    [[node]]
-    name = "inert_organic_matter"
-    inputs = ["organic_carbon_stocks"]
-    expression = "0.049 * organic_carbon_stocks**1.139"  # Falloon IOM
-    units = "t ha-1"
-
-    [[resample]]
-    vars = [
-      "temperature",
-      "precipitation",
-      "soil_moisture",
-    ]
-    from = "daily"
-    to = "weekly"
-    freq = "7D"
-
-    [[resample]]
-    vars = [
-      "temperature",
-    ]
-    from = "daily"
-    to = "monthly"
-    freq = "1ME"
-
-    [[resample]]
-    vars = ["disturbances"]
-    from = "daily"
-    to = "weekly"
-    freq = "7D"
-    aggfunc = "max"
-
-    [outputs.daily]
-    path = "results/daily.nc"
-    vars = [
-      "actual_evapotranspiration",
-      "soil_moisture",
-      "runoff",
-    ]
-
-    [outputs.weekly]
-    path = "results/weekly.nc"
-    vars = [
-      "gpp",
-      "leaf_pool",
-      "stem_pool",
-      "root_pool",
-      "litter_pool",
-      "leaf_area_index",
-    ]
-
-    [outputs.monthly]
-    path = "results/monthly.nc"
-    vars = [
-      "decomposable_plant_material",
-      "resistant_plant_material",
-      "microbial_biomass",
-      "humified_organic_matter",
-      "soil_organic_carbon",
-      "heterotrophic_respiration",
-    ]
+    ```python
+    {nodes_path.read_text()}
+    ```
     """)
-
-    mo.md("```toml\n" + config_toml + "```")
-    return (config_toml,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -334,47 +150,29 @@ def _(mo):
     A mis-wired pipeline therefore fails here, in under a second, rather than part-way through a long run.
     That check is what makes the bridges below safe to get wrong: a missing unit conversion is a build error, not a quietly incorrect carbon budget.
 
-    We generate synthetic inputs into a temporary directory rather than reading real data, so the notebook runs anywhere.
+    The pipeline needs some twenty inputs, so `make_data.py` writes stand-ins with viresco's synthetic-data generator, which knows a plausible range, unit and seasonal shape for each.
+    Point the `[inputs.*]` paths at real files to run on your own data instead.
     """)
     return
 
 
 @app.cell
-def _(Config, config_toml, tomllib):
-    parsed_config = Config(tomllib.loads(config_toml)).parse()
-    parsed_config
-    return (parsed_config,)
+def _(import_user_module, recipe_dir):
+    make_data = import_user_module(str(recipe_dir / "make_data.py"))
+    input_paths = [p.relative_to(recipe_dir) for p in make_data.write_inputs()]
+    input_paths
+    return (input_paths,)
 
 
 @app.cell
-def _(Path, generate_synthetic_data, parsed_config, tempfile):
-    _tmpdir = Path(tempfile.mkdtemp())
-
-    parsed_config.input_specs["daily"].path = str(_tmpdir / "daily.nc")
-    parsed_config.input_specs["weekly"].path = str(_tmpdir / "weekly.nc")
-    parsed_config.input_specs["static"].path = str(_tmpdir / "static.nc")
-
-    for _label in ("daily", "weekly", "monthly"):
-        parsed_config.output_specs[_label].path = str(
-            _tmpdir / "results" / f"{_label}.nc"
-        )
-
-    generate_synthetic_data(config=parsed_config, grid=(4, 4), n_days=730, seed=42)
-
-    # The same object under a second name. `run` reads the input files off the
-    # config, so it must not run until this cell has redirected the paths and
-    # written the data; taking `pipeline_config` is what puts that edge in the
-    # graph.
-    pipeline_config = parsed_config
-    return (pipeline_config,)
-
-
-@app.cell
-def _(build_driver, parsed_config):
-    dr = build_driver(
-        modules=parsed_config.modules,
-        config=parsed_config.driver_config,
-        node_specs=parsed_config.node_specs,
+def _(catena, config_path):
+    config = catena.load_config(config_path)
+    dr = catena.build_driver(
+        modules=config.modules,
+        config=config.driver_config,
+        node_specs=config.node_specs,
+        base=config.base,
+        registered=config.registered_modules,
     )
     return (dr,)
 
@@ -467,12 +265,13 @@ def _(mo):
     **Gross primary productivity.**
     pyrealm reports an instantaneous flux in ug C m-2 s-1.
     SGAM wants a daily rate in g C m-2 d-1.
-    That is 86400 s d-1 multiplied by 1e-6 g ug-1, so the factor is 0.0864.
+    That is 86400 s d-1 multiplied by 1e-6 g ug-1, a factor of 0.0864, which `xra.units.convert` works out from the two units.
 
     **Light use efficiency.**
     pyrealm defines LUE against PPFD, which is a *photon* flux, so the denominator is moles of photons.
     SGAM wants carbon per MJ of absorbed PAR.
     The conversion is 4.57 mol MJ-1, the standard photon content of PAR over the 400-700 nm band.
+    That is a property of the light rather than of the units, so it is a setting, `par_photons_per_mj`, rather than a conversion.
 
     **Intrinsic water use efficiency** needs no bridge at all.
     pyrealm reports umol mol-1 and SGAM consumes umol mol-1, so it goes straight across, which is what the direct `pmodel` to `sgam` edge in the graph below is.
@@ -502,7 +301,7 @@ def _(mo):
     Taking the increment also picks up litter from disturbance events, which the individual turnover outputs leave out.
 
     Only then is there a unit conversion, from SGAM's g m-2 to RothC's t ha-1.
-    The bridge does it with pint rather than writing the factor of 100 by hand, so the declared units carry the conversion.
+    The bridge does it with `xra.units.convert` rather than writing the factor of 100 by hand, so the declared units carry the conversion.
     """)
     return
 
@@ -524,8 +323,8 @@ def _(mo):
 
     Two more bridges appear here, and both are about aggregating a daily rate into a monthly total.
     Summing a rate in mm d-1 over a month integrates it, because the daily timestep is one day, but the sum keeps the rate's `mm d-1` label.
-    `units = "mm"` with `overwrite_units = true` relabels the result as the total it now is.
-    That label is stated rather than checked, so the comment beside each bridge is what records why it is right.
+    Each bridge declares `mm` and stamps it over the old label.
+    That label is stated rather than checked, so the docstring of `_monthly_total` is what records why it is right.
 
     The choice of *which* water flux to send RothC matters more than the arithmetic.
     It is potential evapotranspiration, not actual.
@@ -555,11 +354,15 @@ def _(mo):
 
 
 @app.cell
-def _(pipeline_config, run):
-    report = run(pipeline_config)
+def _(catena, config_path, input_paths, recipe_dir):
+    assert input_paths  # run after the data is written
+    report = catena.run(config_path)
     outputs = report.outputs
 
-    {written.label: str(written.path) for written in report.written}
+    {
+        written.label: str(written.path.relative_to(recipe_dir))
+        for written in report.written
+    }
     return (outputs,)
 
 
@@ -621,11 +424,9 @@ def _(mo):
     mo.md(r"""
     ## Where the joins live, and why
 
-    Every conversion in this notebook is a `[[node]]` in the config rather than a line of Python inside a model wrapper.
-    That is a deliberate choice and it costs something: the config is long, and an expression in a TOML string gets no help from a type checker.
-
-    What it buys is that the factor of 0.0864 is visible to whoever reads the pipeline.
-    A wrapper that quietly converted pyrealm's GPP on the way out would be shorter and would leave the next person with no way to see the assumption, let alone change it without editing Viresco.
+    Every conversion in this recipe is a function in its own `nodes.py` rather than a line of Python inside a model wrapper.
+    A wrapper that quietly converted pyrealm's GPP on the way out would leave the next person with no way to see the assumption, let alone change it without editing Viresco.
+    Here the conversion sits in the pipeline, under the name of the node it produces, with a docstring that says why and annotations that catena checks.
     """)
     return
 

@@ -4,13 +4,13 @@ _: lint typecheck test
 lint:
   ruff format
   ruff check --fix
-  marimo check recipes/
+  marimo check recipes/*/demo.py
 
 # Variant of `lint` that doesn't cause any changes to files.
 lint-check:
   ruff format --check
   ruff check
-  marimo check recipes/
+  marimo check recipes/*/demo.py
 
 # Run static type checker.
 typecheck:
@@ -50,23 +50,28 @@ graph-all:
 # Does not depend on `export-all`, which takes minutes, but refuses to build
 # while any recipe notebook lacks an export, since every link to it would break.
 docs: graph-all
-  @for nb in recipes/*.py; do md="docs/recipes/$(basename "$nb" .py).md"; [ -f "$md" ] || { echo "error: $md is missing; run \`just export-all\` first" >&2; exit 1; }; done
+  @for md in docs/guides/quickstart.md $(for r in {{documented_recipes}}; do echo "docs/recipes/$r.md"; done); do [ -f "$md" ] || { echo "error: $md is missing; run \`just export-all\` first" >&2; exit 1; }; done
   zensical build --clean
 
-# Export a single recipe notebook to docs/recipes/.
-# Any further arguments reach the notebook, e.g. `just export soil_moisture --data synthetic`.
-export recipe *args:
-  # Export to Markdown and keep the HTML notebook in the generated assets directory.
-  marimo-md-export "recipes/{{recipe}}.py" "docs/recipes/{{recipe}}.md" \
-    --keep-html --overflow scroll {{ if args != "" { "--marimo-args='" + args + "'" } else { "" } }}
+# The recipes published in the docs, which must match the Recipes nav in
+# zensical.toml. The others still run in tests/test_recipes.py.
+documented_recipes := "my_first_pipeline soil_moisture"
 
-# Export all notebooks in recipes/ to docs/recipes/.
-# Pass `--data synthetic` to run soil_moisture offline, as CI does.
-export-all *args:
-  just export my_first_pipeline
-  just export full_pipeline
-  just export soil_moisture {{args}}
-  just export pft_parameters
+# Export a single recipe notebook to docs/recipes/.
+# A recipe is a directory whose notebook is `recipes/<recipe>/demo.py`.
+export recipe:
+  # Export to Markdown and keep the HTML notebook in the generated assets directory.
+  marimo-md-export "recipes/{{recipe}}/demo.py" \
+    "docs/recipes/{{recipe}}.md" --keep-html --overflow scroll
+
+# Export the quickstart guide, a notebook in recipes/ published under guides/.
+export-quickstart:
+  marimo-md-export recipes/quickstart/demo.py docs/guides/quickstart.md \
+    --keep-html --overflow scroll
+
+# Export the quickstart and every documented recipe notebook.
+export-all: export-quickstart
+  @for r in {{documented_recipes}}; do just export "$r"; done
 
 # Tag the version in pyproject.toml and push the tag.
 tag:
@@ -76,7 +81,7 @@ tag:
   [[ $v != *dev* ]] || { echo "refusing to tag dev version $v" >&2; exit 1; }
   [[ $(git branch --show-current) == main ]] || { echo "not on main" >&2; exit 1; }
   git diff --quiet HEAD || { echo "uncommitted changes" >&2; exit 1; }
-  stale=$(grep -L "\"ukceh-viresco==$v\"" recipes/*.py || true)
+  stale=$(grep -L "\"ukceh-viresco==$v\"" recipes/*/demo.py || true)
   [[ -z $stale ]] || { echo "recipes not pinned to ukceh-viresco==$v:" $stale >&2; exit 1; }
   git fetch --quiet origin main
   [[ $(git rev-parse HEAD) == $(git rev-parse origin/main) ]] \

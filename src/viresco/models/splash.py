@@ -11,7 +11,9 @@ from operator import attrgetter
 from typing import Annotated, TypedDict, cast
 
 import numpy as np
+import pyrealm.constants
 import pyrealm.core.calendar
+import pyrealm.core.solar
 import pyrealm.splash.splash
 import xarray as xr
 from catena.io import sole_time_dim
@@ -388,6 +390,95 @@ def soil_moisture_init_inputs__prescribed(
     return {"initial_soil_moisture": initial_soil_moisture}
 
 
+_SUNSHINE_FRACTION_METHODS = ("input", "shortwave")
+
+
+def _extraterrestrial_radiation(
+    latitude: DataArray, dates: DatetimeIndex, time: str
+) -> DataArray:
+    """Daily radiation at the top of the atmosphere (J m-2), as pyrealm computes it."""
+    const = pyrealm.constants.CoreConst()
+    calendar = pyrealm.core.calendar.Calendar(dates.values)
+    nu, lambda_ = pyrealm.core.solar.calculate_heliocentric_longitudes(
+        ordinal_date=calendar.julian_day, n_days=calendar.days_in_year
+    )
+    by_day = {"coords": {time: dates}, "dims": time}
+    distance_factor = xr.DataArray(
+        pyrealm.core.solar.calculate_distance_factor(
+            nu, solar_eccentricity=const.solar_eccentricity
+        ),
+        **by_day,
+    )
+    declination = xr.DataArray(
+        pyrealm.core.solar.calculate_solar_declination_angle(
+            lambda_, solar_obliquity=const.solar_obliquity
+        ),
+        **by_day,
+    )
+
+    def radiation(
+        distance_factor: NDArray[np.float64],
+        declination: NDArray[np.float64],
+        latitude: NDArray[np.float64],
+    ) -> NDArray[np.float64]:
+        return pyrealm.core.solar.calculate_daily_solar_radiation(
+            distance_factor=distance_factor,
+            sunset_hour_angle=pyrealm.core.solar.calculate_sunset_hour_angle(
+                declination=declination, latitude=latitude
+            ),
+            declination=declination,
+            latitude=latitude,
+            day_seconds=const.day_seconds,
+            solar_constant=const.solar_constant,
+        )
+
+    return xr.apply_ufunc(radiation, distance_factor, declination, latitude)
+
+
+@config.when_in(sunshine_fraction_method=["shortwave"])
+@check_annotations
+@stamp_output_units(overwrite=True)
+def sunshine_fraction_daily__shortwave(
+    shortwave_radiation_daily: Annotated[DataArray, Unit("J m-2 d-1"), DAILY],
+    elevation: Annotated[DataArray, Unit("m")],
+    latitude: Annotated[DataArray, Unit("degrees")],
+) -> Annotated[DataArray, Unit("1"), DAILY]:
+    """Recover sunshine fraction from measured shortwave radiation.
+
+    For ``sunshine_fraction_method = "shortwave"``. SPLASH models the shortwave
+    radiation reaching the ground as ``tau * R_a``, where ``R_a`` is the radiation
+    at the top of the atmosphere and the transmissivity ``tau = (c + d * sf) *
+    (1 + f * elevation)`` (Linacre, 1968). This inverts that relation, with
+    pyrealm's own ``R_a`` and coefficients, so SPLASH's modelled shortwave
+    reproduces the measurement wherever the result lies in 0-1.
+
+    The result is clipped to 0-1. Overcast days whose transmissivity is below
+    ``c`` (0.25) clip to 0, so on those SPLASH overestimates shortwave; in the UK
+    that can be a third of winter days. Sunshine fraction also sets SPLASH's net
+    longwave radiation, which therefore follows from this value rather than from
+    any longwave measurement.
+
+    Parameters
+    ----------
+    shortwave_radiation_daily
+        Incoming shortwave radiation at the surface over the day (joules per
+        square metre per day), with no gaps.
+    elevation
+        Elevation of the site (metres).
+    latitude
+        Latitude of the site (degrees).
+    """
+    c, d, f = pyrealm.constants.CoreConst().transmissivity_coef
+    time = sole_time_dim(shortwave_radiation_daily, "shortwave_radiation_daily")
+    extraterrestrial = _extraterrestrial_radiation(
+        latitude,
+        time_index(shortwave_radiation_daily, "shortwave_radiation_daily"),
+        time,
+    )
+    transmissivity = shortwave_radiation_daily / extraterrestrial
+    return ((transmissivity / (1 + f * elevation) - c) / d).clip(0, 1)
+
+
 @extract_fields()
 @check_annotations
 @stamp_output_units
@@ -400,6 +491,7 @@ def splash(
     max_soil_moisture: Annotated[DataArray, Unit("mm")],
     soil_moisture_init_inputs: dict[str, DataArray],
     *,
+    sunshine_fraction_method: str = "input",
     soil_moisture_init_method: str = "equilibrate",
     soil_moisture_init_max_iter: int = 10,
     soil_moisture_init_max_diff: float = 1.0,
@@ -412,7 +504,8 @@ def splash(
     Parameters
     ----------
     sunshine_fraction_daily
-        Fraction of daylight hours that are sunny (dimensionless, 0-1).
+        Fraction of daylight hours that are sunny (dimensionless, 0-1). An input
+        unless ``sunshine_fraction_method`` derives it.
     temperature_daily
         Daily mean air temperature (degrees Celsius).
     precipitation_daily
@@ -430,6 +523,10 @@ def splash(
 
     Other Parameters
     ----------------
+    sunshine_fraction_method
+        Where ``sunshine_fraction_daily`` comes from: ``input`` reads it as an
+        input, and ``shortwave`` recovers it from measured shortwave radiation;
+        see `sunshine_fraction_daily__shortwave`.
     soil_moisture_init_method
         Where the initial soil moisture comes from: ``equilibrate`` repeats the
         first year until soil moisture stabilises, and ``prescribed`` takes it
@@ -466,9 +563,15 @@ def splash(
     Raises
     ------
     ValueError
-        If ``soil_moisture_init_method`` is not a known method. Without this a
-        misspelt ``prescribed`` would silently select ``equilibrate``.
+        If ``sunshine_fraction_method`` or ``soil_moisture_init_method`` is not a
+        known method. Without this a misspelt ``prescribed`` would silently select
+        ``equilibrate``.
     """
+    if sunshine_fraction_method not in _SUNSHINE_FRACTION_METHODS:
+        raise ValueError(
+            f"Unknown sunshine_fraction_method {sunshine_fraction_method!r}; "
+            f"expected one of {', '.join(map(repr, _SUNSHINE_FRACTION_METHODS))}."
+        )
     if soil_moisture_init_method not in _INIT_METHODS:
         raise ValueError(
             f"Unknown soil_moisture_init_method {soil_moisture_init_method!r}; "

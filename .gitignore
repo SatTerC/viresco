@@ -18,7 +18,16 @@ tmp/
 *.html
 !overrides/*.html
 __marimo__/
-recipes/data/
+recipes/*/data/raw/
+recipes/*/results/
+recipes/quickstart/my_pipeline/
+docs/guides/quickstart.md
+docs/guides/quickstart_assets/
+recipes/*/data/
+!recipes/soil_moisture/data/
+!recipes/soil_moisture/data/cosmos.nc
+!recipes/my_first_pipeline/data/
+!recipes/my_first_pipeline/data/cosmos.nc
 
 .claude/
 

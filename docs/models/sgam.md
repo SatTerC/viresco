@@ -138,7 +138,6 @@ viresco run config.toml
 ```
 
 The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
-For tuning the per-PFT parameters against observations, see the [PFT parameters recipe](../recipes/pft_parameters.md).
 
 ### Configuration
 

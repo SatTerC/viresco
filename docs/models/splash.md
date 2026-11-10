@@ -65,6 +65,19 @@ If any valid pixel in a block has not converged within `soil_moisture_init_max_i
 To start from a measured state, or to continue an earlier run, set `soil_moisture_init_method = "prescribed"` and supply `initial_soil_moisture`.
 That skips the spin-up, so the year minimum and the dependence on block size no longer apply.
 
+### Sunshine fraction from measured radiation
+
+SPLASH works out all of its radiation from the sunshine fraction $s_f$: the shortwave reaching the ground as $\tau R_a$, with transmissivity $\tau = (0.25 + 0.5\,s_f)(1 + 2.67\times10^{-5} z)$ (Linacre, 1968) and $R_a$ the radiation at the top of the atmosphere, and the net longwave from $s_f$ and temperature.
+It has no way to take measured radiation instead.
+
+Sites with a radiometer but no sunshine recorder, such as COSMOS-UK's, can set `sunshine_fraction_method = "shortwave"` and supply `shortwave_radiation_daily`.
+`sunshine_fraction_daily` is then computed by inverting the transmissivity relation, with pyrealm's own $R_a$ and coefficients, so SPLASH's modelled shortwave reproduces the measurement.
+
+Two things follow:
+
+- The result is clipped to 0–1. A day whose transmissivity is below 0.25 clips to 0, and on it SPLASH's shortwave exceeds the measurement. Overcast days often fall there: at the COSMOS-UK site in Chimney Meadows, a third of November–February days do.
+- Net longwave still comes from Prentice et al. (1993), through the recovered $s_f$, so any longwave measurement goes unused.
+
 ### Missing values
 
 Each pixel's outcome comes from its own inputs, so it does not depend on the block size:
@@ -101,6 +114,7 @@ For calibrating `max_soil_moisture` against observations, see the [soil moisture
 
 ```toml
 [splash]
+sunshine_fraction_method = "input"
 soil_moisture_init_method = "equilibrate"
 soil_moisture_init_max_iter = 10
 soil_moisture_init_max_diff = 1.0
@@ -149,6 +163,24 @@ Required when `soil_moisture_init_method` is `prescribed`.
       show_docstring_description: false
       show_docstring_returns: false
       docstring_section_style: spacy
+
+#### Shortwave radiation, for `shortwave` sunshine fraction
+
+Required, in place of `sunshine_fraction_daily`, when `sunshine_fraction_method` is `shortwave`.
+
+::: viresco.models.splash.sunshine_fraction_daily__shortwave
+    options:
+      show_root_full_path: false
+      separate_signature: false
+      heading_level: 4
+      show_root_heading: false
+      show_root_toc_entry: false
+      show_signature: false
+      show_docstring_description: false
+      show_docstring_returns: false
+      docstring_section_style: spacy
+      extra:
+        hide_parameters: [elevation, latitude]
 
 ### Outputs
 
