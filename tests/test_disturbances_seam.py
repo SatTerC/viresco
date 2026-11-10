@@ -88,8 +88,8 @@ def disturbance_inputs() -> dict:
     climate = _build_climate()
     return dict(
         temperature=_temporal(climate["temperature"]),
-        gpp=_temporal(climate["gpp"]),
-        lai=_temporal(climate["lai"]),
+        gpp_obs=_temporal(climate["gpp"]),
+        lai_obs=_temporal(climate["lai"]),
         disturbance_threshold=pft_params(_static(PLANT_TYPES))["disturbance_threshold"],
         growing_season_limit=GROWING_SEASON_LIMIT,
     )
@@ -109,8 +109,8 @@ def _reference_block(inputs: dict) -> np.ndarray:
         columns.append(
             detector.forward(
                 inputs["temperature"].values[:, p],
-                inputs["gpp"].values[:, p],
-                inputs["lai"].values[:, p],
+                inputs["gpp_obs"].values[:, p],
+                inputs["lai_obs"].values[:, p],
                 aggregate=False,
             )
         )
@@ -179,8 +179,8 @@ class TestStrategyCStaysOpen:
                 chunked_inputs[key] = val.chunk({"pixel": 1})
         chunked = _disturbances(
             temperature=chunked_inputs["temperature"],
-            gpp=chunked_inputs["gpp"],
-            lai=chunked_inputs["lai"],
+            gpp_obs=chunked_inputs["gpp_obs"],
+            lai_obs=chunked_inputs["lai_obs"],
             disturbance_threshold=chunked_inputs["disturbance_threshold"],
             growing_season_limit=GROWING_SEASON_LIMIT,
         )

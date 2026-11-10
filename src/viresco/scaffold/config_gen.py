@@ -428,7 +428,7 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
             continue
         # Not produced at all, or only *coarser* than wanted. Resampling cannot
         # refine, so this has to come from a file even when a model does produce
-        # the same name — pmodel's weekly `gpp` cannot supply sgam's daily one.
+        # the same name at a coarser frequency.
         by_label.get(label, static).add(base)
 
     # A variable loaded at a fine frequency and also wanted coarser is coarsened

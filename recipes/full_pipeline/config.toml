@@ -29,8 +29,8 @@ vars = [
   "precipitation",
   "sunshine_fraction",
   "temperature",
-  "lai",
-  "gpp",
+  "lai_obs",
+  "gpp_obs",
 ]
 
 [inputs.weekly]

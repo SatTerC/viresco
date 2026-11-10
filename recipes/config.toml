@@ -53,8 +53,8 @@ zero_threshold = 1e-08
 path = "inputs/daily.nc"
 suffix = ""
 vars = [
-    "gpp",
-    "lai",
+    "gpp_obs",
+    "lai_obs",
     "precipitation",
     "sunshine_fraction",
     "temperature",

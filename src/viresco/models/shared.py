@@ -104,8 +104,8 @@ def _disturbances_block(
 
 def _disturbances(
     temperature: xr.DataArray,
-    gpp: xr.DataArray,
-    lai: xr.DataArray,
+    gpp_obs: xr.DataArray,
+    lai_obs: xr.DataArray,
     disturbance_threshold: xr.DataArray,
     growing_season_limit: float,
 ) -> xr.DataArray:
@@ -122,15 +122,15 @@ def _disturbances(
     time = sole_time_dim(temperature, "temperature")
     space = space_dim(
         temperature=temperature,
-        gpp=gpp,
-        lai=lai,
+        gpp_obs=gpp_obs,
+        lai_obs=lai_obs,
         disturbance_threshold=disturbance_threshold,
     )
     out = xr.apply_ufunc(
         _disturbances_block,
         temperature,
-        gpp,
-        lai,
+        gpp_obs,
+        lai_obs,
         disturbance_threshold,
         input_core_dims=[[time]] * 3 + [[]],
         output_core_dims=[[time]],
@@ -149,8 +149,8 @@ def _disturbances(
 @stamp_output_units
 def disturbances(
     temperature: Annotated[xr.DataArray, Unit("degC"), DAILY],
-    gpp: Annotated[xr.DataArray, Unit("g m-2 d-1"), DAILY],
-    lai: Annotated[xr.DataArray, Unit("1"), DAILY],
+    gpp_obs: Annotated[xr.DataArray, Unit("g m-2 d-1"), DAILY],
+    lai_obs: Annotated[xr.DataArray, Unit("1"), DAILY],
     pft_params: xr.Dataset,
     *,
     growing_season_limit: float = 10.0,
@@ -171,11 +171,12 @@ def disturbances(
     ----------
     temperature
         Daily mean air temperature (degrees Celsius).
-    gpp
-        Daily gross primary productivity (grams of carbon per square metre per
-        day).
-    lai
-        Daily leaf area index (dimensionless).
+    gpp_obs
+        Observed daily gross primary productivity (grams of carbon per square
+        metre per day). Named apart from the P-model's modelled GPP, which is
+        weekly, so the two do not read as one variable at two frequencies.
+    lai_obs
+        Observed daily leaf area index (dimensionless).
     pft_params
         PFT parameters for each pixel. Output of the
         `viresco.models.sgam.pft_params` node; only ``disturbance_threshold`` is
@@ -198,8 +199,8 @@ def disturbances(
     """
     return _disturbances(
         temperature,
-        gpp,
-        lai,
+        gpp_obs,
+        lai_obs,
         pft_params["disturbance_threshold"],
         growing_season_limit=growing_season_limit,
     )

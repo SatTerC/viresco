@@ -30,8 +30,8 @@ class TestSyntheticDataGeneration:
             "temperature",
             "precipitation",
             "sunshine_fraction",
-            "lai",
-            "gpp",
+            "lai_obs",
+            "gpp_obs",
         }
         assert set(daily_ds.data_vars) == expected_vars
 
@@ -88,12 +88,12 @@ class TestSyntheticDataValues:
 
     def test_lai_valid(self, daily_ds):
         """Test LAI is non-negative."""
-        lai = daily_ds.lai.values
+        lai = daily_ds.lai_obs.values
         assert np.nanmin(lai) >= 0
 
     def test_gpp_non_negative(self, daily_ds):
         """Test GPP is non-negative."""
-        gpp = daily_ds.gpp.values
+        gpp = daily_ds.gpp_obs.values
         assert np.nanmin(gpp) >= 0
 
     def test_plant_type_valid(self, static_ds):

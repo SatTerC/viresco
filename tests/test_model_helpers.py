@@ -625,8 +625,8 @@ class TestDisturbancesDaily:
 
         result = disturbances(
             temperature=_da(np.full((n_days, n_pixels), 15.0)),
-            gpp=_da(np.full((n_days, n_pixels), 5.0)),
-            lai=_da(np.full((n_days, n_pixels), 2.0)),
+            gpp_obs=_da(np.full((n_days, n_pixels), 5.0)),
+            lai_obs=_da(np.full((n_days, n_pixels), 2.0)),
             pft_params=pft_params(_static_da(np.array([0, 3]))),
         )
         assert isinstance(result, xr.DataArray)
