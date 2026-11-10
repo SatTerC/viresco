@@ -1,5 +1,8 @@
 """The scaffolding route has to actually produce a pipeline that runs.
 
+The quickstart guide, `recipes/quickstart/demo.py`, teaches that route for SPLASH
+alone; `test_quickstart_notebook_runs` runs the guide itself.
+
 `viresco setup` → `viresco data-gen` → `viresco run` is what the quickstart tells
 a new user to do, and it is the only path where the two scaffolding halves are
 exercised against each other: the config generator decides what a model needs,
@@ -11,7 +14,11 @@ the generator (a resample it fails to emit, a variable it leaves unbound, a rate
 it coarsens as a mean) shows up here and nowhere else.
 """
 
+import shutil
+import subprocess
+import sys
 import tomllib
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -147,3 +154,19 @@ class TestGeneratedConfigShape:
         for name in ("precipitation_monthly", "potential_evapotranspiration_monthly"):
             assert f'name = "{name}"' in config
             assert f"{name.rsplit('_', 1)[0]}_daily.resample" in config
+
+
+def test_quickstart_notebook_runs(tmp_path):
+    """The quickstart guide is a notebook that runs the CLI route, then Python.
+
+    `marimo-md-export` exits zero when a cell fails, so the docs build would
+    publish a broken guide; run as a script, a marimo notebook exits non-zero.
+    The copy keeps the notebook's working directory out of the repository.
+    """
+    notebook = Path(__file__).parent.parent / "recipes" / "quickstart" / "demo.py"
+    shutil.copy(notebook, tmp_path / "demo.py")
+    result = subprocess.run(
+        [sys.executable, str(tmp_path / "demo.py")], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr[-2000:]
+    assert (tmp_path / "my_pipeline" / "outputs" / "weekly.nc").exists()

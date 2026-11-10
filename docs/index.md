@@ -22,7 +22,7 @@ If you're interested in learning more about the underlying framework, go to [cat
 
 <div class="grid cards" markdown>
 
-- **[Guides](guides/installation.md)** — how-to guides. Start with [installation](guides/installation.md), then the [quickstart](guides/quickstart.md), which goes from an empty directory to a NetCDF file of results without needing any data of your own.
+- **[Guides](guides/installation.md)** — how-to guides. Start with [installation](guides/installation.md), then the [quickstart](guides/quickstart.md), which goes from an empty directory to a file of results with a few commands, without needing any data of your own, and then plots and changes the pipeline in Python.
 - **[Models](models/index.md)** — a page per model: [SPLASH](models/splash.md) for the water balance, the [P-model](models/pmodel.md) for photosynthesis, [SGAM](models/sgam.md) for vegetation carbon pools, [RothC](models/rothc.md) for soil carbon. Each one gives the DAG, the theory, and tables of inputs, outputs and settings generated from the code.
 - **[Recipes](recipes/my_first_pipeline.md)** — complete pipelines as executable [marimo](https://marimo.io) notebooks. [My first pipeline](recipes/my_first_pipeline.md) is the step-by-step introduction, and [soil moisture](recipes/soil_moisture.md) calibrates a parameter against COSMOS-UK observations.
 - **[Reference](reference/index.md)** — the [CLI](reference/cli.md) commands that are viresco's own, the [Python API](reference/python-api.md), and every module's signatures. Config schema and data formats are catena's, and the [overview](reference/index.md) says where to find them.

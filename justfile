@@ -50,7 +50,7 @@ graph-all:
 # Does not depend on `export-all`, which takes minutes, but refuses to build
 # while any recipe notebook lacks an export, since every link to it would break.
 docs: graph-all
-  @for r in {{documented_recipes}}; do md="docs/recipes/$r.md"; [ -f "$md" ] || { echo "error: $md is missing; run \`just export-all\` first" >&2; exit 1; }; done
+  @for md in docs/guides/quickstart.md $(for r in {{documented_recipes}}; do echo "docs/recipes/$r.md"; done); do [ -f "$md" ] || { echo "error: $md is missing; run \`just export-all\` first" >&2; exit 1; }; done
   zensical build --clean
 
 # The recipes published in the docs, which must match the Recipes nav in
@@ -64,8 +64,13 @@ export recipe:
   marimo-md-export "recipes/{{recipe}}/demo.py" \
     "docs/recipes/{{recipe}}.md" --keep-html --overflow scroll
 
-# Export every documented recipe notebook to docs/recipes/.
-export-all:
+# Export the quickstart guide, a notebook in recipes/ published under guides/.
+export-quickstart:
+  marimo-md-export recipes/quickstart/demo.py docs/guides/quickstart.md \
+    --keep-html --overflow scroll
+
+# Export the quickstart and every documented recipe notebook.
+export-all: export-quickstart
   @for r in {{documented_recipes}}; do just export "$r"; done
 
 # Tag the version in pyproject.toml and push the tag.
