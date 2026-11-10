@@ -42,14 +42,16 @@ evap_factor = 1.0
 equilibrium_threshold = 1e-06
 zero_threshold = 1e-08
 
-# Node names are `{var}{suffix}`, and the suffix defaults to `_<section label>` --
-# so `temperature` here becomes the node `temperature_daily`, which is what the
-# models' parameters are called. The labels themselves are inert: catena infers
-# no frequency from them. The models declare their expected frequencies as `Freq`
-# contracts instead (see viresco.models._time), so a weekly file wired into a
-# daily parameter is caught before anything runs.
+# Node names are `{var}{suffix}`, and the suffix defaults to `_<section label>`.
+# viresco's convention is that daily nodes are bare (`temperature`) and coarser
+# ones are suffixed (`temperature_weekly`), so this section sets `suffix = ""`.
+# The labels themselves are inert: catena infers no frequency from them. The
+# models declare their expected frequencies as `Freq` contracts instead (see
+# viresco.temporal), so a weekly file wired into a daily parameter is caught
+# before anything runs.
 [inputs.daily]
 path = "inputs/daily.nc"
+suffix = ""
 vars = [
     "gpp",
     "lai",
@@ -68,8 +70,8 @@ vars = [
     "vpd",
 ]
 
-# Static variables are consumed under bare names (`elevation`, not
-# `elevation_static`), so this section opts out of the suffix.
+# Static variables are bare too (`elevation`, not `elevation_static`). A bare
+# name is therefore daily or static, and only a node's declared `Freq` says which.
 [inputs.static]
 path = "inputs/static.nc"
 suffix = ""
@@ -98,10 +100,10 @@ vars = [
 # its way to AET, and viresco.models.splash exposes it.
 [[node]]
 name = "aridity_index"
-inputs = ["potential_evapotranspiration_daily", "precipitation_daily"]
+inputs = ["potential_evapotranspiration", "precipitation"]
 expression = """(
-    potential_evapotranspiration_daily.sum("time")
-    / precipitation_daily.sum("time")
+    potential_evapotranspiration.sum("time")
+    / precipitation.sum("time")
 )"""
 units = "1"  # ratio of two mm totals -> dimensionless
 overwrite_units = true
@@ -174,8 +176,8 @@ freq = "7D"
 # the rate as the resulting total.
 [[node]]
 name = "potential_evapotranspiration_monthly"
-inputs = ["potential_evapotranspiration_daily"]
-expression = "potential_evapotranspiration_daily.resample(time='1ME').sum()"
+inputs = ["potential_evapotranspiration"]
+expression = "potential_evapotranspiration.resample(time='1ME').sum()"
 units = "mm"
 overwrite_units = true
 freq = "1ME"
@@ -186,8 +188,8 @@ freq = "1ME"
 # mm input and the resample output name would collide with this one.)
 [[node]]
 name = "precipitation_monthly"
-inputs = ["precipitation_daily"]
-expression = "precipitation_daily.resample(time='1ME').sum()"
+inputs = ["precipitation"]
+expression = "precipitation.resample(time='1ME').sum()"
 units = "mm"
 overwrite_units = true
 freq = "1ME"
@@ -213,14 +215,14 @@ units = "t ha-1"
 
 # `from` and `to` are node-name suffixes, nothing more; `freq` is what actually
 # happens to the time axis, and becomes the generated node's declared frequency
-# contract.
+# contract. `from = ""` reads the bare daily name.
 [[resample]]
 vars = [
     "temperature",
     "precipitation",
     "soil_moisture",
 ]
-from = "daily"
+from = ""
 to = "weekly"
 freq = "7D"
 
@@ -228,19 +230,20 @@ freq = "7D"
 vars = [
     "temperature",
 ]
-from = "daily"
+from = ""
 to = "monthly"
 freq = "1ME"
 
 [[resample]]
 vars = ["disturbances"]
-from = "daily"
+from = ""
 to = "weekly"
 freq = "7D"
 aggfunc = "max"
 
 [outputs.daily]
 path = "outputs/daily.nc"
+suffix = ""
 vars = [
     "actual_evapotranspiration",
     "disturbances",

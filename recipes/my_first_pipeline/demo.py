@@ -195,8 +195,8 @@ def _(mo, recipe_dir):
     ```
 
     Each function is a node of the pipeline.
-    Its name is the node it produces, and its parameters name the nodes it consumes, so `temperature_daily(ta)` turns the input `ta` into the `temperature_daily` SPLASH asks for.
-    The `Unit` annotations are what catena checks: `shortwave_radiation_daily` declares that it takes megajoules and returns joules, and converts in between.
+    Its name is the node it produces, and its parameters name the nodes it consumes, so `temperature(ta)` turns the input `ta` into the `temperature` SPLASH asks for.
+    The `Unit` annotations are what catena checks: `shortwave_radiation` declares that it takes megajoules and returns joules, and converts in between.
     The gap filling is there because SPLASH carries soil moisture over from one day to the next, so it refuses any missing day in its inputs.
 
     `bucket_capacity`, after the `*`, is a setting rather than a node: its value comes from the `[cosmos_nodes]` section of the config.

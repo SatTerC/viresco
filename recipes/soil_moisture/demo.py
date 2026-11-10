@@ -127,7 +127,7 @@ def _(mo, nodes_path):
     ## The nodes
 
     Each node turns one COSMOS-UK variable into a gap-free SPLASH input in the unit SPLASH declares.
-    COSMOS-UK does not measure sunshine fraction, so `shortwave_radiation_daily` supplies the shortwave radiation SPLASH recovers it from;
+    COSMOS-UK does not measure sunshine fraction, so `shortwave_radiation` supplies the shortwave radiation SPLASH recovers it from;
     the [SPLASH page](../models/splash.md) explains how.
     Every unit the nodes declare is checked against the file and against SPLASH when the DAG is built, before anything runs.
 
@@ -192,7 +192,7 @@ def _(run):
     results = run.outputs["soil_moisture"].isel(site=0)
     dates = results.indexes["time"]
     observations = results["cosmos_vwc_snow_masked"].values
-    default_soil_moisture = results["soil_moisture_daily"].values
+    default_soil_moisture = results["soil_moisture"].values
     n_observed = int(results["cosmos_vwc_snow_masked"].count())
     results
     return dates, default_soil_moisture, n_observed, observations
@@ -260,7 +260,7 @@ def _(catena, config, xr):
     )
     inputs = catena.load_inputs(config.input_specs)
     forcing = driver.execute(
-        ["sunshine_fraction_daily", "precipitation_daily", "temperature_daily"],
+        ["sunshine_fraction", "precipitation", "temperature"],
         inputs=inputs,
     )
 
@@ -268,11 +268,11 @@ def _(catena, config, xr):
         """Run SPLASH with a uniform ``max_soil_moisture``, returning the one site."""
         capacity = xr.DataArray(float(max_soil_moisture), attrs={"units": "mm"})
         outputs = driver.execute(
-            ["soil_moisture_daily"],
+            ["soil_moisture"],
             inputs=inputs,
             overrides={**forcing, "max_soil_moisture": capacity},
         )
-        return outputs["soil_moisture_daily"].isel(site=0).values
+        return outputs["soil_moisture"].isel(site=0).values
 
     return (simulate,)
 

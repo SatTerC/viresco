@@ -170,9 +170,8 @@ def _(mo):
     - `[inputs.daily]` and `[inputs.static]` say which files to read, and which variables to take from each.
     - `[outputs.daily]` says which results to write, and where.
 
-    Each input variable becomes a node of the pipeline named `{var}{suffix}`, where the suffix defaults to the section label:
-    `temperature` under `[inputs.daily]` becomes `temperature_daily`, which is what SPLASH's input is called.
-    Static variables are used under their bare names, so that section sets an empty `suffix`.
+    Each input variable becomes a node of the pipeline named `{var}{suffix}`, where the suffix defaults to `_<section label>`.
+    Viresco gives daily and static variables bare names, so both sections set an empty `suffix`: `temperature` under `[inputs.daily]` becomes the node `temperature`, which is what SPLASH's input is called.
     Paths are relative to the config file.
     catena's [configuration reference](https://github.com/NERC-CEH/catena/blob/main/docs/reference/configuration.md) describes every section.
     """)
@@ -289,7 +288,7 @@ def _(mo):
     mo.md(r"""
     Read from left to right: the dashed box lists the inputs, the note lists SPLASH's settings, and the blue boxes are functions, SPLASH itself and the one that sets up its starting soil moisture.
     On the right is everything SPLASH computes.
-    The drawing shows the whole pipeline, so every SPLASH result appears; the one the config asks for, `soil_moisture_daily`, is outlined.
+    The drawing shows the whole pipeline, so every SPLASH result appears; the one the config asks for, `soil_moisture`, is outlined.
     Each node shows its unit, which is what the dry run checked.
 
     ### Step 6: Run the pipeline
@@ -377,7 +376,8 @@ def _(mo):
     mo.md(r"""
     Suppose you want weekly soil moisture as well, for instance to feed the P-model, which Viresco runs at a weekly step.
     catena's `[[resample]]` section aggregates a variable to a coarser step, so two additions give one:
-    a `[[resample]]` that turns `soil_moisture_daily` into a weekly mean, `soil_moisture_weekly`,
+    a `[[resample]]` that turns `soil_moisture` into a weekly mean, `soil_moisture_weekly`
+    (its `from` and `to` are the suffixes to read and write, and daily names have none),
     and an `[outputs.weekly]` section that writes it.
     Below they are added to the dictionary, which is written back to `config.toml`, as Step 2 did;
     in a text editor you would add the same lines by hand.
@@ -390,7 +390,7 @@ def _(catena, config, config_path):
     config["resample"] = [
         {
             "vars": ["soil_moisture"],
-            "from": "daily",
+            "from": "",
             "to": "weekly",
             "freq": "7D",
             "aggfunc": "mean",

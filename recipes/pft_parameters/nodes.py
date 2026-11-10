@@ -22,8 +22,8 @@ from viresco.temporal import WEEKLY
 @xra.check_annotations
 @xra.stamp_output_units(overwrite=True)
 def aridity_index(
-    potential_evapotranspiration_daily: Annotated[xr.DataArray, Unit("mm d-1")],
-    precipitation_daily: Annotated[xr.DataArray, Unit("mm d-1")],
+    potential_evapotranspiration: Annotated[xr.DataArray, Unit("mm d-1")],
+    precipitation: Annotated[xr.DataArray, Unit("mm d-1")],
 ) -> Annotated[xr.DataArray, Unit("1")]:
     """Climatological aridity, PET over precipitation, one value per pixel.
 
@@ -31,8 +31,8 @@ def aridity_index(
     than giving a time series. SPLASH computes PET on its way to AET and exposes
     it, so the bridge is a sum and a divide.
     """
-    time = sole_time_dim(precipitation_daily, "precipitation_daily")
-    return potential_evapotranspiration_daily.sum(time) / precipitation_daily.sum(time)
+    time = sole_time_dim(precipitation, "precipitation")
+    return potential_evapotranspiration.sum(time) / precipitation.sum(time)
 
 
 @xra.check_annotations

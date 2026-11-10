@@ -1,11 +1,17 @@
 """The temporal resolutions a viresco pipeline speaks in.
 
 catena infers nothing from a node's name: an input's frequency is validated
-only where a consumer declares it. These are viresco's declarations — the pandas
-offsets behind its ``_daily`` / ``_weekly`` / ``_monthly`` node-name suffixes.
-`viresco.models` declares them as `Freq` contracts, `viresco.scaffold.config_gen`
-writes them into the ``[[resample]]`` entries of a generated config, and
-`viresco.scaffold.data_gen` resamples synthetic data onto them.
+only where a consumer declares it. These are viresco's declarations, the pandas
+offsets behind its node names. Daily is the finest resolution viresco models, and
+daily nodes have bare names (``temperature``); coarser ones carry a suffix
+(``temperature_weekly``, ``temperature_monthly``). This is a viresco convention,
+not a catena one. Static nodes are bare too, so a bare name is daily or static,
+and only the declared `Freq`, or the absence of one, tells them apart.
+
+`viresco.models` declares these as `Freq` contracts, `viresco.scaffold.config_gen`
+reads them to sort a generated config's variables and writes them into its
+``[[resample]]`` entries, and `viresco.scaffold.data_gen` resamples synthetic
+data onto them.
 
 The offsets are unanchored, so ``Freq("7D")`` constrains the spacing only: a
 weekly series is accepted whichever weekday it starts on.

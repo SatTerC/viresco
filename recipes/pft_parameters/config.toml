@@ -19,6 +19,7 @@ par_photons_per_mj = 4.57
 
 [inputs.daily]
 path = "data/daily.nc"
+suffix = ""
 vars = [
   "precipitation",
   "sunshine_fraction",
@@ -54,13 +55,13 @@ vars = [
   "temperature",
   "soil_moisture",
 ]
-from = "daily"
+from = ""
 to = "weekly"
 freq = "7D"
 
 [[resample]]
 vars = ["disturbances"]
-from = "daily"
+from = ""
 to = "weekly"
 freq = "7D"
 aggfunc = "max"

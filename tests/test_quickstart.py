@@ -96,7 +96,7 @@ class TestGeneratedConfigShape:
     """What the generator must emit for the four-model pipeline to wire up."""
 
     def test_gpp_is_an_input_despite_being_a_model_output(self, quickstart):
-        """pmodel yields weekly GPP; sgam's disturbances want `gpp_daily`.
+        """pmodel yields weekly GPP; the shared module's daily disturbances want `gpp`.
 
         Resampling only coarsens, so the weekly figure cannot supply the daily
         consumer and it has to be loaded from a file.
@@ -140,7 +140,7 @@ class TestGeneratedConfigShape:
                 assert f"{var}_{entry['to']}" not in node_names
 
     def test_model_outputs_are_resampled_for_coarser_consumers(self, quickstart):
-        """sgam produces `disturbances_daily` and consumes `disturbances_weekly`."""
+        """`shared` produces daily `disturbances`; sgam consumes `disturbances_weekly`."""
         config = (quickstart / "config.toml").read_text()
         assert '"disturbances",' in config
 
@@ -153,7 +153,7 @@ class TestGeneratedConfigShape:
         config = (quickstart / "config.toml").read_text()
         for name in ("precipitation_monthly", "potential_evapotranspiration_monthly"):
             assert f'name = "{name}"' in config
-            assert f"{name.rsplit('_', 1)[0]}_daily.resample" in config
+            assert f"{name.rsplit('_', 1)[0]}.resample" in config
 
 
 @pytest.mark.skipif(not shutil.which("dot"), reason="graphviz not installed")
