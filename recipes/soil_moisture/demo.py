@@ -69,8 +69,7 @@ def _(mo):
     |---|---|
     | `config.toml` | The pipeline, from the COSMOS-UK file to SPLASH's soil moisture |
     | `nodes.py` | The nodes that turn COSMOS-UK's measurements into SPLASH's forcing |
-    | `data/cosmos.nc` | Two years of daily data at Chimney Meadows, a lowland grassland site in Oxfordshire, taking in the dry summer of 2022 |
-    | `fetch_data.py` | Downloads `data/cosmos.nc` with [xharvest](https://github.com/NERC-CEH/xharvest); run it to try another site or period |
+    | `data/cosmos.nc` | Two years of daily data at Chimney Meadows, a lowland grassland site in Oxfordshire, taking in the dry summer of 2022, downloaded with [xharvest](https://nerc-ceh.github.io/xharvest/) |
     | `demo.py` | This notebook |
 
     To run it, download the directory, or clone the repository, and open the notebook with [marimo](https://marimo.io):
@@ -79,6 +78,19 @@ def _(mo):
     git clone https://github.com/SatTerC/viresco.git
     marimo edit --sandbox viresco/recipes/soil_moisture/demo.py
     ```
+
+    /// tip | From a terminal
+    These commands made `data/cosmos.nc`, with xharvest's command-line tool;
+    [My first pipeline](my_first_pipeline.md) says how to install it.
+    Change `CHIMN` and the dates to try another site or period.
+
+    ```sh
+    xharvest cosmos fetch CHIMN --start 2021-01-01 --end 2022-12-31 \
+      --parameter cosmos_vwc --parameter precip --parameter snow \
+      --parameter swin --parameter ta --out data/raw
+    xharvest cosmos standardise data/raw/CHIMN_*.json --out data/cosmos.nc
+    ```
+    ///
 
     The COSMOS-UK data is under the [Open Government Licence](http://www.nationalarchives.gov.uk/doc/open-government-licence);
     the [xharvest docs](https://nerc-ceh.github.io/xharvest/providers/cosmos-uk/#citing-the-data) say how to cite it.
@@ -95,9 +107,9 @@ def _(config_path, mo):
     since viresco's models take whatever dimension names the data has.
 
     - `[inputs.cosmos]` keeps the file's variable names, with `suffix = ""`.
-    - `[inputs.site]` binds three of them to the names SPLASH wants.
-      `latitude` and `elevation` are per-site coordinates of the file rather than variables, which `vars` reads just the same.
+    - `[inputs.site]` binds `latitude` and `elevation`, which are per-site coordinates of the file rather than variables; `vars` reads them just the same.
     - `[soil_moisture_nodes]` imports `nodes.py`, below, and sets the value `max_soil_moisture` takes until the calibration overrides it.
+    - `[splash]` sets `sunshine_fraction_method = "shortwave"`, so SPLASH recovers the sunshine fraction it needs from measured shortwave radiation.
     - `[cosmos]` has no `_import_path`: xharvest registers its nodes under that section name, so catena finds
       [`cosmos_vwc_snow_masked`](https://nerc-ceh.github.io/xharvest/providers/cosmos-uk/#xharvest.cosmos.nodes.cosmos_vwc_snow_masked),
       which drops the days when snow on the ground corrupts the COSMOS signal.
@@ -114,10 +126,9 @@ def _(mo, nodes_path):
     mo.md(rf"""
     ## The nodes
 
-    COSMOS-UK does not measure sunshine fraction $s_f$.
-    `sunshine_fraction_daily` recovers it from incoming shortwave radiation $R_s$ by inverting SPLASH's own transmissivity model,
-    $R_s / R_a = (0.25 + 0.5\,s_f)(1 + 2.67\times10^{{-5}} z)$,
-    with the extraterrestrial radiation $R_a$ from FAO-56.
+    Each node turns one COSMOS-UK variable into a gap-free SPLASH input in the unit SPLASH declares.
+    COSMOS-UK does not measure sunshine fraction, so `shortwave_radiation_daily` supplies the shortwave radiation SPLASH recovers it from;
+    the [SPLASH page](../models/splash.md) explains how.
     Every unit the nodes declare is checked against the file and against SPLASH when the DAG is built, before anything runs.
 
     ```python
@@ -249,13 +260,13 @@ def _(catena, config, xr):
     )
     inputs = catena.load_inputs(config.input_specs)
     forcing = driver.execute(
-        ["sunshine_fraction_daily", "precipitation_daily"], inputs=inputs
+        ["sunshine_fraction_daily", "precipitation_daily", "temperature_daily"],
+        inputs=inputs,
     )
 
     def simulate(max_soil_moisture):
         """Run SPLASH with a uniform ``max_soil_moisture``, returning the one site."""
-        capacity = xr.full_like(inputs["elevation"], max_soil_moisture, dtype=float)
-        capacity.attrs = {"units": "mm"}
+        capacity = xr.DataArray(float(max_soil_moisture), attrs={"units": "mm"})
         outputs = driver.execute(
             ["soil_moisture_daily"],
             inputs=inputs,

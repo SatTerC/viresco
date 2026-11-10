@@ -23,6 +23,8 @@ recipes/*/results/
 recipes/*/data/
 !recipes/soil_moisture/data/
 !recipes/soil_moisture/data/cosmos.nc
+!recipes/my_first_pipeline/data/
+!recipes/my_first_pipeline/data/cosmos.nc
 
 .claude/
 

@@ -5,6 +5,7 @@
 #   "ukceh-catena",
 #   "marimo",
 #   "matplotlib==3.10.9",
+#   "xarray",
 #   "xarray-annotated",
 # ]
 #
@@ -27,13 +28,15 @@ def _(mo):
 
     This notebook walks through running a Viresco pipeline step by step.
     It is aimed at users who are new to Viresco, and assumes only basic familiarity with Python.
+    The pipeline runs the SPLASH water-balance model on two years of real weather from a [COSMOS-UK](https://cosmos.ceh.ac.uk/) site, and ends by comparing its soil moisture with what the site measured.
 
     The recipe is a directory, [`recipes/my_first_pipeline`](https://github.com/SatTerC/viresco/tree/main/recipes/my_first_pipeline):
 
     | File | Contents |
     |---|---|
     | `config.toml` | The pipeline |
-    | `make_data.py` | Writes stand-in inputs to `data/` |
+    | `nodes.py` | Functions that prepare the COSMOS-UK data for SPLASH |
+    | `data/cosmos.nc` | The COSMOS-UK data, downloaded with [xharvest](https://nerc-ceh.github.io/xharvest/) |
     | `demo.py` | This notebook |
 
     To run it, download the directory, or clone the repository, and open the notebook with [marimo](https://marimo.io):
@@ -45,6 +48,8 @@ def _(mo):
 
     `--sandbox`, which needs [uv](https://docs.astral.sh/uv/), installs everything the notebook needs, Viresco included, from the list at the top of `demo.py`.
     Drop it to use a Python environment that already has Viresco installed.
+
+    Each step below is also a single command in a terminal, run from the recipe directory; the boxes say which.
     """)
     return
 
@@ -57,12 +62,12 @@ def _():
     import catena
     import marimo as mo
     import matplotlib.pyplot as plt
-    from catena.importing import import_user_module
+    import xarray as xr
 
     recipe_dir = Path(__file__).parent
     config_path = recipe_dir / "config.toml"
     (recipe_dir / "results").mkdir(exist_ok=True)
-    return catena, config_path, import_user_module, mo, plt, recipe_dir, tomllib
+    return catena, config_path, mo, plt, recipe_dir, tomllib, xr
 
 
 @app.cell(hide_code=True)
@@ -79,15 +84,17 @@ def _(config_path, mo):
     {config_path.read_text()}
     ```
 
-    Every section activates a pipeline component.
-    `[splash]` loads the SPLASH water-balance module, which Viresco registers with catena so the section name alone is enough to find it.
-    `[inputs.daily]` loads daily climate data from the given path, and `[outputs.daily]` saves the named variables to disk when the pipeline finishes.
-    Paths are relative to the config file.
+    Every section activates a pipeline component:
 
-    Node names are `{{var}}{{suffix}}`, with the suffix defaulting to the section label,
-    so `temperature` under `[inputs.daily]` becomes the node `temperature_daily`,
-    which is what SPLASH's parameter is called.
-    Static variables are consumed under bare names, so that section sets `suffix = ""`.
+    - `[inputs.cosmos]` and `[inputs.site]` load variables from the data file, each becoming a node of the pipeline.
+      The list form names a node after the variable plus a suffix, which `suffix = ""` removes, so `ta` is the node `ta`.
+      The mapping form names the node explicitly, so the file's `lat` coordinate is the node `latitude`.
+    - `[cosmos_nodes]` loads the functions in `nodes.py`, and sets their `bucket_capacity`.
+    - `[splash]` loads the SPLASH model, which Viresco registers with catena, so the section name alone is enough to find it.
+      `sunshine_fraction_method = "shortwave"` tells it to work out the sunshine fraction it needs from measured radiation, as Step 3 explains.
+    - `[outputs.daily]` saves the named variables to disk when the pipeline finishes.
+
+    Paths are relative to the config file.
     """)
     return
 
@@ -124,68 +131,141 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, recipe_dir):
-    mo.md(rf"""
+def _(mo):
+    mo.md(r"""
     ## Step 2: The input data
 
-    Viresco reads input data from NetCDF or Zarr files, detecting the format from the file extension in the config.
-    This recipe has no real data to hand, so `make_data.py` writes two years of plausible daily climate at one site.
-    It is also a template for your own data: one file per `[inputs.*]` section, with a `units` attribute on every variable.
+    [COSMOS-UK](https://cosmos.ceh.ac.uk/) is a network of soil moisture monitoring sites across the UK, each with its own weather station.
+    `data/cosmos.nc` holds two years of daily data from Chimney Meadows (`CHIMN`), in Oxfordshire.
+    It was downloaded with [xharvest](https://nerc-ceh.github.io/xharvest/), which fetches data from environmental data providers and writes it in a form catena reads as it is.
+    The repository carries the file, so the notebook downloads nothing.
 
-    ```python
-    {(recipe_dir / "make_data.py").read_text()}
+    /// tip | From a terminal
+    Install xharvest's command-line tool once, with uv:
+
+    ```sh
+    uv tool install "xharvest[cosmos] @ git+https://github.com/NERC-CEH/xharvest"
     ```
 
-    ### A note on units
+    These two commands made `data/cosmos.nc`.
+    The first downloads the raw data into `data/raw/`, and the second combines it into one netCDF file:
 
-    Every model input in Viresco declares the units it expects, and catena checks the data against that declaration before the model sees it.
-    The check reads the `units` attribute on each array, and NetCDF keeps it.
+    ```sh
+    xharvest cosmos fetch CHIMN --start 2021-01-01 --end 2022-12-31 \
+      --parameter precip --parameter swin --parameter ta --parameter cosmos_vwc \
+      --out data/raw
+    xharvest cosmos standardise data/raw/CHIMN_*.json --out data/cosmos.nc
+    ```
 
-    A missing label is an error, and so is a different unit, even one that could be converted:
-    `degF` where `degC` is declared fails rather than being converted for you.
-    Convert your data before it enters the pipeline.
-    The [model docs](../models/splash.md) list the unit each input is declared in.
+    To try another site or period, change `CHIMN` and the dates.
+    `xharvest cosmos sites` lists every site and its period of record.
+    ///
     """)
     return
 
 
 @app.cell
-def _(import_user_module, recipe_dir):
-    make_data = import_user_module(str(recipe_dir / "make_data.py"))
-    input_paths = [path.relative_to(recipe_dir) for path in make_data.write_inputs()]
-    input_paths
-    return (input_paths,)
+def _(recipe_dir, xr):
+    cosmos = xr.open_dataset(recipe_dir / "data" / "cosmos.nc")
+    cosmos
+    return (cosmos,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Step 3: Build the pipeline
+    Every variable carries a `units` attribute, and catena checks it against the unit each model input declares before the model sees the data.
+    A missing label is an error, and so is a different unit, even one that could be converted:
+    `swin` is in megajoules where SPLASH declares joules, so passing it straight in fails rather than being converted for you.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, recipe_dir):
+    mo.md(rf"""
+    ## Step 3: Preparing the data
+
+    COSMOS-UK measures most of what SPLASH needs, but not quite in the form SPLASH takes it.
+    `nodes.py` bridges the gap, with one ordinary Python function per SPLASH input:
+
+    ```python
+    {(recipe_dir / "nodes.py").read_text()}
+    ```
+
+    Each function is a node of the pipeline.
+    Its name is the node it produces, and its parameters name the nodes it consumes, so `temperature_daily(ta)` turns the input `ta` into the `temperature_daily` SPLASH asks for.
+    The `Unit` annotations are what catena checks: `shortwave_radiation_daily` declares that it takes megajoules and returns joules, and converts in between.
+    The gap filling is there because SPLASH carries soil moisture over from one day to the next, so it refuses any missing day in its inputs.
+
+    `bucket_capacity`, after the `*`, is a setting rather than a node: its value comes from the `[cosmos_nodes]` section of the config.
+    COSMOS-UK does not measure how much water the soil can hold, so here it is a fixed guess.
+    The [soil moisture recipe](soil_moisture.md) calibrates it against the measurements instead.
+
+    One input has no function here.
+    SPLASH works out its radiation from a sunshine fraction, the share of daylight hours that are sunny, which COSMOS-UK does not measure.
+    With `sunshine_fraction_method = "shortwave"`, Viresco recovers it from the measured shortwave radiation instead; the [SPLASH page](../models/splash.md) explains how.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Step 4: Build the pipeline
 
     Viresco represents a pipeline as a Directed Acyclic Graph (DAG): a network of nodes
     where each node is a computation, and edges show which computations depend on which others.
+    Building the pipeline means constructing this graph from the config, and drawing it shows how the pieces fit together:
+    the COSMOS-UK inputs, the functions in `nodes.py`, and SPLASH.
+    Each node shows its unit, and the outputs the config asks for are highlighted.
 
-    Building the pipeline means constructing this graph from the modules and configuration you specified.
-    Below we draw the part of the graph running from the daily precipitation input to the soil moisture output.
+    /// tip | From a terminal
+    ```sh
+    viresco graph --png config.toml
+    ```
+
+    writes the same drawing to `pipeline.png`, beside the graphviz source in `pipeline.dot`.
+    It needs [graphviz](https://graphviz.org/download/) installed.
+    ///
     """)
     return
 
 
 @app.cell
 def _(catena, config_path):
-    config = catena.load_config(config_path)
-    dr = catena.build_driver(
-        modules=config.modules,
-        config=config.driver_config,
-        node_specs=config.node_specs,
-        base=config.base,
-        registered=config.registered_modules,
-    )
-    dr.visualize_path_between(
-        "precipitation_daily",
-        "soil_moisture_daily",
-        show_legend=False,
-        graphviz_kwargs={"graph_attr": {"ratio": "compress", "size": "10,15"}},
+    catena.build_graph(config_path)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Step 5: Check the pipeline
+
+    A dry run checks everything a real run depends on without running any model:
+    that the config parses, the inputs load, every node finds its inputs, the units agree, and the outputs can be written.
+    It is cheap, so run it whenever you change the config.
+
+    /// tip | From a terminal
+    ```sh
+    viresco run --dry-run config.toml
+    ```
+    ///
+    """)
+    return
+
+
+@app.cell
+def _(catena, config_path, mo):
+    dry = catena.dry_run(config_path)
+
+    mo.md(
+        "| Stage | Status | Detail |\n|---|---|---|\n"
+        + "\n".join(
+            f"| `{stage.name}` | {stage.status} | {stage.detail} |"
+            for stage in dry.stages
+        )
     )
     return
 
@@ -193,64 +273,60 @@ def _(catena, config_path):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Step 4: Run the pipeline
+    ## Step 6: Run the pipeline
 
     `catena.run` does the whole thing in one call: it loads the inputs, builds the DAG, computes the variables `[outputs.daily]` names, and writes them to the path that section gives.
-    From a terminal, `viresco run config.toml` does the same.
 
     What comes back is a `RunReport`.
     `report.outputs` holds one Dataset per output section, keyed by section name, so the results are in memory to explore and plot as well as on disk.
     `report.written` says where each file went and how large it is.
 
-    Note that `run` takes the config, not the driver we built in step 3.
-    That step was to see the graph; running the pipeline does not need it.
+    /// tip | From a terminal
+    ```sh
+    viresco run config.toml
+    ```
+
+    writes the same `results/daily.nc`.
+    ///
     """)
     return
 
 
 @app.cell
-def _(catena, config_path, input_paths):
-    assert input_paths  # run after the data is written
+def _(catena, config_path):
     report = catena.run(config_path)
 
-    report.outputs["daily"].info()
+    report.outputs["daily"]
     return (report,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Step 5: Inspect the results
+    ## Step 7: Compare with the measurements
 
-    Let us plot the simulated soil moisture over the two-year period.
-    Soil moisture rises after precipitation events and falls during dry periods,
-    so a clear seasonal signal should be visible.
+    COSMOS-UK also measures soil moisture, so we can set SPLASH's against it.
+    The two are not in the same units:
+    SPLASH's soil moisture is the water in a bucket, in millimetres, while the probe measures the volumetric water content of the top few tens of centimetres, in percent.
+    Plotted on separate axes, what to compare is the shape: when the soil wets up and dries out.
+    Fitting `bucket_capacity` so the shapes agree is what the [soil moisture recipe](soil_moisture.md) does next.
     """)
     return
 
 
 @app.cell
-def _(plt, report):
+def _(cosmos, plt, report):
     soil_moisture = report.outputs["daily"]["soil_moisture"].isel(site=0)
+    measured = cosmos["cosmos_vwc"].isel(site=0)
 
-    fig, ax = plt.subplots(figsize=(10, 3))
-    soil_moisture.plot(ax=ax)
-    ax.set_ylabel("Soil moisture (mm)")
+    fig, ax = plt.subplots(figsize=(10, 3.5))
+    ax.plot(soil_moisture["time"], soil_moisture, color="tab:blue", lw=1)
+    ax.set_ylabel("SPLASH soil moisture (mm)", color="tab:blue")
+    twin = ax.twinx()
+    twin.plot(measured["time"], measured, color="k", lw=1)
+    twin.set_ylabel("COSMOS-UK water content (%)")
     fig.tight_layout()
     fig
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Using your own data
-
-    1. Write each input section to a NetCDF file, following `make_data.py`: a `units` attribute on every variable, and a time dimension with dates on it.
-       A gridded file, with `y` and `x` dimensions and a coordinate reference system, works too; catena then computes `latitude` itself, so it can come out of `[inputs.static]`.
-    2. Change each `path` in `config.toml` to point at your file.
-    3. Run the pipeline, either by re-running this notebook without the `make_data` cell, or from a terminal with `viresco run config.toml`.
-    """)
     return
 
 

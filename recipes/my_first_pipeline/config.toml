@@ -1,21 +1,21 @@
-[splash]
+# SPLASH driven by a COSMOS-UK site's own meteorology.
 
-[inputs.daily]
-path = "data/daily.nc"
-vars = [
-  "precipitation",
-  "sunshine_fraction",
-  "temperature",
-]
-
-[inputs.static]
-path = "data/static.nc"
+[inputs.cosmos]
+path = "data/cosmos.nc"
 suffix = ""
-vars = [
-  "elevation",
-  "latitude",
-  "max_soil_moisture",
-]
+vars = ["precip", "swin", "ta"]
+
+# latitude and elevation are per-site coordinates of the file, not variables.
+[inputs.site]
+path = "data/cosmos.nc"
+vars = { latitude = "lat", elevation = "altitude" }
+
+[cosmos_nodes]
+_import_path = "nodes.py"
+bucket_capacity = 150.0
+
+[splash]
+sunshine_fraction_method = "shortwave"
 
 [outputs.daily]
 path = "results/daily.nc"
