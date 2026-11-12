@@ -3,18 +3,14 @@
 #
 # The framework is catena; every section below is catena's. viresco registers
 # its four model modules with catena, so `[sgam]` and friends need no
-# `_import_path`; so is `[shared]`, which holds the nodes that belong to no one
-# model. See the catena configuration reference for the full schema:
+# `_import_path`. See the catena configuration reference for the full schema:
 # https://github.com/NERC-CEH/catena/blob/develop/docs/reference/configuration.md
 #
 # This file is a user-facing reference. Nothing in viresco loads it.
 
+# SGAM's disturbance detection runs on daily observations; its weekly maximum is
+# what SGAM consumes. See the `disturbances` [[resample]] entry below.
 [sgam]
-
-# Disturbance detection runs on daily observations, so it is not part of the
-# weekly SGAM module. Its weekly maximum is what SGAM consumes; see the
-# `disturbances` [[resample]] entry below.
-[shared]
 growing_season_limit = 10.0
 
 [splash]

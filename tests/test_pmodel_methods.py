@@ -26,8 +26,7 @@ from pyrealm.pmodel.quantum_yield import QUANTUM_YIELD_CLASS_REGISTRY
 from viresco.models.pmodel import _OUTPUT_ATTRIBUTES, pmodel
 from viresco.scaffold.config_gen import _unwrap_annotated
 
-#: `mean_growth_temperature` lives in the shared module, not in pmodel.
-MODULES = ["viresco.models.pmodel", "viresco.models.shared"]
+MODULE = "viresco.models.pmodel"
 
 #: config key -> (pyrealm registry, attribute naming its requirements, node)
 AXES = {
@@ -125,7 +124,7 @@ def test_axis_node_passes_what_pyrealm_requires(key, method):
     Runs the whole node too, so pyrealm itself confirms it got what it needs.
     """
     _, _, node = AXES[key]
-    dr = build_driver(MODULES, {key: method})
+    dr = build_driver([MODULE], {key: method})
     inputs = {name: INPUTS[name] for name in _required_inputs(dr)}
     result = dr.execute(  # type: ignore[reportArgumentType]
         [node, "gpp_flux_weekly"], inputs=inputs
@@ -138,7 +137,7 @@ def test_axis_node_passes_what_pyrealm_requires(key, method):
 @pytest.mark.parametrize(("key", "method"), CASES)
 def test_only_required_inputs_are_asked_for(key, method):
     """No input outside the core drivers is required unless a method uses it."""
-    dr = build_driver(MODULES, {key: method})
+    dr = build_driver([MODULE], {key: method})
     extra = _required_inputs(dr) - CORE_INPUTS
     if _requires(key, method):
         assert extra
@@ -156,7 +155,7 @@ def test_defaults_need_no_extra_inputs():
     for key in AXES:
         assert _requires(key, defaults[key].default) == []
 
-    dr = build_driver(MODULES, {})
+    dr = build_driver([MODULE], {})
     assert _required_inputs(dr) == CORE_INPUTS
 
 
@@ -171,7 +170,7 @@ def test_defaults_need_no_extra_inputs():
 )
 def test_mean_growth_temperature_exists_only_for_its_consumers(config, derived):
     """Without a consumer the node, and the daily input behind it, leave the DAG."""
-    dr = build_driver(MODULES, config)
+    dr = build_driver([MODULE], config)
     names = {v.name for v in dr.list_available_variables()}
     assert ("mean_growth_temperature" in names) == derived
     assert ("temperature" in _required_inputs(dr)) == derived
@@ -181,7 +180,7 @@ def test_arrhenius_method_changes_only_the_standard_temperature_rates():
     """``method_arrhenius`` reaches `vcmax25_weekly` and `jmax25_weekly`, nothing else."""
 
     def run(method):
-        dr = build_driver(MODULES, {"method_arrhenius": method})
+        dr = build_driver([MODULE], {"method_arrhenius": method})
         inputs = {name: INPUTS[name] for name in _required_inputs(dr)}
         return dr.execute(  # type: ignore[reportArgumentType]
             list(_OUTPUT_ATTRIBUTES), inputs=inputs
@@ -199,7 +198,7 @@ def test_reference_kphio_reaches_pyrealm(method_kphio):
     """The wrapper matches a direct pyrealm run given the same reference value."""
     reference_kphio = 0.05
     config = {"method_kphio": method_kphio, "reference_kphio": reference_kphio}
-    dr = build_driver(MODULES, config)
+    dr = build_driver([MODULE], config)
     inputs = {name: INPUTS[name] for name in _required_inputs(dr)}
     wrapped = dr.execute(  # type: ignore[reportArgumentType]
         ["gpp_flux_weekly"], inputs=inputs
@@ -269,7 +268,7 @@ PModel(env, {kwargs})
 def test_jmax_limitation_needs_no_extra_inputs(method):
     """`method_jmaxlim` has no `<axis>_inputs` node, so every method must run on the
     core drivers alone."""
-    dr = build_driver(MODULES, {"method_jmaxlim": method})
+    dr = build_driver([MODULE], {"method_jmaxlim": method})
     assert _required_inputs(dr) == CORE_INPUTS
 
     inputs = {name: INPUTS[name] for name in CORE_INPUTS}

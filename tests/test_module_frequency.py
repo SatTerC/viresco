@@ -1,9 +1,10 @@
 """Each model module runs at exactly one frequency.
 
 SPLASH is daily, the P-model and SGAM weekly, RothC monthly. A node that does not
-fit its model's frequency belongs in `viresco.models.shared`, which is exempt.
-Without this test the rule would only be remembered, and the next node to break
-it would land in whichever model happened to need it.
+fit its model's frequency stays in that model's module only if that model alone
+uses it, and only by name in `OFF_FREQUENCY`; see
+`docs/adr/0001-node-names-and-module-frequency.md`. Without this test the rule
+would only be remembered, and the next node to break it would pass unnoticed.
 
 Static nodes and inputs have no time axis, so declare no `Freq` and are not
 counted.
@@ -26,18 +27,34 @@ MODEL_FREQUENCIES = {
     rothc: temporal.MONTHLY,
 }
 
+#: Nodes allowed to run at another frequency than their module, each used by
+#: that model alone: the P-model's acclimation temperature is reduced from daily
+#: temperature, and SGAM's disturbance detection runs on daily observations.
+OFF_FREQUENCY: set[tuple[ModuleType, str]] = {
+    (pmodel, "mean_growth_temperature"),
+    (sgam, "disturbances"),
+}
 
-def _node_hints(module: ModuleType) -> dict[str, typing.Any]:
+
+def _qualname(entry: tuple[ModuleType, str]) -> str:
+    module, name = entry
+    return f"{module.__name__}.{name}"
+
+
+def _node_hints(
+    module: ModuleType, *, skip: frozenset[str] = frozenset()
+) -> dict[str, typing.Any]:
     """Every parameter and output hint on the module's public node functions.
 
     A model returning a `TypedDict` contributes one hint per field, since
-    `@extract_fields` splits it into one node per field.
+    `@extract_fields` splits it into one node per field. Functions named in
+    ``skip`` are left out.
     """
     hints: dict[str, typing.Any] = {}
     for name, func in vars(module).items():
         if name.startswith("_") or not inspect.isfunction(func):
             continue
-        if func.__module__ != module.__name__:
+        if func.__module__ != module.__name__ or name in skip:
             continue
         for param, hint in typing.get_type_hints(func, include_extras=True).items():
             if param == "return" and typing.is_typeddict(hint):
@@ -58,9 +75,10 @@ def _declared_freq(hint: typing.Any) -> Freq | None:
     ids=lambda value: getattr(value, "__name__", str(value)),
 )
 def test_model_module_declares_one_frequency(module, expected):
+    allowed = frozenset(name for mod, name in OFF_FREQUENCY if mod is module)
     declared = {
         name: freq
-        for name, hint in _node_hints(module).items()
+        for name, hint in _node_hints(module, skip=allowed).items()
         if (freq := _declared_freq(hint)) is not None
     }
     assert declared, f"{module.__name__} declares no frequency at all"
@@ -85,3 +103,23 @@ def test_coarse_series_declare_their_frequency(module):
         if name.endswith(("_weekly", "_monthly")) and _declared_freq(hint) is None
     ]
     assert not undeclared
+
+
+@pytest.mark.parametrize(
+    ("module", "name"),
+    sorted(OFF_FREQUENCY, key=_qualname),
+    ids=lambda value: getattr(value, "__name__", str(value)),
+)
+def test_off_frequency_entries_are_needed(module, name):
+    """Each allow-listed node exists and really declares another frequency.
+
+    Otherwise the entry is stale, and would quietly exempt whatever next takes
+    that name.
+    """
+    func = getattr(module, name, None)
+    assert inspect.isfunction(func), f"{module.__name__}.{name} no longer exists"
+    hints = typing.get_type_hints(func, include_extras=True)
+    freqs = {_declared_freq(hint) for hint in hints.values()} - {None}
+    assert freqs - {MODEL_FREQUENCIES[module]}, (
+        f"{module.__name__}.{name} declares no off-frequency contract"
+    )

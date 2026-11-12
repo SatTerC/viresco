@@ -23,10 +23,8 @@ soil_moisture_init_max_iter = 10
 | [SGAM](sgam.md) | Simplified Growth and Allocation Model: tracks carbon pools (leaf, stem, root, litter) over time | Weekly |
 | [RothC](rothc.md) | Soil carbon decomposition model that simulates the turnover of organic matter in soil, producing soil organic carbon stocks | Monthly |
 
-Each model runs at one temporal resolution.
-A node a model needs that runs at another lives in the `shared` module instead, which a config enables with a `[shared]` section.
-Today that is the mean growth temperature some P-model methods need, reduced from daily temperature, and the daily disturbance detection whose weekly maximum SGAM consumes.
-`viresco setup` adds the section whenever a chosen model needs it.
+Each model runs at one temporal resolution, apart from a node that only that model uses.
+There are two today, both configured in their model's section: the mean growth temperature some P-model methods need, reduced from daily temperature, and the daily disturbance detection whose weekly maximum SGAM consumes.
 
 ## Node names { #node-names }
 

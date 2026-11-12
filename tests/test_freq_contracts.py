@@ -20,14 +20,13 @@ from catena import build_driver
 from xarray_annotated.temporal import FreqError, check_freq
 
 from viresco import temporal as _time
-from viresco.models import pmodel, rothc, sgam, shared, splash
+from viresco.models import pmodel, rothc, sgam, splash
 
 MODULES = {
     "splash": splash,
     "pmodel": pmodel,
     "sgam": sgam,
     "rothc": rothc,
-    "shared": shared,
 }
 
 

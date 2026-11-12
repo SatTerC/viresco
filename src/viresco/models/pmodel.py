@@ -19,6 +19,7 @@ from typing import Annotated, Any, TypedDict, cast
 
 import pyrealm.pmodel
 import xarray as xr
+from catena.io import sole_time_dim
 from hamilton.function_modifiers import config, extract_fields
 from numpy.typing import NDArray
 from pyrealm.pmodel.arrhenius import ARRHENIUS_METHOD_REGISTRY
@@ -27,7 +28,7 @@ from pyrealm.pmodel.quantum_yield import QUANTUM_YIELD_CLASS_REGISTRY
 from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
-from ..temporal import WEEKLY
+from ..temporal import DAILY, WEEKLY
 
 
 class PModelOut(TypedDict):
@@ -414,7 +415,7 @@ def kphio_inputs__sandoval(
         *higher* value is a *drier* site.
     mean_growth_temperature
         Mean growth temperature (degrees Celsius); see
-        `viresco.models.shared.mean_growth_temperature`.
+        `mean_growth_temperature`.
     """
     return {
         "aridity_index": aridity_index,
@@ -439,6 +440,45 @@ def arrhenius_inputs__kattge_knorr(
     ----------
     mean_growth_temperature
         Mean growth temperature (degrees Celsius); see
-        `viresco.models.shared.mean_growth_temperature`.
+        `mean_growth_temperature`.
     """
     return {"mean_growth_temperature": mean_growth_temperature}
+
+
+@config(
+    lambda cfg: (
+        cfg.get("method_kphio") in _KPHIO_SANDOVAL
+        or cfg.get("method_arrhenius") in _ARRHENIUS_KATTGE_KNORR
+    ),
+    config_used=["method_kphio", "method_arrhenius"],
+)
+@check_annotations
+def mean_growth_temperature(
+    temperature: Annotated[DataArray, Unit("degC"), DAILY],
+) -> Annotated[DataArray, Unit("degC")]:
+    """Mean temperature over the growing days of the record, one value per pixel.
+
+    pyrealm consumes this as an *acclimation* quantity: the ``sandoval`` quantum
+    yield method uses it to set the temperature at which the highest kphio is
+    attained, and the ``kattge_knorr`` Arrhenius method to set the activation
+    entropy of its temperature scaling. The instantaneous temperature response is a
+    separate term, driven by ``tc``.
+
+    The mean is taken over the whole record, not a rolling window, and over days
+    above 0 degC only. A pixel that never rises above 0 degC over the record
+    yields NaN. Under ``sandoval`` that propagates through kphio into GPP; under
+    ``kattge_knorr`` it reaches only ``vcmax25`` and ``jmax25``.
+
+    The node exists only when the configured ``method_kphio`` or
+    ``method_arrhenius`` consumes it. It is the one daily input of this weekly
+    module, allowed by name in ``tests/test_module_frequency.py``.
+
+    Parameters
+    ----------
+    temperature
+        Daily mean air temperature (degrees Celsius).
+    """
+    # Reduce over the whole record, not per week: a winter week with no day above
+    # 0 degC is an ordinary week, and windowing turned it into a NaN in GPP.
+    growing_days = temperature.where(temperature > 0.0)
+    return growing_days.mean(sole_time_dim(temperature, "temperature"))

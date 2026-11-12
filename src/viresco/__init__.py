@@ -12,8 +12,6 @@ by section name alone::
     [rothc]
     n_years_spinup = 1
 
-So is `viresco.models.shared`, the nodes that belong to no one model.
-
 Import the models from `viresco.models` to call their functions directly.
 """
 
