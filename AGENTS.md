@@ -43,7 +43,7 @@ checkout, if present) rather than guessing at its API.
   false`) and once for its data inputs (`show_docstring_other_parameters:
   false`). Settings on a non-model node stay on that node: rothc's per-PFT
   DPM/RPM ratios are on `dpm_rpm_ratio_monthly` and the growing-season gate on
-  `shared.disturbances`. `get_model_config` in `config_gen.py` reads the
+  `sgam.disturbances`. `get_model_config` in `config_gen.py` reads the
   keyword-only defaults off every public function in the module, so a new
   setting is picked up with no change there; the keys still land flat in the one
   `[<model>]` section. Do not group settings into a config node or TypedDict.
@@ -51,6 +51,11 @@ checkout, if present) rather than guessing at its API.
   `docs/models/_graphs/<model>.svg`, and `just docs` depends on `graph-all` so a
   docs build always renders them fresh. Add a line to `graph-all` for each new
   model.
+- A new node goes in its model's module if only that model uses it, even at
+  another frequency (then add it to `OFF_FREQUENCY` in
+  `tests/test_module_frequency.py`). A node no single model owns goes in
+  `viresco.nodes`, one module per purpose. The reasoning is in
+  `docs/adr/0001-node-names-and-module-frequency.md`.
 - Generic behaviour belongs upstream. If a change would be useful to a pipeline
   that is not about carbon, it probably belongs in catena, not here.
 
