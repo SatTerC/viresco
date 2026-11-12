@@ -19,6 +19,7 @@ sunshine_fraction_method = "shortwave"
 
 [outputs.daily]
 path = "results/daily.nc"
+suffix = ""
 vars = [
   "actual_evapotranspiration",
   "soil_moisture",

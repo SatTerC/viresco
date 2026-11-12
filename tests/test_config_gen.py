@@ -2,13 +2,16 @@
 
 import pytest
 from hamilton.settings import ENABLE_POWER_USER_MODE
+from xarray_annotated import Declared, Freq
 
-from viresco import models
+from viresco import models, temporal
 from viresco.scaffold import generate_config, get_model_config
 from viresco.scaffold.config_gen import (
     _analyze_model_module,
+    _base_name,
     _infer_required_data,
-    _strip_suffix,
+    _label_of,
+    _node_name,
 )
 
 PATH_DEFAULTS = {
@@ -79,39 +82,45 @@ class TestGenerateConfigCustomModules:
         assert "n_years_spinup" in toml_str
 
 
-class TestStripSuffix:
-    """_strip_suffix extracts base name and frequency from variable names."""
+class TestFrequencyLabels:
+    """A node's frequency comes from its declared `Freq`, never from its name.
 
-    def test_daily_suffix(self):
-        base, freq = _strip_suffix("temperature_daily")
-        assert base == "temperature"
-        assert freq == "_daily"
+    Daily and static nodes are both bare, so the name cannot tell them apart.
+    """
 
-    def test_weekly_suffix(self):
-        base, freq = _strip_suffix("gpp_weekly")
-        assert base == "gpp"
-        assert freq == "_weekly"
+    @pytest.mark.parametrize(
+        ("freq", "label"),
+        [
+            (temporal.DAILY, "daily"),
+            (temporal.WEEKLY, "weekly"),
+            (temporal.MONTHLY, "monthly"),
+            (None, None),
+        ],
+    )
+    def test_label_of_declared_freq(self, freq, label):
+        assert _label_of(freq) == label
 
-    def test_monthly_suffix(self):
-        base, freq = _strip_suffix("soil_carbon_monthly")
-        assert base == "soil_carbon"
-        assert freq == "_monthly"
+    def test_unknown_freq_raises(self):
+        with pytest.raises(ValueError, match="none of viresco's frequencies"):
+            _label_of(Freq("1h"))
 
-    def test_static_suffix(self):
-        base, freq = _strip_suffix("elevation_static")
-        assert base == "elevation"
-        assert freq == "_static"
+    @pytest.mark.parametrize(
+        ("base", "label", "name"),
+        [
+            ("temperature", "daily", "temperature"),
+            ("elevation", None, "elevation"),
+            ("gpp", "weekly", "gpp_weekly"),
+            ("soil_carbon", "monthly", "soil_carbon_monthly"),
+        ],
+    )
+    def test_node_name_round_trips(self, base, label, name):
+        assert _node_name(base, label) == name
+        assert _base_name(name, label) == base
 
-    def test_no_suffix(self):
-        base, freq = _strip_suffix("elevation")
-        assert base == "elevation"
-        assert freq is None
-
-    def test_partial_match_not_stripped(self):
-        # "_daily" must be at the end, not in the middle
-        base, freq = _strip_suffix("daily_temperature")
-        assert base == "daily_temperature"
-        assert freq is None
+    def test_daily_name_keeps_a_trailing_label(self):
+        # Only the coarse suffixes are stripped; a bare daily name is left alone
+        # even if it happens to end in something that looks like one.
+        assert _base_name("growth_weekly", "daily") == "growth_weekly"
 
 
 class TestGenerateConfigBuiltinModels:
@@ -162,6 +171,20 @@ class TestGenerateConfigBuiltinModels:
         assert "pmodel" in config._data
         assert "_import_path" not in config._data["pmodel"]
 
+    def test_shared_section_follows_its_consumers(self):
+        # SGAM consumes the weekly maximum of the shared module's daily
+        # disturbances, so choosing it brings in `[shared]` and its setting;
+        # nothing SPLASH needs comes from there.
+        with_sgam = generate_config(
+            builtin_models=["sgam"], custom_modules=[], paths=PATH_DEFAULTS
+        )._data
+        assert with_sgam["shared"] == {"growing_season_limit": 10.0}
+        assert "disturbances" in with_sgam["outputs"]["daily"]["vars"]
+        splash_only = generate_config(
+            builtin_models=["splash"], custom_modules=[], paths=PATH_DEFAULTS
+        )._data
+        assert "shared" not in splash_only
+
     def test_unset_settings_stay_out_of_the_config(self):
         # TOML has no null, so a setting defaulting to None cannot be written.
         assert "reference_kphio" not in get_model_config("pmodel")
@@ -175,6 +198,29 @@ class TestGenerateConfigBuiltinModels:
             paths=PATH_DEFAULTS,
         )
         assert config._data["inputs"]["static"]["suffix"] == ""
+
+    def test_daily_and_static_are_told_apart_by_freq(self):
+        # Both are bare names; only the declared `Freq` separates them.
+        inputs = generate_config(
+            builtin_models=["splash"], custom_modules=[], paths=PATH_DEFAULTS
+        )._data["inputs"]
+        assert "temperature" in inputs["daily"]["vars"]
+        assert "elevation" in inputs["static"]["vars"]
+        assert "temperature" not in inputs["static"]["vars"]
+
+    def test_daily_sections_and_resamples_use_bare_names(self):
+        data = generate_config(
+            builtin_models=["splash", "pmodel", "sgam", "rothc"],
+            custom_modules=[],
+            paths=PATH_DEFAULTS,
+        )._data
+        assert data["inputs"]["daily"]["suffix"] == ""
+        assert data["outputs"]["daily"]["suffix"] == ""
+        assert "suffix" not in data["inputs"]["weekly"]
+        assert "suffix" not in data["outputs"]["weekly"]
+        sources = {entry["from"] for entry in data["resample"]}
+        assert "daily" not in sources
+        assert "" in sources
 
     def test_resample_entries_carry_an_explicit_freq(self):
         config = generate_config(
@@ -251,16 +297,19 @@ class TestUnitDiscovery:
     @pytest.mark.parametrize(
         ("model", "node", "unit"),
         [
-            ("splash", "temperature_daily", "degC"),
-            ("splash", "soil_moisture_daily", "mm"),
+            ("splash", "temperature", "degC"),
+            ("splash", "soil_moisture", "mm"),
             ("pmodel", "gpp_flux_weekly", "ug m-2 s-1"),
             ("sgam", "leaf_pool_weekly", "g m-2"),
             ("rothc", "soil_organic_carbon_monthly", "t ha-1"),
         ],
     )
     def test_reads_input_and_output_units(self, model, node, unit):
-        units: dict[str, str] = {}
+        declared: dict[str, Declared] = {}
         _analyze_model_module(
-            getattr(models, model), {ENABLE_POWER_USER_MODE: True}, units
+            getattr(models, model), {ENABLE_POWER_USER_MODE: True}, declared
         )
-        assert units.get(node) == unit
+        declaration = declared.get(node)
+        assert declaration is not None
+        assert declaration.unit is not None
+        assert declaration.unit.unit == unit

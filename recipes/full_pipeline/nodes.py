@@ -21,8 +21,8 @@ from viresco.temporal import MONTHLY, WEEKLY, offset
 @xra.check_annotations
 @xra.stamp_output_units(overwrite=True)
 def aridity_index(
-    potential_evapotranspiration_daily: Annotated[xr.DataArray, Unit("mm d-1")],
-    precipitation_daily: Annotated[xr.DataArray, Unit("mm d-1")],
+    potential_evapotranspiration: Annotated[xr.DataArray, Unit("mm d-1")],
+    precipitation: Annotated[xr.DataArray, Unit("mm d-1")],
 ) -> Annotated[xr.DataArray, Unit("1")]:
     """Climatological aridity, PET over precipitation, one value per pixel.
 
@@ -30,8 +30,8 @@ def aridity_index(
     than giving a time series. SPLASH computes PET on its way to AET and exposes
     it, so the bridge is a sum and a divide.
     """
-    time = sole_time_dim(precipitation_daily, "precipitation_daily")
-    return potential_evapotranspiration_daily.sum(time) / precipitation_daily.sum(time)
+    time = sole_time_dim(precipitation, "precipitation")
+    return potential_evapotranspiration.sum(time) / precipitation.sum(time)
 
 
 @xra.check_annotations
@@ -112,7 +112,7 @@ def _monthly_total(rate: xr.DataArray, what: str) -> xr.DataArray:
 @xra.check_annotations
 @xra.stamp_output_units(overwrite=True)
 def potential_evapotranspiration_monthly(
-    potential_evapotranspiration_daily: Annotated[xr.DataArray, Unit("mm d-1")],
+    potential_evapotranspiration: Annotated[xr.DataArray, Unit("mm d-1")],
 ) -> Annotated[xr.DataArray, Unit("mm"), MONTHLY]:
     """Monthly total of SPLASH's potential evapotranspiration.
 
@@ -120,22 +120,20 @@ def potential_evapotranspiration_monthly(
     is already suppressed by the dryness RothC is trying to compute, so feeding it
     in would double-count the limitation and hold the soil too wet.
     """
-    return _monthly_total(
-        potential_evapotranspiration_daily, "potential_evapotranspiration_daily"
-    )
+    return _monthly_total(potential_evapotranspiration, "potential_evapotranspiration")
 
 
 @xra.check_annotations
 @xra.stamp_output_units(overwrite=True)
 def precipitation_monthly(
-    precipitation_daily: Annotated[xr.DataArray, Unit("mm d-1")],
+    precipitation: Annotated[xr.DataArray, Unit("mm d-1")],
 ) -> Annotated[xr.DataArray, Unit("mm"), MONTHLY]:
     """Monthly total precipitation.
 
     A ``[[resample]]`` would average the rate rather than total it, and would feed
     mm d-1 into RothC's mm input.
     """
-    return _monthly_total(precipitation_daily, "precipitation_daily")
+    return _monthly_total(precipitation, "precipitation")
 
 
 @xra.check_annotations

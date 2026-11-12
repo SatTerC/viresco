@@ -19,7 +19,7 @@ from xarray_annotated import Unit
 
 @xra.check_annotations
 @xra.stamp_output_units(overwrite=True)
-def precipitation_daily(
+def precipitation(
     precip: Annotated[xr.DataArray, Unit("mm")],
 ) -> Annotated[xr.DataArray, Unit("mm d-1")]:
     """Restate daily precipitation totals as a rate, filling gaps with zero.
@@ -31,7 +31,7 @@ def precipitation_daily(
 
 
 @xra.check_annotations
-def temperature_daily(
+def temperature(
     ta: Annotated[xr.DataArray, Unit("degC")],
 ) -> Annotated[xr.DataArray, Unit("degC")]:
     """Daily mean air temperature, filling gaps by linear interpolation."""
@@ -39,7 +39,7 @@ def temperature_daily(
 
 
 @xra.check_annotations
-def shortwave_radiation_daily(
+def shortwave_radiation(
     swin: Annotated[xr.DataArray, Unit("MJ m-2 d-1")],
 ) -> Annotated[xr.DataArray, Unit("J m-2 d-1")]:
     """Incoming shortwave radiation in joules, filling gaps by linear interpolation.

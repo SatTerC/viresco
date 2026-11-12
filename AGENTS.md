@@ -42,8 +42,8 @@ checkout, if present) rather than guessing at its API.
   render one node twice: once for its settings (`show_docstring_parameters:
   false`) and once for its data inputs (`show_docstring_other_parameters:
   false`). Settings on a non-model node stay on that node: rothc's per-PFT
-  DPM/RPM ratios are on `dpm_rpm_ratio_monthly` and sgam's growing-season gate
-  on `disturbances_daily`. `get_model_config` in `config_gen.py` reads the
+  DPM/RPM ratios are on `dpm_rpm_ratio_monthly` and the growing-season gate on
+  `shared.disturbances`. `get_model_config` in `config_gen.py` reads the
   keyword-only defaults off every public function in the module, so a new
   setting is picked up with no change there; the keys still land flat in the one
   `[<model>]` section. Do not group settings into a config node or TypedDict.

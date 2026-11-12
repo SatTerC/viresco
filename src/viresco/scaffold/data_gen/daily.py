@@ -78,17 +78,19 @@ sunshine_fraction = Var(
 )
 """Seasonal, with day-to-day persistence: cloudy spells last more than a day."""
 
-lai = Var(
+lai_obs = Var(
     "1",
-    "leaf area index",
+    "observed leaf area index",
     lambda g: g.cycle(2.5, phase=-np.pi / 3, baseline=3.0) + g.uniform(-0.3, 0.3),
     bounds=(0.1, 6.0),
 )
-"""Canopy development peaking somewhat before midsummer."""
+"""Canopy development peaking somewhat before midsummer.
 
-gpp = Var(
+Observed rather than modelled: disturbance detection looks for declines in it."""
+
+gpp_obs = Var(
     "g m-2 d-1",
-    "gross primary productivity",
+    "observed gross primary productivity",
     lambda g: (
         8.0
         + g.cycle(5.0, phase=-np.pi / 3)
@@ -98,7 +100,10 @@ gpp = Var(
     ),
     bounds=(0.1, None),
 )
-"""Seasonal amplitude gated on temperature above a 5 degC growth threshold."""
+"""Seasonal amplitude gated on temperature above a 5 degC growth threshold.
+
+Observed rather than modelled: disturbance detection looks for declines in it.
+The P-model's GPP is weekly and named `gpp_flux_weekly`."""
 
 co2 = Var(
     "ppm",

@@ -37,7 +37,7 @@ from viresco.models.splash import (
     _describe_pixels,
     _splash,
     splash,
-    sunshine_fraction_daily__shortwave,
+    sunshine_fraction__shortwave,
 )
 
 N_DAYS = 366  # 2020 is a leap year; SPLASH needs a full year for spin-up
@@ -76,13 +76,13 @@ def splash_inputs() -> dict:
     temp = 10.0 + 8.0 * _SEASON[:, None] + np.array([0.0, -5.0, 3.0])[None, :]
     sf = np.clip(0.5 + 0.05 * _SEASON, 0, 1)
     return dict(
-        sunshine_fraction_daily=_temporal(np.tile(sf[:, None], (1, N_PIXELS))),
-        temperature_daily=_temporal(temp),
-        precipitation_daily=_temporal(np.full((N_DAYS, N_PIXELS), 2.0)),
+        sunshine_fraction=_temporal(np.tile(sf[:, None], (1, N_PIXELS))),
+        temperature=_temporal(temp),
+        precipitation=_temporal(np.full((N_DAYS, N_PIXELS), 2.0)),
         elevation=_static(ELEVATION),
         latitude=_static(LATITUDE),
         max_soil_moisture=_static(MAX_SM),
-        dates_daily=DAILY_DATES,
+        dates=DAILY_DATES,
         soil_moisture_init_max_iter=MAX_ITER,
         soil_moisture_init_max_diff=MAX_DIFF,
     )
@@ -95,13 +95,13 @@ def _reference_block(inputs: dict) -> dict[str, np.ndarray]:
     ``lat``/``elv`` go in as ``(1, pixel)`` (broadcast over time); ``kWm`` as ``(pixel,)``
     — the layout pyrealm requires and the bug fix relies on.
     """
-    calendar = pyrealm.core.calendar.Calendar(inputs["dates_daily"].values)
+    calendar = pyrealm.core.calendar.Calendar(inputs["dates"].values)
     model = pyrealm.splash.splash.SplashModel(
         lat=inputs["latitude"].values[None, :],
         elv=inputs["elevation"].values[None, :],
-        sf=inputs["sunshine_fraction_daily"].values,
-        tc=inputs["temperature_daily"].values,
-        pn=inputs["precipitation_daily"].values,
+        sf=inputs["sunshine_fraction"].values,
+        tc=inputs["temperature"].values,
+        pn=inputs["precipitation"].values,
         dates=calendar,
         kWm=inputs["max_soil_moisture"].values,
     )
@@ -112,9 +112,9 @@ def _reference_block(inputs: dict) -> dict[str, np.ndarray]:
     )
     aet, moisture, runoff = model.calculate_soil_moisture(init)
     return {
-        "actual_evapotranspiration_daily": aet,
-        "soil_moisture_daily": moisture,
-        "runoff_daily": runoff,
+        "actual_evapotranspiration": aet,
+        "soil_moisture": moisture,
+        "runoff": runoff,
         **{name: attrgetter(a)(model) for name, a in _FLUX_ATTRIBUTES.items()},
     }
 
@@ -169,17 +169,17 @@ class TestPerPixelStaticsThreaded:
             )
 
         result = _splash(
-            sunshine_fraction_daily=md(np.tile(col_sf[:, None], (1, n))),
-            temperature_daily=md(np.tile(col_tc[:, None], (1, n))),
-            precipitation_daily=md(np.full((N_DAYS, n), 2.0)),
+            sunshine_fraction=md(np.tile(col_sf[:, None], (1, n))),
+            temperature=md(np.tile(col_tc[:, None], (1, n))),
+            precipitation=md(np.full((N_DAYS, n), 2.0)),
             elevation=sd([100.0, 100.0]),
             latitude=sd([51.5, -51.5]),
             max_soil_moisture=sd([150.0, 150.0]),
-            dates_daily=DAILY_DATES,
+            dates=DAILY_DATES,
             soil_moisture_init_max_iter=MAX_ITER,
             soil_moisture_init_max_diff=MAX_DIFF,
         )
-        sm = result["soil_moisture_daily"].transpose("time", "pixel").values
+        sm = result["soil_moisture"].transpose("time", "pixel").values
         assert not np.allclose(sm[:, 0], sm[:, 1])
 
 
@@ -204,13 +204,13 @@ class TestCapacityReachesAET:
         # Dry half the year, so moisture never reaches either capacity at that point.
         rain = np.clip(3.0 * np.sin(2 * np.pi * _DAY / 365 + np.pi), 0.0, None)
         return dict(
-            sunshine_fraction_daily=md(np.full((N_DAYS, n), 0.5)),
-            temperature_daily=md(np.tile((15.0 + 8.0 * _SEASON)[:, None], (1, n))),
-            precipitation_daily=md(np.tile(rain[:, None], (1, n))),
+            sunshine_fraction=md(np.full((N_DAYS, n), 0.5)),
+            temperature=md(np.tile((15.0 + 8.0 * _SEASON)[:, None], (1, n))),
+            precipitation=md(np.tile(rain[:, None], (1, n))),
             elevation=sd([100.0] * n),
             latitude=sd([40.0] * n),
             max_soil_moisture=sd(capacities),
-            dates_daily=DAILY_DATES,
+            dates=DAILY_DATES,
             soil_moisture_init_max_iter=MAX_ITER,
             soil_moisture_init_max_diff=MAX_DIFF,
         )
@@ -219,9 +219,9 @@ class TestCapacityReachesAET:
         # Neither pixel fills, so the cap and runoff play no part: only the supply
         # rate can separate them. With a fixed 150 mm in the supply rate they tie.
         result = _splash(**self._pair([800.0, 1600.0]))
-        moisture = result["soil_moisture_daily"].values
+        moisture = result["soil_moisture"].values
         assert moisture.max() < 800.0
-        assert result["runoff_daily"].values.max() == 0.0
+        assert result["runoff"].values.max() == 0.0
         assert moisture[:, 1].mean() > 1.2 * moisture[:, 0].mean()
 
     def test_workaround_is_still_needed(self):
@@ -230,10 +230,10 @@ class TestCapacityReachesAET:
         direct = pyrealm.splash.splash.SplashModel(
             lat=inputs["latitude"].values[None, :],
             elv=inputs["elevation"].values[None, :],
-            sf=inputs["sunshine_fraction_daily"].values,
-            tc=inputs["temperature_daily"].values,
-            pn=inputs["precipitation_daily"].values,
-            dates=pyrealm.core.calendar.Calendar(inputs["dates_daily"].values),
+            sf=inputs["sunshine_fraction"].values,
+            tc=inputs["temperature"].values,
+            pn=inputs["precipitation"].values,
+            dates=pyrealm.core.calendar.Calendar(inputs["dates"].values),
             kWm=inputs["max_soil_moisture"].values,
         )
         np.testing.assert_array_equal(direct.evap.kWm, [150.0])
@@ -245,13 +245,13 @@ class TestPrescribedInitialState:
     def test_first_day_starts_from_the_given_state(self, splash_inputs):
         initial = _static(np.array([10.0, 60.0, 170.0]))
         result = _splash(**splash_inputs, initial_soil_moisture=initial)
-        first_day = result["soil_moisture_daily"].isel(time=0)
+        first_day = result["soil_moisture"].isel(time=0)
         balance = (
             initial
-            + splash_inputs["precipitation_daily"].isel(time=0)
-            + result["condensation_daily"].isel(time=0)
-            - result["actual_evapotranspiration_daily"].isel(time=0)
-            - result["runoff_daily"].isel(time=0)
+            + splash_inputs["precipitation"].isel(time=0)
+            + result["condensation"].isel(time=0)
+            - result["actual_evapotranspiration"].isel(time=0)
+            - result["runoff"].isel(time=0)
         )
         np.testing.assert_allclose(first_day.values, balance.values)
 
@@ -260,9 +260,9 @@ class TestPrescribedInitialState:
         model = pyrealm.splash.splash.SplashModel(
             lat=splash_inputs["latitude"].values[None, :],
             elv=splash_inputs["elevation"].values[None, :],
-            sf=splash_inputs["sunshine_fraction_daily"].values,
-            tc=splash_inputs["temperature_daily"].values,
-            pn=splash_inputs["precipitation_daily"].values,
+            sf=splash_inputs["sunshine_fraction"].values,
+            tc=splash_inputs["temperature"].values,
+            pn=splash_inputs["precipitation"].values,
             dates=pyrealm.core.calendar.Calendar(DAILY_DATES.values),
             kWm=splash_inputs["max_soil_moisture"].values,
         )
@@ -270,9 +270,9 @@ class TestPrescribedInitialState:
         spun_up = model.estimate_initial_soil_moisture(
             max_iter=MAX_ITER, max_diff=MAX_DIFF
         )
-        default = _splash(**splash_inputs)["soil_moisture_daily"]
+        default = _splash(**splash_inputs)["soil_moisture"]
         prescribed = _splash(**splash_inputs, initial_soil_moisture=_static(spun_up))[
-            "soil_moisture_daily"
+            "soil_moisture"
         ]
         np.testing.assert_allclose(prescribed.values, default.values)
 
@@ -284,12 +284,12 @@ class TestPrescribedInitialState:
         }
         result = _splash(
             **inputs,
-            dates_daily=DAILY_DATES[:30],
+            dates=DAILY_DATES[:30],
             initial_soil_moisture=_static(np.full(N_PIXELS, 50.0)),
             soil_moisture_init_max_iter=MAX_ITER,
             soil_moisture_init_max_diff=MAX_DIFF,
         )
-        assert result["soil_moisture_daily"].sizes["time"] == 30
+        assert result["soil_moisture"].sizes["time"] == 30
 
     def test_state_above_capacity_is_rejected(self, splash_inputs):
         initial = _static(MAX_SM + 1.0)
@@ -321,12 +321,12 @@ class TestPrescribedInitialState:
         initial = _static(np.array([10.0, 60.0, 170.0]))
         dr = self._driver(soil_moisture_init_method="prescribed")
         piped = dr.execute(
-            ["soil_moisture_daily"],
+            ["soil_moisture"],
             inputs={**inputs, "initial_soil_moisture": initial},
         )  # type: ignore[reportArgumentType]
         direct = _splash(**splash_inputs, initial_soil_moisture=initial)
         np.testing.assert_allclose(
-            piped["soil_moisture_daily"].values, direct["soil_moisture_daily"].values
+            piped["soil_moisture"].values, direct["soil_moisture"].values
         )
 
     def test_misspelt_method_is_rejected(self, splash_inputs):
@@ -357,7 +357,7 @@ class TestInvalidPixels:
     def _masked(inputs: dict, pixel: int) -> dict:
         return {
             key: value.where(value.pixel != pixel)
-            if key.endswith("_daily") and isinstance(value, xr.DataArray)
+            if isinstance(value, xr.DataArray) and "time" in value.dims
             else value
             for key, value in inputs.items()
         }
@@ -381,29 +381,31 @@ class TestInvalidPixels:
     @pytest.mark.parametrize("static", ["elevation", "latitude", "max_soil_moisture"])
     def test_nan_static_masks_the_pixel(self, splash_inputs, static, recwarn):
         result = _splash(**self._with_nan(splash_inputs, static, 1))
-        assert result["soil_moisture_daily"].sel(pixel=1).isnull().all()
-        assert result["soil_moisture_daily"].sel(pixel=[0, 2]).notnull().all()
+        assert result["soil_moisture"].sel(pixel=1).isnull().all()
+        assert result["soil_moisture"].sel(pixel=[0, 2]).notnull().all()
         assert not [w for w in recwarn if "SPLASH" in str(w.message)]
 
     def test_nan_initial_state_masks_the_pixel(self, splash_inputs):
         initial = _static(np.array([10.0, np.nan, 170.0]))
         result = _splash(**splash_inputs, initial_soil_moisture=initial)
-        assert result["soil_moisture_daily"].sel(pixel=1).isnull().all()
-        assert result["soil_moisture_daily"].sel(pixel=[0, 2]).notnull().all()
+        assert result["soil_moisture"].sel(pixel=1).isnull().all()
+        assert result["soil_moisture"].sel(pixel=[0, 2]).notnull().all()
 
     @pytest.mark.parametrize("pixels", [[0, 1, 2], [1], [1, 2]])
     def test_masked_pixels_do_not_raise_whatever_the_block(self, splash_inputs, pixels):
         inputs = self._pixels(self._masked(splash_inputs, 1), pixels)
         result = _splash(**inputs)
-        assert result["soil_moisture_daily"].sel(pixel=1).isnull().all()
+        assert result["soil_moisture"].sel(pixel=1).isnull().all()
 
     def test_fully_masked_block_keeps_the_output_shape(self, splash_inputs):
         inputs: dict = {
-            key: value * np.nan if key.endswith("_daily") else value
+            key: value * np.nan
+            if isinstance(value, xr.DataArray) and "time" in value.dims
+            else value
             for key, value in splash_inputs.items()
-            if key != "dates_daily"
+            if key != "dates"
         }
-        result = xr.Dataset(_splash(**inputs, dates_daily=DAILY_DATES))
+        result = xr.Dataset(_splash(**inputs, dates=DAILY_DATES))
         assert set(result.data_vars) == set(_OUTPUT_FIELDS)
         assert dict(result.sizes) == {"time": N_DAYS, "pixel": N_PIXELS}
         assert result.to_array().isnull().all()
@@ -413,13 +415,13 @@ class TestInvalidPixels:
     def test_gap_raises_naming_the_pixel_whatever_the_block(
         self, splash_inputs, pixels, day
     ):
-        inputs = self._with_nan(splash_inputs, "precipitation_daily", day, 1)
+        inputs = self._with_nan(splash_inputs, "precipitation", day, 1)
         with pytest.raises(ValueError, match=r"missing values in 1 pixel\(s\) \(1\)"):
             _splash(**self._pixels(inputs, pixels))
 
     def test_one_variable_with_no_data_is_a_gap_not_a_mask(self, splash_inputs):
         inputs = dict(splash_inputs)
-        inputs["temperature_daily"] = inputs["temperature_daily"] * np.nan
+        inputs["temperature"] = inputs["temperature"] * np.nan
         with pytest.raises(ValueError, match=r"missing values in 3 pixel\(s\)"):
             _splash(**inputs)
 
@@ -431,7 +433,7 @@ class TestInvalidPixels:
         )
 
     def test_gap_uses_the_pixel_label_not_the_position(self, splash_inputs):
-        inputs = self._with_nan(splash_inputs, "precipitation_daily", 100, 2)
+        inputs = self._with_nan(splash_inputs, "precipitation", 100, 2)
         relabelled: dict = {
             key: value.assign_coords(pixel=[70, 71, 72])
             if isinstance(value, xr.DataArray)
@@ -450,7 +452,7 @@ class TestInvalidPixels:
             UserWarning, match=r"NaN soil moisture for 1 pixel\(s\) \(1\)"
         ):
             result = _splash(**self._pixels(inputs, pixels))
-        moisture = result["soil_moisture_daily"]
+        moisture = result["soil_moisture"]
         assert moisture.sel(pixel=1).isnull().all()
         if 0 in pixels:
             assert moisture.sel(pixel=0).notnull().all()
@@ -487,9 +489,9 @@ class TestConsecutiveDays:
             if isinstance(value, xr.DataArray) and "time" in value.dims
             else value
             for key, value in inputs.items()
-            if key != "dates_daily"
+            if key != "dates"
         }
-        return xr.Dataset(_splash(**kept, dates_daily=dates))
+        return xr.Dataset(_splash(**kept, dates=dates))
 
     def test_missing_day_raises_naming_it(self, splash_inputs):
         dates = DAILY_DATES.delete(100)
@@ -534,10 +536,10 @@ class TestStrategyCStaysOpen:
     def test_chunked_gap_names_the_pixel_label(self, splash_inputs):
         pytest.importorskip("dask")
         inputs = dict(splash_inputs)
-        inputs["precipitation_daily"] = inputs["precipitation_daily"].copy()
-        inputs["precipitation_daily"][100, 2] = np.nan
+        inputs["precipitation"] = inputs["precipitation"].copy()
+        inputs["precipitation"][100, 2] = np.nan
         with pytest.raises(ValueError, match=r"1 pixel\(s\) \(2\)"):
-            _splash(**self._chunked(inputs))["soil_moisture_daily"].compute()
+            _splash(**self._chunked(inputs))["soil_moisture"].compute()
 
 
 class TestCachingIntact:
@@ -562,15 +564,15 @@ class TestCachingIntact:
                 },
                 cache=cache,
             )
-            return dr.execute(["soil_moisture_daily"], inputs=inputs)  # type: ignore[reportArgumentType]
+            return dr.execute(["soil_moisture"], inputs=inputs)  # type: ignore[reportArgumentType]
 
         uncached = run(None)
         run(spec)  # cold cache
         cached = run(spec)  # warm cache
 
         np.testing.assert_allclose(
-            cached["soil_moisture_daily"].values,
-            uncached["soil_moisture_daily"].values,
+            cached["soil_moisture"].values,
+            uncached["soil_moisture"].values,
         )
         assert (tmp_path / "cache").exists()
 
@@ -581,9 +583,9 @@ class TestLatitudeCheck:
     @staticmethod
     def _labelled(splash_inputs, latitude_units: str) -> dict:
         units = {
-            "sunshine_fraction_daily": "1",
-            "temperature_daily": "degC",
-            "precipitation_daily": "mm d-1",
+            "sunshine_fraction": "1",
+            "temperature": "degC",
+            "precipitation": "mm d-1",
             "elevation": "m",
             "max_soil_moisture": "mm",
             "latitude": latitude_units,
@@ -608,7 +610,7 @@ class TestLatitudeCheck:
                 **inputs,
                 soil_moisture_init_inputs={},
             )
-        assert out["soil_moisture_daily"].attrs["units"] == "mm"
+        assert out["soil_moisture"].attrs["units"] == "mm"
 
 
 class TestSunshineFractionFromShortwave:
@@ -637,9 +639,7 @@ class TestSunshineFractionFromShortwave:
 
     def test_round_trips_pyrealm_shortwave(self):
         sf = 0.5 + 0.4 * np.sin(np.arange(N_DAYS * N_PIXELS)).reshape(N_DAYS, -1)
-        recovered = sunshine_fraction_daily__shortwave(
-            self._shortwave(sf), **self._statics()
-        )
+        recovered = sunshine_fraction__shortwave(self._shortwave(sf), **self._statics())
         assert recovered.dims == ("time", "pixel")
         assert recovered.attrs["units"] == "1"
         np.testing.assert_allclose(recovered.values, sf, rtol=1e-10)
@@ -647,7 +647,7 @@ class TestSunshineFractionFromShortwave:
     def test_clips_to_unit_interval(self):
         sf = np.where(np.arange(N_DAYS)[:, None] % 2, 0.0, 1.0) * np.ones(N_PIXELS)
         shortwave = self._shortwave(sf) * np.where(sf == 0, 0.5, 1.5)
-        recovered = sunshine_fraction_daily__shortwave(
+        recovered = sunshine_fraction__shortwave(
             shortwave.assign_attrs(units="J m-2 d-1"), **self._statics()
         )
         np.testing.assert_array_equal(recovered.values, sf)
@@ -661,10 +661,10 @@ class TestSunshineFractionFromShortwave:
                 v.name for v in dr.list_available_variables() if v.is_external_input
             }
 
-        assert "sunshine_fraction_daily" in external()
+        assert "sunshine_fraction" in external()
         derived = external(sunshine_fraction_method="shortwave")
-        assert "sunshine_fraction_daily" not in derived
-        assert "shortwave_radiation_daily" in derived
+        assert "sunshine_fraction" not in derived
+        assert "shortwave_radiation" in derived
 
     def test_misspelt_method_is_rejected(self, splash_inputs):
         inputs = {

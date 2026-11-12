@@ -2,6 +2,9 @@
 
 use_directory_urls = false
 
+# Architecture decision records are for contributors, read on GitHub.
+exclude_docs = "adr/"
+
 site_name = "viresco"
 site_description = "Composable models of the terrestrial carbon and water cycles, for catena pipelines."
 site_author = "Joe Marsh Rossney"
@@ -38,6 +41,7 @@ nav = [
           "reference/modules/viresco.models/pmodel.md",
           "reference/modules/viresco.models/sgam.md",
           "reference/modules/viresco.models/rothc.md",
+          "reference/modules/viresco.models/shared.md",
           "reference/modules/viresco.scaffold/config_gen.md",
           "reference/modules/viresco.scaffold/bridges.md",
           "reference/modules/viresco.scaffold/data_gen/generate.md",

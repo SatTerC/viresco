@@ -8,6 +8,10 @@ method_optchi = "lavergne20_c3"
 
 [sgam]
 
+# Daily disturbance detection for SGAM, and the mean growth temperature that
+# sandoval needs; neither runs at its model's frequency.
+[shared]
+
 [bridges]
 _import_path = "nodes.py"
 porosity = 0.45
@@ -15,12 +19,13 @@ par_photons_per_mj = 4.57
 
 [inputs.daily]
 path = "data/daily.nc"
+suffix = ""
 vars = [
   "precipitation",
   "sunshine_fraction",
   "temperature",
-  "lai",
-  "gpp",
+  "lai_obs",
+  "gpp_obs",
 ]
 
 [inputs.weekly]
@@ -50,13 +55,13 @@ vars = [
   "temperature",
   "soil_moisture",
 ]
-from = "daily"
+from = ""
 to = "weekly"
 freq = "7D"
 
 [[resample]]
 vars = ["disturbances"]
-from = "daily"
+from = ""
 to = "weekly"
 freq = "7D"
 aggfunc = "max"

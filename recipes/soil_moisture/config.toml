@@ -24,4 +24,4 @@ soil_moisture_init_max_iter = 50
 [outputs.soil_moisture]
 path = "results/soil_moisture.nc"
 suffix = ""
-vars = ["soil_moisture_daily", "cosmos_vwc_snow_masked", "sunshine_fraction_daily"]
+vars = ["soil_moisture", "cosmos_vwc_snow_masked", "sunshine_fraction"]

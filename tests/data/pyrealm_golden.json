@@ -193,21 +193,21 @@
   },
   "splash": {
     "units": {
-      "actual_evapotranspiration_daily": "mm d-1",
-      "soil_moisture_daily": "mm",
-      "runoff_daily": "mm",
-      "potential_evapotranspiration_daily": "mm d-1",
-      "equilibrium_evapotranspiration_daily": "mm d-1",
-      "condensation_daily": "mm d-1",
-      "extraterrestrial_radiation_daily": "J m-2 d-1",
-      "transmissivity_daily": "1",
-      "estimated_ppfd_daily": "mol m-2 d-1",
-      "net_longwave_radiation_daily": "W m-2",
-      "daytime_net_radiation_daily": "J m-2 d-1",
-      "nighttime_net_radiation_daily": "J m-2 d-1"
+      "actual_evapotranspiration": "mm d-1",
+      "soil_moisture": "mm",
+      "runoff": "mm",
+      "potential_evapotranspiration": "mm d-1",
+      "equilibrium_evapotranspiration": "mm d-1",
+      "condensation": "mm d-1",
+      "extraterrestrial_radiation": "J m-2 d-1",
+      "transmissivity": "1",
+      "estimated_ppfd": "mol m-2 d-1",
+      "net_longwave_radiation": "W m-2",
+      "daytime_net_radiation": "J m-2 d-1",
+      "nighttime_net_radiation": "J m-2 d-1"
     },
     "outputs": {
-      "actual_evapotranspiration_daily": {
+      "actual_evapotranspiration": {
         "mean": [
           1.890504070644499,
           2.4969403767234533,
@@ -229,7 +229,7 @@
           2.8211497196965984
         ]
       },
-      "soil_moisture_daily": {
+      "soil_moisture": {
         "mean": [
           105.81641160053017,
           71.45328367615376,
@@ -251,7 +251,7 @@
           52.31521346071456
         ]
       },
-      "runoff_daily": {
+      "runoff": {
         "mean": [
           0.6535686710820943,
           0.1083096766478849,
@@ -273,7 +273,7 @@
           0.0
         ]
       },
-      "potential_evapotranspiration_daily": {
+      "potential_evapotranspiration": {
         "mean": [
           1.9358046417430086,
           3.0756393275545872,
@@ -295,7 +295,7 @@
           5.804007870088116
         ]
       },
-      "equilibrium_evapotranspiration_daily": {
+      "equilibrium_evapotranspiration": {
         "mean": [
           1.5363528902722279,
           2.440983593297295,
@@ -317,7 +317,7 @@
           4.606355452450885
         ]
       },
-      "condensation_daily": {
+      "condensation": {
         "mean": [
           0.5440727417265928,
           0.6052500533713371,
@@ -339,7 +339,7 @@
           0.7437606722624848
         ]
       },
-      "extraterrestrial_radiation_daily": {
+      "extraterrestrial_radiation": {
         "mean": [
           23933083.28049284,
           30671069.553342182,
@@ -361,7 +361,7 @@
           37826705.37911698
         ]
       },
-      "transmissivity_daily": {
+      "transmissivity": {
         "mean": [
           0.5006674999999997,
           0.5106800000000001,
@@ -383,7 +383,7 @@
           0.5530347561309524
         ]
       },
-      "estimated_ppfd_daily": {
+      "estimated_ppfd": {
         "mean": [
           23.790332464705926,
           30.939911299056188,
@@ -405,7 +405,7 @@
           41.34161938242131
         ]
       },
-      "net_longwave_radiation_daily": {
+      "net_longwave_radiation": {
         "mean": [
           60.44043715847002,
           58.04043715846994,
@@ -427,7 +427,7 @@
           56.5599959254565
         ]
       },
-      "daytime_net_radiation_daily": {
+      "daytime_net_radiation": {
         "mean": [
           7516820.805111012,
           10579328.512830539,
@@ -449,7 +449,7 @@
           15015600.531882819
         ]
       },
-      "nighttime_net_radiation_daily": {
+      "nighttime_net_radiation": {
         "mean": [
           -2760111.716442751,
           -2616396.258349305,

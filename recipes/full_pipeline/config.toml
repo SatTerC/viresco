@@ -9,6 +9,10 @@ method_optchi = "lavergne20_c3"
 
 [sgam]
 
+# Daily disturbance detection for SGAM, and the mean growth temperature that
+# sandoval needs; neither runs at its model's frequency.
+[shared]
+
 [rothc]
 n_years_spinup = 1
 equilibrium_threshold = 0.0001
@@ -20,12 +24,13 @@ par_photons_per_mj = 4.57
 
 [inputs.daily]
 path = "data/daily.nc"
+suffix = ""
 vars = [
   "precipitation",
   "sunshine_fraction",
   "temperature",
-  "lai",
-  "gpp",
+  "lai_obs",
+  "gpp_obs",
 ]
 
 [inputs.weekly]
@@ -59,7 +64,7 @@ vars = [
   "precipitation",
   "soil_moisture",
 ]
-from = "daily"
+from = ""
 to = "weekly"
 freq = "7D"
 
@@ -67,19 +72,20 @@ freq = "7D"
 vars = [
   "temperature",
 ]
-from = "daily"
+from = ""
 to = "monthly"
 freq = "1ME"
 
 [[resample]]
 vars = ["disturbances"]
-from = "daily"
+from = ""
 to = "weekly"
 freq = "7D"
 aggfunc = "max"
 
 [outputs.daily]
 path = "results/daily.nc"
+suffix = ""
 vars = [
   "actual_evapotranspiration",
   "soil_moisture",

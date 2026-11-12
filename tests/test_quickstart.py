@@ -95,14 +95,20 @@ class TestQuickstart:
 class TestGeneratedConfigShape:
     """What the generator must emit for the four-model pipeline to wire up."""
 
-    def test_gpp_is_an_input_despite_being_a_model_output(self, quickstart):
-        """pmodel yields weekly GPP; sgam's disturbances want `gpp_daily`.
+    def test_observed_gpp_is_loaded_apart_from_the_modelled_one(self, quickstart):
+        """Disturbance detection wants observed daily GPP, `gpp_obs`.
 
-        Resampling only coarsens, so the weekly figure cannot supply the daily
-        consumer and it has to be loaded from a file.
+        pmodel's GPP is weekly and modelled. Resampling only coarsens, so it
+        could not supply a daily consumer anyway, and the distinct name keeps
+        `gpp_obs` and `gpp_weekly` from reading as one variable at two
+        frequencies.
         """
-        config = (quickstart / "config.toml").read_text()
-        assert '"gpp",' in config.split("[inputs.weekly]")[0]
+        config = tomllib.loads((quickstart / "config.toml").read_text())
+        assert {"gpp_obs", "lai_obs"} <= set(config["inputs"]["daily"]["vars"])
+        loaded = {
+            var for section in config["inputs"].values() for var in section["vars"]
+        }
+        assert "gpp" not in loaded
 
     def test_sgam_productivity_comes_from_pmodel_not_from_a_file(self, quickstart):
         """The generator has to emit the units bridges or this seam silently rots.
@@ -127,11 +133,11 @@ class TestGeneratedConfigShape:
             assert nodes[f"{target}_weekly"]["inputs"] == [f"{source}_weekly"]
 
     def test_a_bridged_variable_is_not_also_resampled(self, quickstart):
-        """`gpp` is loaded daily *and* bridged weekly, so it can be derived twice.
+        """A bridged node must not also be the target of a resample.
 
-        If the generator emitted the daily-to-weekly resample as well, catena
-        would have two definitions of `gpp_weekly`, and the file-loaded one is
-        the wrong answer.
+        If the generator emitted a resample onto `gpp_weekly` as well as the
+        bridge from `gpp_flux_weekly`, catena would have two definitions of it,
+        and the resampled one is the wrong answer.
         """
         config = tomllib.loads((quickstart / "config.toml").read_text())
         node_names = {node["name"] for node in config["node"]}
@@ -140,7 +146,7 @@ class TestGeneratedConfigShape:
                 assert f"{var}_{entry['to']}" not in node_names
 
     def test_model_outputs_are_resampled_for_coarser_consumers(self, quickstart):
-        """sgam produces `disturbances_daily` and consumes `disturbances_weekly`."""
+        """`shared` produces daily `disturbances`; sgam consumes `disturbances_weekly`."""
         config = (quickstart / "config.toml").read_text()
         assert '"disturbances",' in config
 
@@ -153,7 +159,7 @@ class TestGeneratedConfigShape:
         config = (quickstart / "config.toml").read_text()
         for name in ("precipitation_monthly", "potential_evapotranspiration_monthly"):
             assert f'name = "{name}"' in config
-            assert f"{name.rsplit('_', 1)[0]}_daily.resample" in config
+            assert f"{name.rsplit('_', 1)[0]}.resample" in config
 
 
 @pytest.mark.skipif(not shutil.which("dot"), reason="graphviz not installed")

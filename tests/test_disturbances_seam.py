@@ -1,5 +1,5 @@
 """Tests for the disturbance-detection ``apply_ufunc`` block seam
-(``viresco.models.sgam._disturbances_daily``).
+(``viresco.models.shared._disturbances``).
 
 ``sgam.Disturbances.forward`` is a *whole-block* computation: it diffs GPP/LAI along the
 time axis and is otherwise element-wise over pixels, so it vectorises over ``pixel``
@@ -35,7 +35,8 @@ import xarray as xr
 from sgam import Disturbances
 from sgam.pft import PlantFunctionalType, get_default_pft_params
 
-from viresco.models.sgam import _disturbances_daily, pft_params
+from viresco.models.sgam import pft_params
+from viresco.models.shared import _disturbances
 
 N_DAYS = 120
 N_PIXELS = 3
@@ -86,9 +87,9 @@ def _static(values: np.ndarray) -> xr.DataArray:
 def disturbance_inputs() -> dict:
     climate = _build_climate()
     return dict(
-        temperature_daily=_temporal(climate["temperature"]),
-        gpp_daily=_temporal(climate["gpp"]),
-        lai_daily=_temporal(climate["lai"]),
+        temperature=_temporal(climate["temperature"]),
+        gpp_obs=_temporal(climate["gpp"]),
+        lai_obs=_temporal(climate["lai"]),
         disturbance_threshold=pft_params(_static(PLANT_TYPES))["disturbance_threshold"],
         growing_season_limit=GROWING_SEASON_LIMIT,
     )
@@ -107,9 +108,9 @@ def _reference_block(inputs: dict) -> np.ndarray:
         )
         columns.append(
             detector.forward(
-                inputs["temperature_daily"].values[:, p],
-                inputs["gpp_daily"].values[:, p],
-                inputs["lai_daily"].values[:, p],
+                inputs["temperature"].values[:, p],
+                inputs["gpp_obs"].values[:, p],
+                inputs["lai_obs"].values[:, p],
                 aggregate=False,
             )
         )
@@ -121,7 +122,7 @@ class TestRegression:
 
     @pytest.fixture(scope="class")
     def seam_result(self, disturbance_inputs):
-        return _disturbances_daily(**disturbance_inputs)
+        return _disturbances(**disturbance_inputs)
 
     @pytest.fixture(scope="class")
     def reference(self, disturbance_inputs) -> np.ndarray:
@@ -170,16 +171,16 @@ class TestStrategyCStaysOpen:
 
     def test_chunked_pixel_equivalence(self, disturbance_inputs):
         pytest.importorskip("dask")
-        eager = _disturbances_daily(**disturbance_inputs)
+        eager = _disturbances(**disturbance_inputs)
 
         chunked_inputs = dict(disturbance_inputs)
         for key, val in chunked_inputs.items():
             if isinstance(val, xr.DataArray):
                 chunked_inputs[key] = val.chunk({"pixel": 1})
-        chunked = _disturbances_daily(
-            temperature_daily=chunked_inputs["temperature_daily"],
-            gpp_daily=chunked_inputs["gpp_daily"],
-            lai_daily=chunked_inputs["lai_daily"],
+        chunked = _disturbances(
+            temperature=chunked_inputs["temperature"],
+            gpp_obs=chunked_inputs["gpp_obs"],
+            lai_obs=chunked_inputs["lai_obs"],
             disturbance_threshold=chunked_inputs["disturbance_threshold"],
             growing_season_limit=GROWING_SEASON_LIMIT,
         )
@@ -196,7 +197,7 @@ class TestCachingIntact:
     def test_cached_run_matches_uncached(self, tmp_path, disturbance_inputs):
         from catena import CacheSpec, build_driver
 
-        # disturbances_daily depends on the pft_params node, which the driver builds
+        # disturbances depends on the pft_params node, which the driver builds
         # from plant_type.
         inputs = {
             key: val
@@ -207,15 +208,17 @@ class TestCachingIntact:
         spec = CacheSpec(path=str(tmp_path / "cache"))
 
         def run(cache):
-            dr = build_driver(["viresco.models.sgam"], {}, cache=cache)
-            return dr.execute(["disturbances_daily"], inputs=inputs)  # type: ignore[reportArgumentType]
+            dr = build_driver(
+                ["viresco.models.sgam", "viresco.models.shared"], {}, cache=cache
+            )
+            return dr.execute(["disturbances"], inputs=inputs)  # type: ignore[reportArgumentType]
 
         uncached = run(None)
         run(spec)  # cold cache
         cached = run(spec)  # warm cache
 
         np.testing.assert_allclose(
-            cached["disturbances_daily"].values,
-            uncached["disturbances_daily"].values,
+            cached["disturbances"].values,
+            uncached["disturbances"].values,
         )
         assert (tmp_path / "cache").exists()

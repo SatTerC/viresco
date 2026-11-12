@@ -5,14 +5,17 @@ method_optchi = "lavergne20_c3"
 [rothc]
 n_years_spinup = 1
 
+# Daily variables are consumed under bare names too, so both opt out of
+# catena's default `_<label>` node-name suffix.
 [inputs.daily]
 path = "daily.nc"
+suffix = ""
 vars = [
   "precipitation",
   "sunshine_fraction",
   "temperature",
-  "lai",
-  "gpp",
+  "lai_obs",
+  "gpp_obs",
 ]
 
 [inputs.weekly]
@@ -31,8 +34,6 @@ vars = [
   "dummy_variable",
 ]
 
-# Static variables are consumed under bare names, so this section opts out of
-# catena's default `_<label>` node-name suffix.
 [inputs.static]
 path = "static.nc"
 suffix = ""
