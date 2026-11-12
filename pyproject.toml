@@ -37,7 +37,6 @@ splash = "viresco.models.splash"
 pmodel = "viresco.models.pmodel"
 sgam = "viresco.models.sgam"
 rothc = "viresco.models.rothc"
-shared = "viresco.models.shared"
 
 [project.urls]
 Homepage = "https://nerc-ceh.github.io/viresco"

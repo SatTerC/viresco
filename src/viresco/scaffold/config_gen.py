@@ -296,29 +296,13 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
     def _units(name: str) -> str | None:
         return _declared_unit(declared.get(name))
 
-    def _include(module_name: str) -> None:
-        module = getattr(model_modules, module_name)
+    for model_name in model_names:
+        module = getattr(model_modules, model_name)
         data_inputs, _, data_outputs = _analyze_model_module(
             module, base_config, declared
         )
         all_data_inputs.update(data_inputs)
         all_model_outputs.extend(data_outputs)
-
-    for model_name in model_names:
-        _include(model_name)
-
-    # The shared module belongs to no model, so it is pulled in only when a
-    # chosen model consumes something it produces and no chosen model does.
-    _, _, shared_outputs = _analyze_model_module(
-        model_modules.shared, base_config, declared
-    )
-    shared_bases = {_base(name) for name in shared_outputs}
-    wanted_bases = {_base(name) for name in all_data_inputs}
-    model_output_bases = {_base(name) for name in all_model_outputs}
-    modules = list(model_names)
-    if (shared_bases & wanted_bases) - model_output_bases:
-        _include("shared")
-        modules.append("shared")
 
     # What each model *produces*, and at which frequency. A base may be produced
     # at one frequency and wanted at another, which is what decides below whether
@@ -466,7 +450,6 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
             outputs.append(_base(output))
 
     return {
-        "modules": modules,
         "inputs_daily": sorted(inputs_daily),
         "inputs_weekly": sorted(inputs_weekly),
         "inputs_monthly": sorted(inputs_monthly),
@@ -512,12 +495,12 @@ def generate_config(
 
     config_data: dict[str, Any] = {}
 
-    # One flat section per module, named after the module: each chosen model,
-    # plus `shared` when one of them needs it. viresco registers these under
-    # catena's `catena.modules` entry-point group (see pyproject.toml), so the
-    # section name alone resolves it and no `_import_path` is needed.
-    for module in required_data["modules"]:
-        config_data[module] = dict(get_model_config(module))
+    # One flat section per model, named after the model. viresco registers each
+    # model module under catena's `catena.modules` entry-point group (see
+    # pyproject.toml), so the section name alone resolves it and no
+    # `_import_path` is needed.
+    for model in builtin_models:
+        config_data[model] = dict(get_model_config(model))
 
     # catena names each input node `{var}{suffix}`, with the suffix defaulting to
     # `_<section label>`. That is viresco's convention for the weekly and monthly

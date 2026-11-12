@@ -8,10 +8,6 @@ method_optchi = "lavergne20_c3"
 
 [sgam]
 
-# Daily disturbance detection for SGAM, and the mean growth temperature that
-# sandoval needs; neither runs at its model's frequency.
-[shared]
-
 [bridges]
 _import_path = "nodes.py"
 porosity = 0.45

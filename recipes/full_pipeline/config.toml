@@ -9,10 +9,6 @@ method_optchi = "lavergne20_c3"
 
 [sgam]
 
-# Daily disturbance detection for SGAM, and the mean growth temperature that
-# sandoval needs; neither runs at its model's frequency.
-[shared]
-
 [rothc]
 n_years_spinup = 1
 equilibrium_threshold = 0.0001

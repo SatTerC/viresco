@@ -146,7 +146,7 @@ class TestGeneratedConfigShape:
                 assert f"{var}_{entry['to']}" not in node_names
 
     def test_model_outputs_are_resampled_for_coarser_consumers(self, quickstart):
-        """`shared` produces daily `disturbances`; sgam consumes `disturbances_weekly`."""
+        """sgam produces daily `disturbances` and consumes `disturbances_weekly`."""
         config = (quickstart / "config.toml").read_text()
         assert '"disturbances",' in config
 

@@ -1,5 +1,5 @@
 """Tests for the disturbance-detection ``apply_ufunc`` block seam
-(``viresco.models.shared._disturbances``).
+(``viresco.models.sgam._disturbances``).
 
 ``sgam.Disturbances.forward`` is a *whole-block* computation: it diffs GPP/LAI along the
 time axis and is otherwise element-wise over pixels, so it vectorises over ``pixel``
@@ -35,8 +35,7 @@ import xarray as xr
 from sgam import Disturbances
 from sgam.pft import PlantFunctionalType, get_default_pft_params
 
-from viresco.models.sgam import pft_params
-from viresco.models.shared import _disturbances
+from viresco.models.sgam import _disturbances, pft_params
 
 N_DAYS = 120
 N_PIXELS = 3
@@ -208,9 +207,7 @@ class TestCachingIntact:
         spec = CacheSpec(path=str(tmp_path / "cache"))
 
         def run(cache):
-            dr = build_driver(
-                ["viresco.models.sgam", "viresco.models.shared"], {}, cache=cache
-            )
+            dr = build_driver(["viresco.models.sgam"], {}, cache=cache)
             return dr.execute(["disturbances"], inputs=inputs)  # type: ignore[reportArgumentType]
 
         uncached = run(None)

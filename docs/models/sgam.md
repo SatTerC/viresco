@@ -158,9 +158,9 @@ strict_mass_balance = false
       show_docstring_raises: false
       docstring_section_style: spacy
 
-Disturbance detection runs on daily observations, so it lives in the `shared` module rather than in this weekly one, and its one setting is a key of the `[shared]` section:
+Disturbance detection runs on daily observations and has one setting of its own, configured as a key of the same `[sgam]` section:
 
-::: viresco.models.shared.disturbances
+::: viresco.models.sgam.disturbances
     options:
       show_root_heading: false
       show_root_toc_entry: false
@@ -184,7 +184,7 @@ Disturbance detection runs on daily observations, so it lives in the `shared` mo
       show_docstring_raises: false
       docstring_section_style: spacy
 
-Two of those inputs are derived rather than loaded: `pft_params` by this module, and the daily disturbance severity behind `disturbances_weekly` by the `shared` module.
+Two of those inputs are produced by this module rather than loaded: `pft_params`, and the daily disturbance severity behind `disturbances_weekly`.
 
 ::: viresco.models.sgam.pft_params
     options:
@@ -197,7 +197,7 @@ Two of those inputs are derived rather than loaded: `pft_params` by this module,
       heading_level: 4
       docstring_section_style: spacy
 
-::: viresco.models.shared.disturbances
+::: viresco.models.sgam.disturbances
     options:
       show_root_heading: true
       show_root_full_path: false
