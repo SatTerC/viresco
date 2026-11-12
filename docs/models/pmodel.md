@@ -27,7 +27,13 @@ Together the three hypotheses let the P-model predict GPP without biome-specific
 We wrap the [NumPy-based `pyrealm` implementation](https://github.com/ImperialCollegeLondon/pyrealm) of the P-model.
 The [pyrealm P-model documentation](https://pyrealm.readthedocs.io/en/latest/users/pmodel/module_overview.html) is the authoritative source for the model theory.
 
-The DAG for a pipeline running the P-model alone, with the dashed clusters grouping nodes by declared frequency (`7D` for weekly, `D` for daily):
+Viresco runs the P-model daily.
+pyrealm's standard `PModel` has no timestep: it computes each cell from that cell's drivers alone, assuming the plants have acclimated to them, so the frequency it runs at is the pipeline's choice.
+Its rates (PPFD, GPP, Vcmax, Jmax) are per second, and stand for the mean over the day when the drivers are daily means.
+A model wanting coarser values, such as weekly SGAM, takes means of the daily outputs.
+Because the model is nonlinear, those are not the outputs of a run on weekly mean drivers.
+
+The DAG for a pipeline running the P-model alone, with the dashed clusters grouping nodes by declared frequency (`D` for daily):
 
 <div class="model-graph">
 --8<-- "docs/models/_graphs/pmodel.svg"
@@ -210,7 +216,7 @@ Required when `method_arrhenius = "kattge_knorr"`.
 
 #### Mean growth temperature { #inputs-mean-growth-temperature }
 
-`mean_growth_temperature` is not loaded but derived by this module from daily temperature, so a run using `sandoval` or `kattge_knorr` needs this input in its place.
+`mean_growth_temperature` is not loaded but derived by this module from the daily temperature it already takes, so a run using `sandoval` or `kattge_knorr` needs no extra input for it.
 
 ::: viresco.models.pmodel.mean_growth_temperature
     options:
@@ -234,9 +240,11 @@ Required when `method_arrhenius = "kattge_knorr"`.
       show_bases: false
       members: false
 
-GPP and LUE are not in the units SGAM consumes.
-`recipes/config.toml` defines `gpp_weekly` and `lue_weekly` as bridge nodes for that purpose, where the conversion factor is visible rather than buried in a wrapper.
+SGAM consumes GPP, LUE and iWUE as weekly means, which `recipes/config.toml` makes with a `[[resample]]` entry.
+GPP and LUE are not in the units SGAM consumes either.
+`recipes/config.toml` defines `gpp_weekly` and `lue_weekly` as bridge nodes on the weekly means, where the conversion factor is visible rather than buried in a wrapper.
 iWUE needs no bridge, because `pyrealm` and SGAM agree on µmol mol⁻¹.
+`viresco setup` generates the same resamples and bridges.
 
 ### Python API
 

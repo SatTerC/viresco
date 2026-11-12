@@ -6,9 +6,10 @@ This table lists those pairs and the factor between them: the config generator
 reads it to emit a ``[[node]]`` doing the conversion, and `recipes/config.toml`
 writes the same nodes by hand.
 
-A bridge is only consulted for an input no model produces under its own name. It
-does not coarsen — `source` and `target` must be wanted at the same frequency —
-so it is a pure restatement of units.
+A bridge is only consulted for an input no model produces under its own name.
+It is a pure restatement of units. Where the source is produced finer than the
+target is wanted, the generator coarsens the source with a mean first and
+applies the bridge at the target's frequency.
 """
 
 from dataclasses import dataclass
@@ -47,7 +48,7 @@ BRIDGES: tuple[Bridge, ...] = (
         source="gpp_flux",
         target="gpp",
         note=(
-            "pyrealm reports GPP as an instantaneous flux in ug C m-2 s-1; SGAM "
+            "pyrealm reports GPP as a flux in ug C m-2 s-1; SGAM "
             "wants a daily rate in g C m-2 d-1. Dimensionally the same quantity, "
             "so pint supplies the 86400 s d-1 x 1e-6 g ug-1 = 0.0864."
         ),

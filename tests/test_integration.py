@@ -22,7 +22,7 @@ class TestLoadedInputs:
         assert da.sizes["pixel"] == N_PIXELS
 
     def test_weekly_input_shape(self, pipeline_inputs):
-        da = pipeline_inputs["co2_weekly"]
+        da = pipeline_inputs["dummy_variable_weekly"]
         assert 50 <= da.sizes["time"] <= 54
         assert da.sizes["pixel"] == N_PIXELS
 
@@ -80,19 +80,19 @@ class TestDriverExecution:
         """get_final_vars() produces valid final_vars across daily, weekly, monthly."""
         output_specs = {
             "daily": IOSpec(path="", vars=["temperature"], suffix=""),
-            "weekly": IOSpec(path="", vars=["co2"]),
+            "weekly": IOSpec(path="", vars=["dummy_variable"]),
             "monthly": IOSpec(path="", vars=["dummy_variable"]),
         }
         final_vars = get_final_vars(output_specs)
         assert final_vars == [
             "temperature",
-            "co2_weekly",
+            "dummy_variable_weekly",
             "dummy_variable_monthly",
         ]
         results = pipeline_driver.execute(final_vars, inputs=pipeline_inputs)
         assert all(v in results for v in final_vars)
         assert results["temperature"].sizes["pixel"] == N_PIXELS
-        assert results["co2_weekly"].sizes["pixel"] == N_PIXELS
+        assert results["dummy_variable_weekly"].sizes["pixel"] == N_PIXELS
         assert results["dummy_variable_monthly"].sizes["pixel"] == N_PIXELS
 
     def test_get_final_vars_single_frequency(self, pipeline_driver, pipeline_inputs):

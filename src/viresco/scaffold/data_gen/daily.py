@@ -103,7 +103,7 @@ gpp_obs = Var(
 """Seasonal amplitude gated on temperature above a 5 degC growth threshold.
 
 Observed rather than modelled: disturbance detection looks for declines in it.
-The P-model's GPP is weekly and named `gpp_flux_weekly`."""
+The P-model's GPP is modelled and named `gpp_flux`."""
 
 co2 = Var(
     "ppm",

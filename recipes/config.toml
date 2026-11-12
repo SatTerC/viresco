@@ -49,20 +49,15 @@ zero_threshold = 1e-08
 path = "inputs/daily.nc"
 suffix = ""
 vars = [
-    "gpp_obs",
-    "lai_obs",
-    "precipitation",
-    "sunshine_fraction",
-    "temperature",
-]
-
-[inputs.weekly]
-path = "inputs/weekly.nc"
-vars = [
     "co2",
     "fapar",
+    "gpp_obs",
+    "lai_obs",
     "ppfd",
+    "precipitation",
     "pressure",
+    "sunshine_fraction",
+    "temperature",
     "vpd",
 ]
 
@@ -111,26 +106,33 @@ overwrite_units = true
 # soil_moisture / max_soil_moisture is relative saturation (0-1), and multiplying
 # by porosity turns that into a volume fraction.
 #
+# Made daily, from daily soil moisture, so a `lavergne20` P-model can take it
+# directly; the [[resample]] below makes SGAM's weekly mean.
+#
 # 0.45 is a representative mineral-soil porosity, written as a literal here to
 # keep the default config free of extra inputs. To let it vary in space, replace
 # the literal with a `porosity` node -- derived from `clay_content`, which is
 # already a static input, or read from a `porosity` variable added to
 # [inputs.static].
 [[node]]
-name = "volumetric_water_content_weekly"
-inputs = ["soil_moisture_weekly", "max_soil_moisture"]
-expression = "soil_moisture_weekly / max_soil_moisture * 0.45"
+name = "volumetric_water_content"
+inputs = ["soil_moisture", "max_soil_moisture"]
+expression = "soil_moisture / max_soil_moisture * 0.45"
 units = "m3 m-3"
 overwrite_units = true
-freq = "7D"
+freq = "D"
 
 # viresco.models.pmodel is an honest wrapper. It reports GPP and LUE in pyrealm's
 # own units, which are not the units SGAM consumes. These two nodes are the
 # bridge, and they sit here rather than inside the model node so that a reader
 # can see the conversion factor instead of hunting for it in a wrapper.
 #
-# pyrealm's GPP is an instantaneous flux in ug C m-2 s-1. SGAM wants a daily rate
-# in g C m-2 d-1, so 86400 s d-1 x 1e-6 g ug-1 = 0.0864.
+# The P-model runs daily and SGAM weekly, so the bridges take the weekly means
+# made by the [[resample]] below. A constant factor commutes with the mean, so
+# bridging first and averaging after would give the same numbers.
+#
+# pyrealm's GPP is a flux in ug C m-2 s-1. SGAM wants a daily rate in
+# g C m-2 d-1, so 86400 s d-1 x 1e-6 g ug-1 = 0.0864.
 [[node]]
 name = "gpp_weekly"
 inputs = ["gpp_flux_weekly"]
@@ -212,11 +214,17 @@ units = "t ha-1"
 # `from` and `to` are node-name suffixes, nothing more; `freq` is what actually
 # happens to the time axis, and becomes the generated node's declared frequency
 # contract. `from = ""` reads the bare daily name.
+# The P-model's outputs and SGAM's other daily drivers, as weekly means. SGAM
+# wants weekly mean LUE and iWUE, so a plain mean is the right aggregate.
 [[resample]]
 vars = [
     "temperature",
     "precipitation",
-    "soil_moisture",
+    "volumetric_water_content",
+    "vpd",
+    "gpp_flux",
+    "lue_photon",
+    "iwue",
 ]
 from = ""
 to = "weekly"
@@ -243,6 +251,7 @@ suffix = ""
 vars = [
     "actual_evapotranspiration",
     "disturbances",
+    "gpp_flux",
     "runoff",
     "soil_moisture",
 ]

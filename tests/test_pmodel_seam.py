@@ -28,9 +28,9 @@ import xarray as xr
 
 from viresco.models.pmodel import _OUTPUT_ATTRIBUTES, _pmodel
 
-N_WEEKS = 52
+N_DAYS = 52
 N_PIXELS = 3
-WEEKLY_DATES = pd.date_range("2020-01-01", periods=N_WEEKS, freq="7D")
+DATES = pd.date_range("2020-01-01", periods=N_DAYS, freq="D")
 PIXELS = np.arange(N_PIXELS)
 
 # Each variant names its methods and the extra inputs, by pyrealm name, they need.
@@ -70,7 +70,7 @@ def _temporal(base: np.ndarray) -> xr.DataArray:
     return xr.DataArray(
         base,
         dims=["time", "pixel"],
-        coords={"time": WEEKLY_DATES, "pixel": PIXELS},
+        coords={"time": DATES, "pixel": PIXELS},
     )
 
 
@@ -88,7 +88,7 @@ def pmodel_inputs(request) -> dict:
     def _vary(center: float, spread: float) -> np.ndarray:
         offsets = np.linspace(-spread, spread, N_PIXELS)
         return (
-            center + offsets[None, :] + rng.normal(0.0, spread / 4, (N_WEEKS, N_PIXELS))
+            center + offsets[None, :] + rng.normal(0.0, spread / 4, (N_DAYS, N_PIXELS))
         )
 
     extras = dict(
@@ -98,12 +98,12 @@ def pmodel_inputs(request) -> dict:
         aridity_index=_static(np.linspace(0.3, 1.5, N_PIXELS)),
     )
     return dict(
-        temperature_weekly=_temporal(_vary(15.0, 5.0)),
-        vpd_weekly=_temporal(np.abs(_vary(1000.0, 300.0))),
-        co2_weekly=_temporal(np.full((N_WEEKS, N_PIXELS), 400.0)),
-        pressure_weekly=_temporal(np.full((N_WEEKS, N_PIXELS), 101325.0)),
-        fapar_weekly=_temporal(np.clip(_vary(0.5, 0.2), 0, 1)),
-        ppfd_weekly=_temporal(np.abs(_vary(500.0, 150.0))),
+        temperature=_temporal(_vary(15.0, 5.0)),
+        vpd=_temporal(np.abs(_vary(1000.0, 300.0))),
+        co2=_temporal(np.full((N_DAYS, N_PIXELS), 400.0)),
+        pressure=_temporal(np.full((N_DAYS, N_PIXELS), 101325.0)),
+        fapar=_temporal(np.clip(_vary(0.5, 0.2), 0, 1)),
+        ppfd=_temporal(np.abs(_vary(500.0, 150.0))),
         extra_inputs={name: extras[name] for name in extra_names},
         **methods,
     )
@@ -121,7 +121,7 @@ def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
 
     # A climatological extra is repeated down the time axis, which is what
     # pyrealm needs and what the seam does for it.
-    temperature = inputs["temperature_weekly"]
+    temperature = inputs["temperature"]
     extras = {
         name: da.broadcast_like(temperature).transpose("time", "pixel").values
         for name, da in inputs["extra_inputs"].items()
@@ -130,12 +130,12 @@ def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
     per_pixel: dict[str, list] = {name: [] for name in _OUTPUT_ATTRIBUTES}
     for i in range(N_PIXELS):
         env = pyrealm.pmodel.PModelEnvironment(
-            tc=col("temperature_weekly", i),
-            vpd=col("vpd_weekly", i),
-            co2=col("co2_weekly", i),
-            patm=col("pressure_weekly", i),
-            fapar=col("fapar_weekly", i),
-            ppfd=col("ppfd_weekly", i),
+            tc=col("temperature", i),
+            vpd=col("vpd", i),
+            co2=col("co2", i),
+            patm=col("pressure", i),
+            fapar=col("fapar", i),
+            ppfd=col("ppfd", i),
             **{name: values[:, i] for name, values in extras.items()},
         )
         model = pyrealm.pmodel.PModel(
@@ -171,15 +171,15 @@ class TestRegression:
     def test_canonical_dims_and_coords(self, seam_result):
         for da in seam_result.values():
             assert da.dims == ("time", "pixel")
-            assert da.sizes == {"time": N_WEEKS, "pixel": N_PIXELS}
+            assert da.sizes == {"time": N_DAYS, "pixel": N_PIXELS}
             assert "time" in da.coords
             assert "pixel" in da.coords
-            np.testing.assert_array_equal(da.coords["time"].values, WEEKLY_DATES.values)
+            np.testing.assert_array_equal(da.coords["time"].values, DATES.values)
 
     def test_per_pixel_inputs_actually_differ(self, seam_result):
         # Distinct climate columns must produce distinct GPP columns; identical columns
         # would mean the block was collapsed or broadcast incorrectly.
-        gpp = seam_result["gpp_flux_weekly"].transpose("time", "pixel").values
+        gpp = seam_result["gpp_flux"].transpose("time", "pixel").values
         assert not np.allclose(gpp[:, 0], gpp[:, 1])
         assert not np.allclose(gpp[:, 1], gpp[:, 2])
 
@@ -216,25 +216,25 @@ class TestCachingIntact:
 
         def _mda(v: float) -> xr.DataArray:
             return xr.DataArray(
-                np.full((N_WEEKS, N_PIXELS), float(v)),
+                np.full((N_DAYS, N_PIXELS), float(v)),
                 dims=["time", "pixel"],
-                coords={"time": WEEKLY_DATES, "pixel": PIXELS},
+                coords={"time": DATES, "pixel": PIXELS},
             )
 
         inputs = {
-            "temperature_weekly": _mda(15.0),
-            "vpd_weekly": _mda(1000.0),
-            "co2_weekly": _mda(400.0),
-            "pressure_weekly": _mda(101325.0),
-            "fapar_weekly": _mda(0.5),
-            "ppfd_weekly": _mda(500.0),
+            "temperature": _mda(15.0),
+            "vpd": _mda(1000.0),
+            "co2": _mda(400.0),
+            "pressure": _mda(101325.0),
+            "fapar": _mda(0.5),
+            "ppfd": _mda(500.0),
         }
         spec = CacheSpec(path=str(tmp_path / "cache"))
 
         def run(cache):
             dr = build_driver(["viresco.models.pmodel"], {}, cache=cache)
             return dr.execute(  # type: ignore[reportArgumentType]
-                ["gpp_flux_weekly"], inputs=inputs
+                ["gpp_flux"], inputs=inputs
             )
 
         uncached = run(None)
@@ -242,7 +242,7 @@ class TestCachingIntact:
         cached = run(spec)  # warm cache
 
         np.testing.assert_allclose(
-            cached["gpp_flux_weekly"].values, uncached["gpp_flux_weekly"].values
+            cached["gpp_flux"].values, uncached["gpp_flux"].values
         )
         assert (tmp_path / "cache").exists()
 
@@ -252,9 +252,9 @@ class TestCachingIntact:
 
         def _mda(v: float) -> xr.DataArray:
             return xr.DataArray(
-                np.full((N_WEEKS, N_PIXELS), float(v)),
+                np.full((N_DAYS, N_PIXELS), float(v)),
                 dims=["time", "pixel"],
-                coords={"time": WEEKLY_DATES, "pixel": PIXELS},
+                coords={"time": DATES, "pixel": PIXELS},
             )
 
         spec = CacheSpec(path=str(tmp_path / "cache"))
@@ -266,18 +266,18 @@ class TestCachingIntact:
                 cache=spec,
             )
             result = dr.execute(  # type: ignore[reportArgumentType]
-                ["gpp_flux_weekly"],
+                ["gpp_flux"],
                 inputs={
-                    "temperature_weekly": _mda(15.0),
-                    "vpd_weekly": _mda(1000.0),
-                    "co2_weekly": _mda(400.0),
-                    "pressure_weekly": _mda(101325.0),
-                    "fapar_weekly": _mda(0.5),
-                    "ppfd_weekly": _mda(500.0),
-                    "volumetric_water_content_weekly": _mda(theta),
+                    "temperature": _mda(15.0),
+                    "vpd": _mda(1000.0),
+                    "co2": _mda(400.0),
+                    "pressure": _mda(101325.0),
+                    "fapar": _mda(0.5),
+                    "ppfd": _mda(500.0),
+                    "volumetric_water_content": _mda(theta),
                 },
             )
-            return result["gpp_flux_weekly"].values
+            return result["gpp_flux"].values
 
         dry = run(0.1)
         np.testing.assert_array_equal(run(0.1), dry)  # warm cache

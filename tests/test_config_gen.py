@@ -229,8 +229,6 @@ class TestGenerateConfigBuiltinModels:
             assert "to" in entry
 
     def test_combined_models_share_resample_vars(self):
-        # splash provides daily soil_moisture; pmodel needs weekly soil_moisture
-        # → a resample section should appear
         config = generate_config(
             builtin_models=["splash", "pmodel"],
             custom_modules=[],
@@ -249,10 +247,36 @@ class TestInferRequiredData:
         assert "outputs_daily" in result
         assert len(result["outputs_daily"]) > 0
 
-    def test_pmodel_produces_weekly_outputs_key(self):
+    def test_pmodel_produces_daily_outputs(self):
         result = _infer_required_data(["pmodel"])
-        assert "outputs_weekly" in result
-        assert len(result["outputs_weekly"]) > 0
+        assert "gpp_flux" in result["outputs_daily"]
+        assert not result["outputs_weekly"]
+
+    def test_pmodel_drivers_are_loaded_daily(self):
+        result = _infer_required_data(["pmodel"])
+        drivers = {"co2", "fapar", "ppfd", "pressure", "temperature", "vpd"}
+        assert drivers <= set(result["inputs_daily"])
+        assert not result["inputs_weekly"]
+
+    def test_bridge_source_finer_than_wanted_is_coarsened_first(self):
+        """SGAM's weekly GPP and LUE come from the daily P-model.
+
+        The source is resampled to weekly by a mean, and the bridge applied to
+        that, rather than the bridge giving up and the input being loaded.
+        """
+        result = _infer_required_data(["pmodel", "sgam"])
+        assert {"gpp_flux", "lue_photon", "iwue"} <= set(
+            result["resample_daily_to_weekly"]
+        )
+        bridges = {node["name"]: node for node in result["bridges"]}
+        assert bridges["gpp_weekly"]["inputs"] == ["gpp_flux_weekly"]
+        assert bridges["lue_weekly"]["inputs"] == ["lue_photon_weekly"]
+        loaded = {
+            var
+            for key in ("inputs_daily", "inputs_weekly", "inputs_monthly")
+            for var in result[key]
+        }
+        assert {"gpp", "lue", "iwue"}.isdisjoint(loaded)
 
     def test_result_has_all_expected_keys(self):
         result = _infer_required_data(["splash"])
@@ -294,7 +318,7 @@ class TestUnitDiscovery:
         [
             ("splash", "temperature", "degC"),
             ("splash", "soil_moisture", "mm"),
-            ("pmodel", "gpp_flux_weekly", "ug m-2 s-1"),
+            ("pmodel", "gpp_flux", "ug m-2 s-1"),
             ("sgam", "leaf_pool_weekly", "g m-2"),
             ("rothc", "soil_organic_carbon_monthly", "t ha-1"),
         ],

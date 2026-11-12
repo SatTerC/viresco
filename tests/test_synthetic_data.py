@@ -32,19 +32,17 @@ class TestSyntheticDataGeneration:
             "sunshine_fraction",
             "lai_obs",
             "gpp_obs",
-        }
-        assert set(daily_ds.data_vars) == expected_vars
-
-    def test_weekly_variables(self, weekly_ds):
-        """Test weekly dataset contains exactly the variables the config asks for."""
-        expected_vars = {
             "co2",
             "fapar",
             "ppfd",
             "pressure",
             "vpd",
         }
-        assert set(weekly_ds.data_vars) == expected_vars
+        assert set(daily_ds.data_vars) == expected_vars
+
+    def test_weekly_variables(self, weekly_ds):
+        """Test weekly dataset contains exactly the variables the config asks for."""
+        assert set(weekly_ds.data_vars) == {"dummy_variable"}
 
     def test_monthly_variables(self, monthly_ds):
         """Each section holds only its own variables, not every temporal one."""

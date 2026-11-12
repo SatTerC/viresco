@@ -15,11 +15,13 @@ import xarray_annotated as xra
 from numpy.typing import NDArray
 
 # Shapes mirror the seam-test fixtures, which are known to converge. SPLASH gets
-# a full leap year because spin-up needs one; the P-Model gets 52 weeks.
-N_WEEKS = 52
+# a full leap year because spin-up needs one. The P-Model gets 52 days, carrying
+# a year's seasonal cycle sampled once a week: it has no time axis of its own, so
+# the dates only have to satisfy its daily contract.
+N_PMODEL_DAYS = 52
 N_DAYS = 366
 N_PIXELS = 3
-WEEKLY_DATES = pd.date_range("2020-01-01", periods=N_WEEKS, freq="7D")
+PMODEL_DATES = pd.date_range("2020-01-01", periods=N_PMODEL_DAYS, freq="D")
 DAILY_DATES = pd.date_range("2020-01-01", periods=N_DAYS, freq="D")
 PIXELS = np.arange(N_PIXELS)
 
@@ -40,9 +42,9 @@ SPLASH_MAX_ITER = 50
 SPLASH_MAX_DIFF = 0.01
 
 
-def _weekly(base: NDArray[np.float64]) -> xr.DataArray:
+def _pmodel_series(base: NDArray[np.float64]) -> xr.DataArray:
     return xr.DataArray(
-        base, dims=["time", "pixel"], coords={"time": WEEKLY_DATES, "pixel": PIXELS}
+        base, dims=["time", "pixel"], coords={"time": PMODEL_DATES, "pixel": PIXELS}
     )
 
 
@@ -70,18 +72,20 @@ def _seasonal(n: int) -> NDArray[np.float64]:
 
 def pmodel_inputs() -> dict[str, Any]:
     """Fixed P-Model drivers, in the units `viresco.models.pmodel` declares."""
-    season = _seasonal(N_WEEKS * 7)[::7][:N_WEEKS]
+    season = _seasonal(N_PMODEL_DAYS * 7)[::7][:N_PMODEL_DAYS]
 
     def field(center: float, spread: float, amplitude: float = 0.0) -> xr.DataArray:
-        return _weekly(center + amplitude * season[:, None] + _offsets(spread)[None, :])
+        return _pmodel_series(
+            center + amplitude * season[:, None] + _offsets(spread)[None, :]
+        )
 
     return {
-        "temperature_weekly": field(15.0, 5.0, amplitude=8.0),
-        "vpd_weekly": field(1000.0, 300.0, amplitude=200.0),
-        "co2_weekly": _weekly(np.full((N_WEEKS, N_PIXELS), 400.0)),
-        "pressure_weekly": _weekly(np.full((N_WEEKS, N_PIXELS), 101325.0)),
-        "fapar_weekly": field(0.5, 0.2),
-        "ppfd_weekly": field(500.0, 150.0, amplitude=100.0),
+        "temperature": field(15.0, 5.0, amplitude=8.0),
+        "vpd": field(1000.0, 300.0, amplitude=200.0),
+        "co2": _pmodel_series(np.full((N_PMODEL_DAYS, N_PIXELS), 400.0)),
+        "pressure": _pmodel_series(np.full((N_PMODEL_DAYS, N_PIXELS), 101325.0)),
+        "fapar": field(0.5, 0.2),
+        "ppfd": field(500.0, 150.0, amplitude=100.0),
         # The golden case's methods take no extra inputs.
         "extra_inputs": {},
         **PMODEL_METHODS,

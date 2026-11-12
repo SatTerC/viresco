@@ -16,16 +16,19 @@ vars = [
   "temperature",
   "lai_obs",
   "gpp_obs",
-]
-
-[inputs.weekly]
-path = "weekly.nc"
-vars = [
   "co2",
   "fapar",
   "ppfd",
   "pressure",
   "vpd",
+]
+
+# Nothing in the pipeline consumes a weekly input any more. This one keeps the
+# synthetic-data generator's weekly path covered.
+[inputs.weekly]
+path = "weekly.nc"
+vars = [
+  "dummy_variable",
 ]
 
 [inputs.monthly]

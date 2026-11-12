@@ -238,8 +238,8 @@ def _(mo):
 
     SPLASH tracks soil moisture as a depth of water held in a bucket, in mm.
     The P-model wants volumetric water content, in m3 m-3.
-    `volumetric_water_content_weekly` divides by the bucket's capacity to get relative saturation, then multiplies by 0.45, a representative porosity for mineral soil.
-    The frequency changes too: SPLASH runs daily and the P-model weekly, so a `[[resample]]` sits in between.
+    `volumetric_water_content` divides by the bucket's capacity to get relative saturation, then multiplies by 0.45, a representative porosity for mineral soil.
+    Both models run daily, so the frequency does not change here.
 
     The aridity index is a different shape of problem.
     pyrealm's is climatological, potential evapotranspiration over precipitation with both terms accumulated across the whole record, so it is one number per pixel rather than a time series.
@@ -262,8 +262,11 @@ def _(mo):
     This is the join worth studying.
     Three quantities cross and two of them are in the wrong units, because `viresco.models.pmodel` is an honest wrapper: it reports what pyrealm computes, in pyrealm's units, rather than quietly converting on the way out.
 
+    The frequency changes too: the P-model runs daily and SGAM weekly, so a `[[resample]]` makes weekly means of the P-model's outputs, and the bridges below act on those.
+    Each bridge multiplies by a constant, so converting before or after averaging gives the same numbers.
+
     **Gross primary productivity.**
-    pyrealm reports an instantaneous flux in ug C m-2 s-1.
+    pyrealm reports a flux in ug C m-2 s-1.
     SGAM wants a daily rate in g C m-2 d-1.
     That is 86400 s d-1 multiplied by 1e-6 g ug-1, a factor of 0.0864, which `xra.units.convert` works out from the two units.
 
@@ -274,9 +277,9 @@ def _(mo):
     That is a property of the light rather than of the units, so it is a setting, `par_photons_per_mj`, rather than a conversion.
 
     **Intrinsic water use efficiency** needs no bridge at all.
-    pyrealm reports umol mol-1 and SGAM consumes umol mol-1, so it goes straight across, which is what the direct `pmodel` to `sgam` edge in the graph below is.
+    pyrealm reports umol mol-1 and SGAM consumes umol mol-1, so only its weekly mean, `iwue_weekly`, sits between `pmodel` and `sgam` in the graph below.
 
-    Look at the node names in the graph: the P-model produces `gpp_flux_weekly` and `lue_photon_weekly`, while SGAM consumes `gpp_weekly` and `lue_weekly`.
+    Look at the node names in the graph: the P-model produces `gpp_flux` and `lue_photon`, resampled to `gpp_flux_weekly` and `lue_photon_weekly`, while SGAM consumes `gpp_weekly` and `lue_weekly`.
     The unconverted quantities are deliberately named so that they cannot satisfy SGAM's inputs by accident.
     Wiring them together directly would take an edit, and the contract check would reject the units even then.
     """)
