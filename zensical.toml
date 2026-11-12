@@ -2,6 +2,9 @@
 
 use_directory_urls = false
 
+# Architecture decision records are for contributors, read on GitHub.
+exclude_docs = "adr/"
+
 site_name = "viresco"
 site_description = "Composable models of the terrestrial carbon and water cycles, for catena pipelines."
 site_author = "Joe Marsh Rossney"
