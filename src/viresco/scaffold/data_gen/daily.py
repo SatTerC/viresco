@@ -28,6 +28,22 @@ def _saturation_vapour_pressure(
     return 610.78 * np.exp(temperature / (temperature + 237.3) * 17.27)
 
 
+def _dewpoint(
+    temperature: NDArray[np.float64], relative_humidity: NDArray[np.float64]
+) -> NDArray[np.float64]:
+    """Invert Tetens' formula at the actual vapour pressure, in degC."""
+    gamma = np.log(relative_humidity) + 17.27 * temperature / (temperature + 237.3)
+    return 237.3 * gamma / (17.27 - gamma)
+
+
+def _specific_humidity(
+    temperature: NDArray[np.float64], relative_humidity: NDArray[np.float64]
+) -> NDArray[np.float64]:
+    """Specific humidity in kg kg-1 at standard sea-level pressure."""
+    vapour_pressure = relative_humidity * _saturation_vapour_pressure(temperature)
+    return 0.622 * vapour_pressure / (101325.0 - 0.378 * vapour_pressure)
+
+
 temperature = Var(
     "degC",
     "air temperature",
@@ -103,7 +119,7 @@ gpp_obs = Var(
 """Seasonal amplitude gated on temperature above a 5 degC growth threshold.
 
 Observed rather than modelled: disturbance detection looks for declines in it.
-The P-model's GPP is weekly and named `gpp_flux_weekly`."""
+The P-model's GPP is modelled and named `gpp_flux`."""
 
 co2 = Var(
     "ppm",
@@ -163,6 +179,54 @@ vpd = Var(
 Derived from `temperature` rather than drawn independently, so the two stay
 physically consistent — `Resolver` memoises the temperature field, so both see
 the same one.
+"""
+
+relative_humidity = Var(
+    "1",
+    "relative humidity",
+    lambda g: np.clip(
+        g.cycle(0.08, phase=np.pi / 2, baseline=0.8) + g.ar1(sigma=0.05), 0.3, 0.99
+    ),
+)
+"""Humid, more so in winter, with day-to-day persistence, as a fraction (0-1).
+
+The source of `dewpoint_temperature` and `specific_humidity`, so the three are
+one humidity field and any of them gives `viresco.nodes.humidity` the same VPD.
+"""
+
+dewpoint_temperature = Var(
+    "degC",
+    "dewpoint temperature",
+    lambda g: _dewpoint(g.daily("temperature"), g.daily("relative_humidity")),
+)
+"""The temperature at which the generated air would saturate.
+
+Derived from `temperature` and `relative_humidity`, so it never exceeds the air
+temperature.
+"""
+
+specific_humidity = Var(
+    "kg kg-1",
+    "specific humidity",
+    lambda g: _specific_humidity(g.daily("temperature"), g.daily("relative_humidity")),
+)
+"""Mass of water vapour per mass of moist air, from the same humidity field.
+
+Assumes standard sea-level pressure, which moves the value by under 1% per
+100 m of elevation; a stand-in, not a reanalysis.
+"""
+
+shortwave_radiation = Var(
+    "W m-2",
+    "downwelling shortwave radiation",
+    lambda g: (
+        g.cycle(90.0, phase=-np.pi / 2, baseline=120.0) * (0.6 + g.uniform(0.0, 0.4))
+    ),
+    bounds=(5.0, None),
+)
+"""Daily mean surface shortwave, peaking at midsummer, attenuated by cloud.
+
+About 30 W m-2 in a UK winter and 210 W m-2 in summer, before cloud.
 """
 
 wind_speed = Var(

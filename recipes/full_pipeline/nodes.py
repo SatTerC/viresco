@@ -13,7 +13,7 @@ import xarray_annotated as xra
 from catena.io import sole_time_dim
 from xarray_annotated import Unit
 
-from viresco.temporal import MONTHLY, WEEKLY, offset
+from viresco.temporal import DAILY, MONTHLY, WEEKLY, offset
 
 # SPLASH to the P-model: water.
 
@@ -36,24 +36,27 @@ def aridity_index(
 
 @xra.check_annotations
 @xra.stamp_output_units(overwrite=True)
-def volumetric_water_content_weekly(
-    soil_moisture_weekly: Annotated[xr.DataArray, Unit("mm"), WEEKLY],
+def volumetric_water_content(
+    soil_moisture: Annotated[xr.DataArray, Unit("mm"), DAILY],
     max_soil_moisture: Annotated[xr.DataArray, Unit("mm")],
     *,
     porosity: float = 0.45,
-) -> Annotated[xr.DataArray, Unit("m3 m-3"), WEEKLY]:
+) -> Annotated[xr.DataArray, Unit("m3 m-3"), DAILY]:
     """Volumetric water content, from SPLASH's depth of water in a bucket.
 
     Both the P-model, as pyrealm's ``theta``, and SGAM, against the PFT's
     ``wilting_point`` and ``field_capacity``, want a volume fraction. Dividing by
     the bucket's capacity gives relative saturation, and multiplying by a
     representative mineral-soil ``porosity`` turns that into a volume fraction.
+    The P-model takes it daily; the config resamples it to weekly for SGAM.
     """
-    return soil_moisture_weekly / max_soil_moisture * porosity
+    return soil_moisture / max_soil_moisture * porosity
 
 
 # The P-model to SGAM: carbon. viresco.models.pmodel reports GPP and LUE in
-# pyrealm's own units, and names them so they cannot reach SGAM unconverted.
+# pyrealm's own units, and names them so they cannot reach SGAM unconverted. The
+# P-model runs daily, and the config's [[resample]] makes the weekly means these
+# take. Each is a constant factor, which commutes with the mean.
 
 
 @xra.check_annotations
@@ -63,7 +66,7 @@ def gpp_weekly(
 ) -> Annotated[xr.DataArray, Unit("g m-2 d-1"), WEEKLY]:
     """Gross primary productivity as a daily rate.
 
-    pyrealm's GPP is an instantaneous flux in ug C m-2 s-1, and SGAM wants g C
+    pyrealm's GPP is a flux in ug C m-2 s-1, and SGAM wants g C
     m-2 d-1: 86400 s d-1 times 1e-6 g ug-1.
     """
     return xra.units.convert(gpp_flux_weekly, "g m-2 d-1")

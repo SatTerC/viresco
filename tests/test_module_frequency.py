@@ -1,6 +1,6 @@
 """Each model module runs at exactly one frequency.
 
-SPLASH is daily, the P-model and SGAM weekly, RothC monthly. A node that does not
+SPLASH and the P-model are daily, SGAM weekly, RothC monthly. A node that does not
 fit its model's frequency stays in that model's module only if that model alone
 uses it, and only by name in `OFF_FREQUENCY`; see
 `docs/adr/0001-node-names-and-module-frequency.md`. Without this test the rule
@@ -22,16 +22,14 @@ from viresco.models import pmodel, rothc, sgam, splash
 
 MODEL_FREQUENCIES = {
     splash: temporal.DAILY,
-    pmodel: temporal.WEEKLY,
+    pmodel: temporal.DAILY,
     sgam: temporal.WEEKLY,
     rothc: temporal.MONTHLY,
 }
 
 #: Nodes allowed to run at another frequency than their module, each used by
-#: that model alone: the P-model's acclimation temperature is reduced from daily
-#: temperature, and SGAM's disturbance detection runs on daily observations.
+#: that model alone: SGAM's disturbance detection runs on daily observations.
 OFF_FREQUENCY: set[tuple[ModuleType, str]] = {
-    (pmodel, "mean_growth_temperature"),
     (sgam, "disturbances"),
 }
 

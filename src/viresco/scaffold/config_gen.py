@@ -359,19 +359,33 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
     def _record_bridge(base: str, label: str | None) -> bool:
         """Emit the units-restating node for ``base``, if a bridge supplies it.
 
+        A source produced finer than wanted is coarsened onto ``label`` first,
+        and the bridge applied there: the P-model's daily ``gpp_flux`` becomes
+        ``gpp_flux_weekly``, then ``gpp_weekly``. A bridge is a constant factor,
+        which commutes with the mean, so the order does not change the result.
+
         False when no bridge covers this name, when its source is not produced
-        at the frequency wanted, or when the factor cannot be established. In
-        every case the caller falls through to loading the variable from a file.
+        at or finer than the frequency wanted, or when the factor cannot be
+        established. In every case the caller falls through to loading the
+        variable from a file.
         """
         bridge = bridge_for(base)
-        if bridge is None or label not in produced_at.get(bridge.source, set()):
+        if bridge is None:
             return False
-        source_name = _node_name(bridge.source, label)
+        source_label = _finest_source(produced_at.get(bridge.source, set()), label)
+        if source_label is None:
+            return False
         target_name = _node_name(base, label)
         target_units = _units(target_name)
-        factor = _bridge_factor(bridge, _units(source_name), target_units)
+        # A mean keeps units, so the coarsened source has the units it is
+        # produced in.
+        source_units = _units(_node_name(bridge.source, source_label))
+        factor = _bridge_factor(bridge, source_units, target_units)
         if factor is None or target_units is None:
             return False
+        if label is not None and source_label != label:
+            _record(bridge.source, source_label, label)
+        source_name = _node_name(bridge.source, label)
         bridge_nodes.append(
             {
                 "name": target_name,

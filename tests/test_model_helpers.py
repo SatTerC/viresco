@@ -312,9 +312,9 @@ class TestPmodelExecution:
     def pmodel_result(self):
         from viresco.models.pmodel import _pmodel
 
-        n_weeks = 52
+        n_days = 52
         n_pixels = 1
-        time = pd.date_range("2020-01-01", periods=n_weeks, freq="7D")
+        time = pd.date_range("2020-01-01", periods=n_days, freq="D")
         pixel = np.arange(n_pixels)
 
         def _da(data):
@@ -323,12 +323,12 @@ class TestPmodelExecution:
             )
 
         return _pmodel(
-            temperature_weekly=_da(np.full((n_weeks, n_pixels), 15.0)),
-            vpd_weekly=_da(np.full((n_weeks, n_pixels), 1000.0)),
-            co2_weekly=_da(np.full((n_weeks, n_pixels), 400.0)),
-            pressure_weekly=_da(np.full((n_weeks, n_pixels), 101325.0)),
-            fapar_weekly=_da(np.full((n_weeks, n_pixels), 0.5)),
-            ppfd_weekly=_da(np.full((n_weeks, n_pixels), 500.0)),
+            temperature=_da(np.full((n_days, n_pixels), 15.0)),
+            vpd=_da(np.full((n_days, n_pixels), 1000.0)),
+            co2=_da(np.full((n_days, n_pixels), 400.0)),
+            pressure=_da(np.full((n_days, n_pixels), 101325.0)),
+            fapar=_da(np.full((n_days, n_pixels), 0.5)),
+            ppfd=_da(np.full((n_days, n_pixels), 500.0)),
             extra_inputs={},
             method_optchi="prentice14",
             method_jmaxlim="wang17",
@@ -340,18 +340,18 @@ class TestPmodelExecution:
         assert isinstance(pmodel_result, dict)
 
     def test_output_keys(self, pmodel_result):
-        assert "gpp_flux_weekly" in pmodel_result
-        assert "lue_photon_weekly" in pmodel_result
-        assert "iwue_weekly" in pmodel_result
+        assert "gpp_flux" in pmodel_result
+        assert "lue_photon" in pmodel_result
+        assert "iwue" in pmodel_result
 
     def test_gpp_is_dataarray(self, pmodel_result):
-        assert isinstance(pmodel_result["gpp_flux_weekly"], xr.DataArray)
+        assert isinstance(pmodel_result["gpp_flux"], xr.DataArray)
 
     def test_gpp_non_negative(self, pmodel_result):
-        assert np.all(pmodel_result["gpp_flux_weekly"].values >= 0)
+        assert np.all(pmodel_result["gpp_flux"].values >= 0)
 
     def test_output_shape(self, pmodel_result):
-        gpp = pmodel_result["gpp_flux_weekly"]
+        gpp = pmodel_result["gpp_flux"]
         assert gpp.sizes["time"] == 52
         assert gpp.sizes["pixel"] == 1
 
@@ -424,18 +424,16 @@ class TestPmodelDriverExecution:
     def test_driver_executes_gpp(self):
         from catena import build_driver
 
-        # 364 days = exactly 52 weeks: ensures the daily→weekly resample produces
-        # 52 time steps matching the provided weekly arrays.
-        n_weeks = 52
+        n_days = 52
         n_pixels = 1
-        time_weekly = pd.date_range("2020-01-01", periods=n_weeks, freq="7D")
+        time = pd.date_range("2020-01-01", periods=n_days, freq="D")
         pixel = np.arange(n_pixels)
 
-        def _wda(v):
+        def _dda(v):
             return xr.DataArray(
-                np.full((n_weeks, n_pixels), v),
+                np.full((n_days, n_pixels), v),
                 dims=["time", "pixel"],
-                coords={"time": time_weekly, "pixel": pixel},
+                coords={"time": time, "pixel": pixel},
             )
 
         dr = build_driver(
@@ -448,17 +446,17 @@ class TestPmodelDriverExecution:
             },
         )
         result = dr.execute(
-            ["gpp_flux_weekly", "lue_photon_weekly", "iwue_weekly"],
+            ["gpp_flux", "lue_photon", "iwue"],
             inputs={
-                "temperature_weekly": _wda(15.0),
-                "vpd_weekly": _wda(1000.0),
-                "co2_weekly": _wda(400.0),
-                "pressure_weekly": _wda(101325.0),
-                "fapar_weekly": _wda(0.5),
-                "ppfd_weekly": _wda(500.0),
+                "temperature": _dda(15.0),
+                "vpd": _dda(1000.0),
+                "co2": _dda(400.0),
+                "pressure": _dda(101325.0),
+                "fapar": _dda(0.5),
+                "ppfd": _dda(500.0),
             },
         )
-        gpp = result["gpp_flux_weekly"]
+        gpp = result["gpp_flux"]
         assert isinstance(gpp, xr.DataArray)
         assert np.all(gpp.values >= 0)
 

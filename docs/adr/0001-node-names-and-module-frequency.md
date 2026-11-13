@@ -1,6 +1,6 @@
 # 1. Node names and module frequency
 
-Status: accepted, November 2026; amended the same month to return off-frequency nodes to their models (see the end).
+Status: accepted, November 2026; amended the same month to return off-frequency nodes to their models, and to run the P-model daily (see the end).
 
 ## Context
 
@@ -14,9 +14,9 @@ Modules from other packages with bare daily names, such as xharvest's, did not m
 - Daily is the finest resolution viresco models, and daily nodes have bare names: `temperature`.
   Weekly and monthly nodes keep `_weekly` and `_monthly`, and static nodes stay bare.
 - A bare name therefore means daily or static, so anything that needs a node's frequency reads its declared `Freq`, never its name.
-- Each model module runs at one frequency: SPLASH daily, the P-model and SGAM weekly, RothC monthly.
+- Each model module runs at one frequency: SPLASH and the P-model daily, SGAM weekly, RothC monthly.
   A node at another frequency stays in its model's module only if that model alone uses it, and only by name in the allow-list in `tests/test_module_frequency.py`, which enforces the rule.
-  Today those are the P-model's `mean_growth_temperature` and SGAM's `disturbances`.
+  Today that is SGAM's `disturbances`.
 - A node that belongs to no single model, such as a pedotransfer function or a derived variable, goes in the `viresco.nodes` subpackage, beside `viresco.models`, in a module named for what it does.
   We expect this collection of stand-alone nodes to grow alongside the process models.
 
@@ -45,6 +45,7 @@ We tested a prototype against viresco and rejected it:
   That would recreate the hard-coded suffixes the mechanism was meant to remove.
 
 Its one real gain, running the same module at different resolutions, is something no viresco model needs: SPLASH needs consecutive days, RothC is monthly by design, and SGAM is written weekly.
+The P-model could run at any resolution, but one is enough (see the second amendment).
 If a model ever does need it, revisit this decision, and derive a module's produced nodes from the built Hamilton graph.
 
 ## Amendment: off-frequency nodes return to their models
@@ -54,3 +55,24 @@ Both nodes moved there were used by one model only: `mean_growth_temperature` is
 So every P-model or SGAM pipeline that used them needed an extra section for no reuse, a model's settings were split across two sections, and `shared` had to import P-model internals to know when its node was needed.
 A module named for "doesn't fit" would also have collected unrelated nodes as it grew.
 The rule now allows a model's own off-frequency nodes by name, and a module outside the models is kept for nodes that really belong to none.
+
+## Amendment: the P-model runs daily
+
+As first accepted, the P-model ran weekly, alongside SGAM, which consumes its outputs.
+pyrealm's standard `PModel` has no timestep: it computes each cell from that cell's drivers alone, on the assumption that the plants have acclimated to them, and its rates are per second.
+So the resolution is the pipeline's choice, not the model's, and daily is the resolution viresco takes as its default.
+Daily also keeps the day-to-day variation in light, temperature and VPD that weekly means smooth away.
+
+We considered three copies of the P-model node, one per resolution, differing only in their parameter names.
+They would triple the signatures, the outputs TypedDict and the documentation, and break the one-frequency rule above, for a choice no pipeline needs to make: a weekly or monthly consumer can take means of the daily outputs.
+
+- The P-model module is daily, and its parameters and outputs are bare: `temperature`, `ppfd`, `gpp_flux`.
+  Units stay pyrealm's (`ug m-2 s-1`, `umol m-2 s-1`), with no "per day" added.
+- `mean_growth_temperature` is now on-frequency and leaves the allow-list.
+- SGAM's weekly GPP, LUE and iWUE are weekly means of the daily outputs, made by `[[resample]]`.
+  The units bridges (`gpp_weekly`, `lue_weekly`) act on the weekly means; each is a constant factor, which commutes with the mean.
+  The config generator coarsens a bridge's source first where the source is produced finer than the bridge's target is wanted.
+- Because the P-model is nonlinear, weekly means of a daily run differ from a run on weekly mean drivers.
+  The daily run is the one that respects the model's acclimation assumption at its own timescale, so results will move against earlier weekly runs.
+- Every P-model driver is now needed daily.
+  fAPAR, CO2, VPD, pressure and PPFD are seldom distributed as daily series in the P-model's units, so `viresco.nodes` holds the conversions that build them from what is.

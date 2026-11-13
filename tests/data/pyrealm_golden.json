@@ -3,17 +3,17 @@
   "_comment": "Regenerate with `just regen-pyrealm-golden`, and only after reviewing why pyrealm's output changed. If a unit convention moved, correct viresco's annotation rather than these numbers.",
   "pmodel": {
     "units": {
-      "gpp_flux_weekly": "ug m-2 s-1",
-      "lue_photon_weekly": "g mol-1",
-      "iwue_weekly": "umol mol-1",
-      "vcmax_weekly": "umol m-2 s-1",
-      "vcmax25_weekly": "umol m-2 s-1",
-      "jmax_weekly": "umol m-2 s-1",
-      "jmax25_weekly": "umol m-2 s-1",
-      "gs_weekly": "umol m-2 s-1"
+      "gpp_flux": "ug m-2 s-1",
+      "lue_photon": "g mol-1",
+      "iwue": "umol mol-1",
+      "vcmax": "umol m-2 s-1",
+      "vcmax25": "umol m-2 s-1",
+      "jmax": "umol m-2 s-1",
+      "jmax25": "umol m-2 s-1",
+      "gs": "umol m-2 s-1"
     },
     "outputs": {
-      "gpp_flux_weekly": {
+      "gpp_flux": {
         "mean": [
           39.33333801236817,
           94.72034161963697,
@@ -35,7 +35,7 @@
           176.42031336416358
         ]
       },
-      "lue_photon_weekly": {
+      "lue_photon": {
         "mean": [
           0.36844475877556176,
           0.3781793530110316,
@@ -57,7 +57,7 @@
           0.38734465421218467
         ]
       },
-      "iwue_weekly": {
+      "iwue": {
         "mean": [
           99.63419999784408,
           92.95998737221832,
@@ -79,7 +79,7 @@
           105.97326662226814
         ]
       },
-      "vcmax_weekly": {
+      "vcmax": {
         "mean": [
           7.056226278691838,
           20.822383101554838,
@@ -101,7 +101,7 @@
           68.86317011691135
         ]
       },
-      "vcmax25_weekly": {
+      "vcmax25": {
         "mean": [
           25.813989271137725,
           49.28975000817173,
@@ -123,7 +123,7 @@
           89.2061903171337
         ]
       },
-      "jmax_weekly": {
+      "jmax": {
         "mean": [
           20.825209430705783,
           52.00214413793128,
@@ -145,7 +145,7 @@
           105.27399407614001
         ]
       },
-      "jmax25_weekly": {
+      "jmax25": {
         "mean": [
           51.006294966217006,
           96.27591908153448,
@@ -167,7 +167,7 @@
           175.89292730334958
         ]
       },
-      "gs_weekly": {
+      "gs": {
         "mean": [
           0.21470804242113187,
           0.5510624542230477,

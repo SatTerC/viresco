@@ -98,10 +98,9 @@ class TestGeneratedConfigShape:
     def test_observed_gpp_is_loaded_apart_from_the_modelled_one(self, quickstart):
         """Disturbance detection wants observed daily GPP, `gpp_obs`.
 
-        pmodel's GPP is weekly and modelled. Resampling only coarsens, so it
-        could not supply a daily consumer anyway, and the distinct name keeps
-        `gpp_obs` and `gpp_weekly` from reading as one variable at two
-        frequencies.
+        pmodel's GPP is modelled, and under pyrealm's name, `gpp_flux`. The
+        distinct name keeps `gpp_obs` and `gpp_weekly` from reading as one
+        variable at two frequencies.
         """
         config = tomllib.loads((quickstart / "config.toml").read_text())
         assert {"gpp_obs", "lai_obs"} <= set(config["inputs"]["daily"]["vars"])
@@ -146,9 +145,19 @@ class TestGeneratedConfigShape:
                 assert f"{var}_{entry['to']}" not in node_names
 
     def test_model_outputs_are_resampled_for_coarser_consumers(self, quickstart):
-        """sgam produces daily `disturbances` and consumes `disturbances_weekly`."""
-        config = (quickstart / "config.toml").read_text()
-        assert '"disturbances",' in config
+        """Daily model outputs reach weekly SGAM by a daily-to-weekly resample.
+
+        sgam produces daily `disturbances` and consumes `disturbances_weekly`, and
+        the daily P-model's outputs feed SGAM's weekly drivers.
+        """
+        config = tomllib.loads((quickstart / "config.toml").read_text())
+        weekly = {
+            var
+            for entry in config["resample"]
+            if entry["from"] == "" and entry["to"] == "weekly"
+            for var in entry["vars"]
+        }
+        assert {"disturbances", "gpp_flux", "lue_photon", "iwue"} <= weekly
 
     def test_rates_are_accumulated_not_averaged(self, quickstart):
         """`mm d-1` onto RothC's `mm` is a total: a summing node, not a resample.

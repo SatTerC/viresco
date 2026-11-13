@@ -24,12 +24,25 @@ Catena imports the module named by a config section, so nothing here is normally
 | Module | Model |
 | --- | --- |
 | [`viresco.models.splash`](modules/viresco.models/splash.md) | [SPLASH](../models/splash.md): daily water balance, evapotranspiration and runoff. |
-| [`viresco.models.pmodel`](modules/viresco.models/pmodel.md) | [The P-model](../models/pmodel.md): weekly photosynthesis, GPP and light-use efficiency. |
+| [`viresco.models.pmodel`](modules/viresco.models/pmodel.md) | [The P-model](../models/pmodel.md): daily photosynthesis, GPP and light-use efficiency. |
 | [`viresco.models.sgam`](modules/viresco.models/sgam.md) | [SGAM](../models/sgam.md): weekly vegetation carbon pools and allocation. |
 | [`viresco.models.rothc`](modules/viresco.models/rothc.md) | [RothC](../models/rothc.md): monthly soil carbon turnover. |
 
 The [Models](../models/index.md) section covers the theory and the inputs and outputs of each.
 These pages are the signatures.
+
+## Nodes
+
+Stand-alone nodes that belong to no single model, each module a catena module of its own.
+
+| Module | Produces |
+| --- | --- |
+| [`viresco.nodes.humidity`](modules/viresco.nodes/humidity.md) | `vpd`, from dewpoint, specific humidity or relative humidity. |
+| [`viresco.nodes.radiation`](modules/viresco.nodes/radiation.md) | `ppfd`, from shortwave radiation or SPLASH. |
+| [`viresco.nodes.pressure`](modules/viresco.nodes/pressure.md) | `pressure`, from elevation. |
+| [`viresco.nodes.interpolate`](modules/viresco.nodes/interpolate.md) | Daily `fapar` and `co2`, from coarser series. |
+
+The [Input nodes](../nodes/index.md) page shows how a config uses them.
 
 ## Scaffolding
 

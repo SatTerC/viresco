@@ -144,14 +144,14 @@ def declared_pmodel_inputs() -> dict[str, str]:
 
 # Each entry maps a viresco node argument to the pyrealm variable it becomes.
 PMODEL_INPUT_UNITS = [
-    ("temperature_weekly", "tc"),
-    ("vpd_weekly", "vpd"),
-    ("co2_weekly", "co2"),
-    ("pressure_weekly", "patm"),
-    ("fapar_weekly", "fapar"),
-    ("ppfd_weekly", "ppfd"),
-    ("volumetric_water_content_weekly", "theta"),
-    ("rootzonestress_weekly", "rootzonestress"),
+    ("temperature", "tc"),
+    ("vpd", "vpd"),
+    ("co2", "co2"),
+    ("pressure", "patm"),
+    ("fapar", "fapar"),
+    ("ppfd", "ppfd"),
+    ("volumetric_water_content", "theta"),
+    ("rootzonestress", "rootzonestress"),
     ("aridity_index", "aridity_index"),
 ]
 

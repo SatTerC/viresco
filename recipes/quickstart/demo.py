@@ -374,7 +374,7 @@ def _(config_path, tomllib):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Suppose you want weekly soil moisture as well, for instance to feed the P-model, which Viresco runs at a weekly step.
+    Suppose you want weekly soil moisture as well, for instance to feed SGAM, which Viresco runs at a weekly step.
     catena's `[[resample]]` section aggregates a variable to a coarser step, so two additions give one:
     a `[[resample]]` that turns `soil_moisture` into a weekly mean, `soil_moisture_weekly`
     (its `from` and `to` are the suffixes to read and write, and daily names have none),

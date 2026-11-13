@@ -45,11 +45,14 @@ n_years_spinup = 1
 
 [inputs.daily]
 path = "{synthetic_data_dir / "daily.nc"}"
-vars = ["precipitation", "sunshine_fraction", "temperature", "lai_obs", "gpp_obs"]
+vars = [
+  "precipitation", "sunshine_fraction", "temperature", "lai_obs", "gpp_obs",
+  "co2", "fapar", "ppfd", "pressure", "vpd",
+]
 
 [inputs.weekly]
 path = "{synthetic_data_dir / "weekly.nc"}"
-vars = ["co2", "fapar", "ppfd", "pressure", "vpd"]
+vars = ["dummy_variable"]
 
 [inputs.monthly]
 path = "{synthetic_data_dir / "monthly.nc"}"
@@ -152,9 +155,7 @@ class TestGraphCommand:
         # Declared units appear in node labels in place of the "DataArray" type.
         assert "t ha-1" in text  # e.g. rothc soil carbon pools
         gpp_line = next(
-            line
-            for line in text.splitlines()
-            if line.strip().startswith("gpp_flux_weekly ")
+            line for line in text.splitlines() if line.strip().startswith("gpp_flux ")
         )
         assert "<i>ug m-2 s-1</i>" in gpp_line
         assert "DataArray" not in gpp_line

@@ -27,11 +27,6 @@ vars = [
   "temperature",
   "lai_obs",
   "gpp_obs",
-]
-
-[inputs.weekly]
-path = "data/weekly.nc"
-vars = [
   "co2",
   "fapar",
   "ppfd",
@@ -54,11 +49,16 @@ vars = [
   "stem_pool_init",
 ]
 
+# SGAM's weekly drivers, as means of the daily SPLASH and P-model values.
 [[resample]]
 vars = [
   "temperature",
   "precipitation",
-  "soil_moisture",
+  "volumetric_water_content",
+  "vpd",
+  "gpp_flux",
+  "lue_photon",
+  "iwue",
 ]
 from = ""
 to = "weekly"

@@ -28,6 +28,9 @@ nav = [
       "models/sgam.md",
       "models/rothc.md",
   ]},
+  { "Nodes" = [
+      "nodes/index.md",
+  ]},
   { "Recipes" = [
       "recipes/my_first_pipeline.md",
       "recipes/soil_moisture.md",
@@ -41,6 +44,10 @@ nav = [
           "reference/modules/viresco.models/pmodel.md",
           "reference/modules/viresco.models/sgam.md",
           "reference/modules/viresco.models/rothc.md",
+          "reference/modules/viresco.nodes/humidity.md",
+          "reference/modules/viresco.nodes/radiation.md",
+          "reference/modules/viresco.nodes/pressure.md",
+          "reference/modules/viresco.nodes/interpolate.md",
           "reference/modules/viresco.scaffold/config_gen.md",
           "reference/modules/viresco.scaffold/bridges.md",
           "reference/modules/viresco.scaffold/data_gen/generate.md",

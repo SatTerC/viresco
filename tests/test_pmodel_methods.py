@@ -46,25 +46,25 @@ CASES = [
 ]
 
 CORE_INPUTS = {
-    "temperature_weekly",
-    "vpd_weekly",
-    "co2_weekly",
-    "pressure_weekly",
-    "fapar_weekly",
-    "ppfd_weekly",
+    "temperature",
+    "vpd",
+    "co2",
+    "pressure",
+    "fapar",
+    "ppfd",
 }
 
-N_WEEKS = 8
+N_DAYS = 8
 N_PIXELS = 2
-WEEKLY_DATES = pd.date_range("2020-01-01", periods=N_WEEKS, freq="7D")
+DATES = pd.date_range("2020-01-01", periods=N_DAYS, freq="D")
 PIXELS = np.arange(N_PIXELS)
 
 
-def _weekly(value: float) -> xr.DataArray:
+def _daily(value: float) -> xr.DataArray:
     return xr.DataArray(
-        np.full((N_WEEKS, N_PIXELS), value),
+        np.full((N_DAYS, N_PIXELS), value),
         dims=["time", "pixel"],
-        coords={"time": WEEKLY_DATES, "pixel": PIXELS},
+        coords={"time": DATES, "pixel": PIXELS},
     )
 
 
@@ -76,24 +76,16 @@ def _static(value: float) -> xr.DataArray:
 
 #: A plausible value for every input any configuration can ask for.
 INPUTS = {
-    "temperature_weekly": _weekly(15.0),
-    "vpd_weekly": _weekly(1000.0),
-    "co2_weekly": _weekly(400.0),
-    "pressure_weekly": _weekly(101325.0),
-    "fapar_weekly": _weekly(0.5),
-    "ppfd_weekly": _weekly(500.0),
-    "volumetric_water_content_weekly": _weekly(0.3),
-    "rootzonestress_weekly": _weekly(0.7),
+    # Also feeds the `mean_growth_temperature` node.
+    "temperature": _daily(15.0),
+    "vpd": _daily(1000.0),
+    "co2": _daily(400.0),
+    "pressure": _daily(101325.0),
+    "fapar": _daily(0.5),
+    "ppfd": _daily(500.0),
+    "volumetric_water_content": _daily(0.3),
+    "rootzonestress": _daily(0.7),
     "aridity_index": _static(1.0),
-    # Feeds the `mean_growth_temperature` node.
-    "temperature": xr.DataArray(
-        np.full((N_WEEKS * 7, N_PIXELS), 15.0),
-        dims=["time", "pixel"],
-        coords={
-            "time": pd.date_range("2020-01-01", periods=N_WEEKS * 7, freq="D"),
-            "pixel": PIXELS,
-        },
-    ),
 }
 
 
@@ -105,7 +97,7 @@ def _required_inputs(dr) -> set[str]:
     """
     return {
         v.name
-        for v in dr.what_is_upstream_of("gpp_flux_weekly")
+        for v in dr.what_is_upstream_of("gpp_flux")
         if v.is_external_input and _unwrap_annotated(v.type) is xr.DataArray
     }
 
@@ -127,11 +119,11 @@ def test_axis_node_passes_what_pyrealm_requires(key, method):
     dr = build_driver([MODULE], {key: method})
     inputs = {name: INPUTS[name] for name in _required_inputs(dr)}
     result = dr.execute(  # type: ignore[reportArgumentType]
-        [node, "gpp_flux_weekly"], inputs=inputs
+        [node, "gpp_flux"], inputs=inputs
     )
 
     assert set(result[node]) == set(_requires(key, method))
-    assert np.isfinite(result["gpp_flux_weekly"].values).all()
+    assert np.isfinite(result["gpp_flux"].values).all()
 
 
 @pytest.mark.parametrize(("key", "method"), CASES)
@@ -140,7 +132,10 @@ def test_only_required_inputs_are_asked_for(key, method):
     dr = build_driver([MODULE], {key: method})
     extra = _required_inputs(dr) - CORE_INPUTS
     if _requires(key, method):
-        assert extra
+        # Loaded, or derived from the core drivers, as `mean_growth_temperature`
+        # is from the daily temperature the P-model already takes.
+        names = {v.name for v in dr.list_available_variables()}
+        assert extra or "mean_growth_temperature" in names
     else:
         assert extra == set()
 
@@ -169,15 +164,14 @@ def test_defaults_need_no_extra_inputs():
     ],
 )
 def test_mean_growth_temperature_exists_only_for_its_consumers(config, derived):
-    """Without a consumer the node, and the daily input behind it, leave the DAG."""
+    """Without a consumer the node leaves the DAG."""
     dr = build_driver([MODULE], config)
     names = {v.name for v in dr.list_available_variables()}
     assert ("mean_growth_temperature" in names) == derived
-    assert ("temperature" in _required_inputs(dr)) == derived
 
 
 def test_arrhenius_method_changes_only_the_standard_temperature_rates():
-    """``method_arrhenius`` reaches `vcmax25_weekly` and `jmax25_weekly`, nothing else."""
+    """``method_arrhenius`` reaches `vcmax25` and `jmax25`, nothing else."""
 
     def run(method):
         dr = build_driver([MODULE], {"method_arrhenius": method})
@@ -187,7 +181,7 @@ def test_arrhenius_method_changes_only_the_standard_temperature_rates():
         )
 
     simple, kattge_knorr = run("simple"), run("kattge_knorr")
-    scaled = {"vcmax25_weekly", "jmax25_weekly"}
+    scaled = {"vcmax25", "jmax25"}
     for name in _OUTPUT_ATTRIBUTES:
         same = np.allclose(simple[name].values, kattge_knorr[name].values)
         assert same == (name not in scaled), name
@@ -201,24 +195,24 @@ def test_reference_kphio_reaches_pyrealm(method_kphio):
     dr = build_driver([MODULE], config)
     inputs = {name: INPUTS[name] for name in _required_inputs(dr)}
     wrapped = dr.execute(  # type: ignore[reportArgumentType]
-        ["gpp_flux_weekly"], inputs=inputs
-    )["gpp_flux_weekly"]
+        ["gpp_flux"], inputs=inputs
+    )["gpp_flux"]
 
     extras: dict[str, Any] = (
         {
-            "aridity_index": np.full((N_WEEKS, N_PIXELS), 1.0),
-            "mean_growth_temperature": np.full((N_WEEKS, N_PIXELS), 15.0),
+            "aridity_index": np.full((N_DAYS, N_PIXELS), 1.0),
+            "mean_growth_temperature": np.full((N_DAYS, N_PIXELS), 15.0),
         }
         if method_kphio == "sandoval"
         else {}
     )
     env = pyrealm.pmodel.PModelEnvironment(
-        tc=INPUTS["temperature_weekly"].values,
-        vpd=INPUTS["vpd_weekly"].values,
-        co2=INPUTS["co2_weekly"].values,
-        patm=INPUTS["pressure_weekly"].values,
-        fapar=INPUTS["fapar_weekly"].values,
-        ppfd=INPUTS["ppfd_weekly"].values,
+        tc=INPUTS["temperature"].values,
+        vpd=INPUTS["vpd"].values,
+        co2=INPUTS["co2"].values,
+        patm=INPUTS["pressure"].values,
+        fapar=INPUTS["fapar"].values,
+        ppfd=INPUTS["ppfd"].values,
         **extras,
     )
     direct = pyrealm.pmodel.PModel(
@@ -273,6 +267,6 @@ def test_jmax_limitation_needs_no_extra_inputs(method):
 
     inputs = {name: INPUTS[name] for name in CORE_INPUTS}
     result = dr.execute(  # type: ignore[reportArgumentType]
-        ["gpp_flux_weekly"], inputs=inputs
+        ["gpp_flux"], inputs=inputs
     )
-    assert np.isfinite(result["gpp_flux_weekly"].values).all()
+    assert np.isfinite(result["gpp_flux"].values).all()

@@ -28,42 +28,42 @@ from pyrealm.pmodel.quantum_yield import QUANTUM_YIELD_CLASS_REGISTRY
 from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
-from ..temporal import DAILY, WEEKLY
+from ..temporal import DAILY
 
 
 class PModelOut(TypedDict):
-    """Outputs of the `pmodel` node, at weekly resolution."""
+    """Outputs of the `pmodel` node, at daily resolution."""
 
-    gpp_flux_weekly: Annotated[DataArray, Unit("ug m-2 s-1"), WEEKLY]
-    """Carbon fixed by photosynthesis, as the instantaneous flux pyrealm reports
-    (micrograms of carbon per square metre per second).
+    gpp_flux: Annotated[DataArray, Unit("ug m-2 s-1"), DAILY]
+    """Carbon fixed by photosynthesis, as the flux pyrealm reports (micrograms of
+    carbon per square metre per second), averaged over the day as the drivers are.
 
-    Not a daily rate. A consumer wanting ``g m-2 d-1`` multiplies by 0.0864
+    Not a daily total. A consumer wanting ``g m-2 d-1`` multiplies by 0.0864
     (86400 s d-1 x 1e-6 g ug-1). The example config does that in its
-    ``gpp_weekly`` node."""
-    lue_photon_weekly: Annotated[DataArray, Unit("g mol-1"), WEEKLY]
+    ``gpp_weekly`` node, after a weekly mean."""
+    lue_photon: Annotated[DataArray, Unit("g mol-1"), DAILY]
     """Light use efficiency, as carbon fixed per *mole of absorbed photons*
     (grams of carbon per mole).
 
     pyrealm defines LUE against PPFD, a photon flux, so the denominator counts
     photons rather than energy. SGAM wants ``g MJ-1`` instead, and the two differ
     by the energy content of PAR, roughly 4.57 mol MJ-1."""
-    iwue_weekly: Annotated[DataArray, Unit("umol mol-1"), WEEKLY]
+    iwue: Annotated[DataArray, Unit("umol mol-1"), DAILY]
     """Intrinsic water use efficiency (micromoles of CO2 per mole of air).
 
     pyrealm computes ``(5/8)(ca - ci) / P`` with the partial pressures in Pa and
     ``P`` in megapascals, so this is a mixing ratio rather than a pressure."""
-    vcmax_weekly: Annotated[DataArray, Unit("umol m-2 s-1"), WEEKLY]
+    vcmax: Annotated[DataArray, Unit("umol m-2 s-1"), DAILY]
     """Maximum rate of carboxylation at the growth temperature."""
-    vcmax25_weekly: Annotated[DataArray, Unit("umol m-2 s-1"), WEEKLY]
+    vcmax25: Annotated[DataArray, Unit("umol m-2 s-1"), DAILY]
     """Maximum rate of carboxylation at 25 degC, scaled from Vcmax by
     ``method_arrhenius``."""
-    jmax_weekly: Annotated[DataArray, Unit("umol m-2 s-1"), WEEKLY]
+    jmax: Annotated[DataArray, Unit("umol m-2 s-1"), DAILY]
     """Maximum rate of electron transport at the growth temperature."""
-    jmax25_weekly: Annotated[DataArray, Unit("umol m-2 s-1"), WEEKLY]
+    jmax25: Annotated[DataArray, Unit("umol m-2 s-1"), DAILY]
     """Maximum rate of electron transport at 25 degC, scaled from Jmax by
     ``method_arrhenius``."""
-    gs_weekly: Annotated[DataArray, Unit("umol m-2 s-1"), WEEKLY]
+    gs: Annotated[DataArray, Unit("umol m-2 s-1"), DAILY]
     """Stomatal conductance, NaN where VPD is 0 or ``ca - ci`` is not positive.
 
     The units are the ones pyrealm declares. pyrealm computes this as
@@ -73,24 +73,24 @@ class PModelOut(TypedDict):
 
 #: `PModelOut` field -> the `pyrealm.pmodel.PModel` attribute holding it.
 _OUTPUT_ATTRIBUTES = {
-    "gpp_flux_weekly": "gpp",
-    "lue_photon_weekly": "lue",
-    "iwue_weekly": "iwue",
-    "vcmax_weekly": "vcmax",
-    "vcmax25_weekly": "vcmax25",
-    "jmax_weekly": "jmax",
-    "jmax25_weekly": "jmax25",
-    "gs_weekly": "gs",
+    "gpp_flux": "gpp",
+    "lue_photon": "lue",
+    "iwue": "iwue",
+    "vcmax": "vcmax",
+    "vcmax25": "vcmax25",
+    "jmax": "jmax",
+    "jmax25": "jmax25",
+    "gs": "gs",
 }
 
 
 def _pmodel_block(
-    temperature_weekly: NDArray,
-    vpd_weekly: NDArray,
-    co2_weekly: NDArray,
-    pressure_weekly: NDArray,
-    fapar_weekly: NDArray,
-    ppfd_weekly: NDArray,
+    temperature: NDArray,
+    vpd: NDArray,
+    co2: NDArray,
+    pressure: NDArray,
+    fapar: NDArray,
+    ppfd: NDArray,
     *extra_values: NDArray,
     extra_names: tuple[str, ...],
     method_optchi: str,
@@ -115,12 +115,12 @@ def _pmodel_block(
     extras: dict[str, Any] = dict(zip(extra_names, extra_values, strict=True))
     # Environmental drivers computed upon instantiation of PModelEnvironment
     env = pyrealm.pmodel.PModelEnvironment(
-        tc=temperature_weekly,
-        vpd=vpd_weekly,
-        co2=co2_weekly,
-        patm=pressure_weekly,
-        fapar=fapar_weekly,
-        ppfd=ppfd_weekly,
+        tc=temperature,
+        vpd=vpd,
+        co2=co2,
+        patm=pressure,
+        fapar=fapar,
+        ppfd=ppfd,
         **extras,
     )
     # P-model fit performed upon instantiation of Pmodel
@@ -137,12 +137,12 @@ def _pmodel_block(
 
 
 def _pmodel(
-    temperature_weekly: DataArray,
-    vpd_weekly: DataArray,
-    co2_weekly: DataArray,
-    pressure_weekly: DataArray,
-    fapar_weekly: DataArray,
-    ppfd_weekly: DataArray,
+    temperature: DataArray,
+    vpd: DataArray,
+    co2: DataArray,
+    pressure: DataArray,
+    fapar: DataArray,
+    ppfd: DataArray,
     extra_inputs: dict[str, DataArray],
     method_optchi: str,
     method_jmaxlim: str,
@@ -169,18 +169,18 @@ def _pmodel(
     # here. Broadcasting an input that already has a time axis is a no-op.
     extra_names = tuple(extra_inputs)
     extra_values = [
-        extra_inputs[name].broadcast_like(temperature_weekly) for name in extra_names
+        extra_inputs[name].broadcast_like(temperature) for name in extra_names
     ]
 
     n_outputs = len(_OUTPUT_ATTRIBUTES)
     outputs = xr.apply_ufunc(
         _pmodel_block,
-        temperature_weekly,
-        vpd_weekly,
-        co2_weekly,
-        pressure_weekly,
-        fapar_weekly,
-        ppfd_weekly,
+        temperature,
+        vpd,
+        co2,
+        pressure,
+        fapar,
+        ppfd,
         *extra_values,
         kwargs={
             "extra_names": extra_names,
@@ -205,12 +205,12 @@ def _pmodel(
 @check_annotations
 @stamp_output_units
 def pmodel(
-    temperature_weekly: Annotated[DataArray, Unit("degC"), WEEKLY],
-    vpd_weekly: Annotated[DataArray, Unit("Pa"), WEEKLY],
-    co2_weekly: Annotated[DataArray, Unit("ppm"), WEEKLY],
-    pressure_weekly: Annotated[DataArray, Unit("Pa"), WEEKLY],
-    fapar_weekly: Annotated[DataArray, Unit("1"), WEEKLY],
-    ppfd_weekly: Annotated[DataArray, Unit("umol m-2 s-1"), WEEKLY],
+    temperature: Annotated[DataArray, Unit("degC"), DAILY],
+    vpd: Annotated[DataArray, Unit("Pa"), DAILY],
+    co2: Annotated[DataArray, Unit("ppm"), DAILY],
+    pressure: Annotated[DataArray, Unit("Pa"), DAILY],
+    fapar: Annotated[DataArray, Unit("1"), DAILY],
+    ppfd: Annotated[DataArray, Unit("umol m-2 s-1"), DAILY],
     optchi_inputs: dict[str, DataArray],
     kphio_inputs: dict[str, DataArray],
     arrhenius_inputs: dict[str, DataArray],
@@ -232,20 +232,22 @@ def pmodel(
 
     Parameters
     ----------
-    temperature_weekly
+    temperature
         Air temperature (degrees Celsius).
-    vpd_weekly
+    vpd
         Vapour pressure deficit (pascals).
-    co2_weekly
+    co2
         Atmospheric CO2 concentration (parts per million).
-    pressure_weekly
+    pressure
         Atmospheric pressure (pascals).
-    fapar_weekly
+    fapar
         Fraction of absorbed photosynthetically active radiation
         (dimensionless, 0-1).
-    ppfd_weekly
+    ppfd
         Photosynthetic photon flux density (micromoles per square metre per
-        second).
+        second), as the mean rate over the 24-hour day, not a daily total. See
+        `viresco.nodes.radiation` for deriving it from shortwave radiation or
+        from SPLASH.
     optchi_inputs
         Extra inputs for the configured ``method_optchi``.
     kphio_inputs
@@ -269,7 +271,7 @@ def pmodel(
         ``temperature``, ``fixed`` or ``sandoval``. ``sandoval`` needs
         climatological inputs; see `kphio_inputs__sandoval`.
     method_arrhenius
-        Arrhenius temperature scaling of ``vcmax25_weekly`` and ``jmax25_weekly``,
+        Arrhenius temperature scaling of ``vcmax25`` and ``jmax25``,
         the only outputs it affects: ``simple`` or ``kattge_knorr``.
         ``kattge_knorr`` needs the mean growth temperature; see
         `arrhenius_inputs__kattge_knorr`.
@@ -280,30 +282,30 @@ def pmodel(
     Returns
     -------
     PModelOut
-        Dictionary of weekly outputs:
+        Dictionary of daily outputs:
 
-        - gpp_flux_weekly: gross primary productivity (micrograms of carbon per
+        - gpp_flux: gross primary productivity (micrograms of carbon per
           square metre per second)
-        - lue_photon_weekly: light use efficiency (grams of carbon per mole of
+        - lue_photon: light use efficiency (grams of carbon per mole of
           absorbed photons)
-        - iwue_weekly: intrinsic water use efficiency (micromoles per mole)
-        - vcmax_weekly, vcmax25_weekly: maximum carboxylation rate at the growth
+        - iwue: intrinsic water use efficiency (micromoles per mole)
+        - vcmax, vcmax25: maximum carboxylation rate at the growth
           temperature and at 25 degC (micromoles per square metre per second)
-        - jmax_weekly, jmax25_weekly: maximum electron transport rate at the growth
+        - jmax, jmax25: maximum electron transport rate at the growth
           temperature and at 25 degC (micromoles per square metre per second)
-        - gs_weekly: stomatal conductance
+        - gs: stomatal conductance
 
         See `PModelOut` for per-output detail.
     """
     # Two axes can ask for the same input (`mean_growth_temperature`), and then
     # both entries are the same node's value, so the merge loses nothing.
     return _pmodel(
-        temperature_weekly=temperature_weekly,
-        vpd_weekly=vpd_weekly,
-        co2_weekly=co2_weekly,
-        pressure_weekly=pressure_weekly,
-        fapar_weekly=fapar_weekly,
-        ppfd_weekly=ppfd_weekly,
+        temperature=temperature,
+        vpd=vpd,
+        co2=co2,
+        pressure=pressure,
+        fapar=fapar,
+        ppfd=ppfd,
         extra_inputs={**optchi_inputs, **kphio_inputs, **arrhenius_inputs},
         method_optchi=method_optchi,
         method_jmaxlim=method_jmaxlim,
@@ -360,36 +362,36 @@ def optchi_inputs__none() -> dict[str, DataArray]:
 @config.when_in(method_optchi=list(_OPTCHI_THETA))
 @check_annotations
 def optchi_inputs__theta(
-    volumetric_water_content_weekly: Annotated[DataArray, Unit("m3 m-3"), WEEKLY],
+    volumetric_water_content: Annotated[DataArray, Unit("m3 m-3"), DAILY],
 ) -> dict[str, DataArray]:
     """Soil moisture, for ``method_optchi = "lavergne20_c3"`` or ``"lavergne20_c4"``.
 
     Parameters
     ----------
-    volumetric_water_content_weekly
+    volumetric_water_content
         Volumetric soil water content: the fraction of soil volume occupied by
         water (cubic metres of water per cubic metre of soil). This is pyrealm's
         ``theta``, not SPLASH's soil moisture, which is a depth of water in
         millimetres — see the ``volumetric_water_content`` node in the example
         config for the conversion.
     """
-    return {"theta": volumetric_water_content_weekly}
+    return {"theta": volumetric_water_content}
 
 
 @config.when_in(method_optchi=list(_OPTCHI_ROOTZONESTRESS))
 @check_annotations
 def optchi_inputs__rootzonestress(
-    rootzonestress_weekly: Annotated[DataArray, Unit("1"), WEEKLY],
+    rootzonestress: Annotated[DataArray, Unit("1"), DAILY],
 ) -> dict[str, DataArray]:
     """Root zone stress, for the ``*_rootzonestress`` ``method_optchi`` choices.
 
     Parameters
     ----------
-    rootzonestress_weekly
+    rootzonestress
         Root zone stress factor (dimensionless, 0-1), which penalises the
         cost ratio in the optimal chi calculation. Experimental in pyrealm.
     """
-    return {"rootzonestress": rootzonestress_weekly}
+    return {"rootzonestress": rootzonestress}
 
 
 @config.when_not_in(method_kphio=list(_KPHIO_SANDOVAL))
@@ -470,8 +472,7 @@ def mean_growth_temperature(
     ``kattge_knorr`` it reaches only ``vcmax25`` and ``jmax25``.
 
     The node exists only when the configured ``method_kphio`` or
-    ``method_arrhenius`` consumes it. It is the one daily input of this weekly
-    module, allowed by name in ``tests/test_module_frequency.py``.
+    ``method_arrhenius`` consumes it.
 
     Parameters
     ----------
