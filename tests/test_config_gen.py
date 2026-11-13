@@ -253,15 +253,29 @@ class TestGenerateConfigBuiltinModels:
         assert means
         assert all("disturbances" not in entry["vars"] for entry in means)
 
-    def test_combined_models_share_resample_vars(self):
-        config = generate_config(
-            builtin_models=["splash", "pmodel"],
+    def test_variable_shared_across_frequencies_is_loaded_once(self):
+        """A variable wanted at several frequencies is loaded at the finest.
+
+        SGAM's disturbance detection wants daily `temperature`, SGAM weekly and
+        RothC monthly. It is loaded daily only, and coarsened step by step.
+        """
+        data = generate_config(
+            builtin_models=["sgam", "rothc"],
             custom_modules=[],
             paths=PATH_DEFAULTS,
-        )
-        data = config._data
-        # If any variable is needed at two frequencies, resample appears
-        assert "resample" in data or "inputs" in data
+        )._data
+        loaded_at = {
+            label
+            for label, section in data["inputs"].items()
+            if "temperature" in section["vars"]
+        }
+        assert loaded_at == {"daily"}
+        hops = {
+            (entry["from"], entry["to"])
+            for entry in data["resample"]
+            if "temperature" in entry["vars"]
+        }
+        assert hops == {("", "weekly"), ("weekly", "monthly")}
 
 
 class TestInferRequiredData:
