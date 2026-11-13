@@ -29,14 +29,19 @@ dependencies = [
 [project.scripts]
 viresco = "viresco.cli:main"
 
-# Registering the model modules under conduit's entry-point group makes each one
-# addressable by a bare section name, so a config writes `[splash]` with no
-# `_import_path`. The section name and the model name are deliberately the same.
+# Registering the model and node modules under catena's entry-point group makes
+# each one addressable by a bare section name, so a config writes `[splash]` with
+# no `_import_path`. The section name and the module name are deliberately the
+# same.
 [project.entry-points."catena.modules"]
 splash = "viresco.models.splash"
 pmodel = "viresco.models.pmodel"
 sgam = "viresco.models.sgam"
 rothc = "viresco.models.rothc"
+humidity = "viresco.nodes.humidity"
+interpolate = "viresco.nodes.interpolate"
+pressure = "viresco.nodes.pressure"
+radiation = "viresco.nodes.radiation"
 
 [project.urls]
 Homepage = "https://nerc-ceh.github.io/viresco"
