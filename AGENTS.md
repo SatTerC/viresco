@@ -56,6 +56,17 @@ checkout, if present) rather than guessing at its API.
   `tests/test_module_frequency.py`). A node no single model owns goes in
   `viresco.nodes`, one module per purpose. The reasoning is in
   `docs/adr/0001-node-names-and-module-frequency.md`.
+- Module settings share one flat namespace: catena merges every section's keys
+  into a single Hamilton config, and raises if two sections set the same key. A
+  keyword-only default is not a setting until a config sets it, so two nodes may
+  share a setting name, and then one value serves both, as
+  `par_photons_per_mj` does for `radiation.ppfd__shortwave` and the recipes'
+  `lue_weekly` bridge. Set it in one section only.
+- xarray-annotated checks units, it never converts them: an input whose
+  `units` attribute differs from the declared one raises, even where pint could
+  convert (kelvin for degC, `%` for `1`). Convert at the point data
+  enters, with `xarray_annotated.units.convert` or in the fetching notebook, and
+  do not loosen a declaration to accept a second unit.
 - Generic behaviour belongs upstream. If a change would be useful to a pipeline
   that is not about carbon, it probably belongs in catena, not here.
 

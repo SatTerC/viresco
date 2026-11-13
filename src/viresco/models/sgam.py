@@ -411,8 +411,9 @@ def disturbances(
         Daily mean air temperature (degrees Celsius).
     gpp_obs
         Observed daily gross primary productivity (grams of carbon per square
-        metre per day). Named apart from the P-model's modelled GPP, which is
-        weekly, so the two do not read as one variable at two frequencies.
+        metre per day). Named apart from the P-model's modelled GPP,
+        ``gpp_flux``, so observation and model never satisfy each other's
+        inputs by accident.
     lai_obs
         Observed daily leaf area index (dimensionless).
     pft_params
