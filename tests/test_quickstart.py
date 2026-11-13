@@ -147,17 +147,25 @@ class TestGeneratedConfigShape:
     def test_model_outputs_are_resampled_for_coarser_consumers(self, quickstart):
         """Daily model outputs reach weekly SGAM by a daily-to-weekly resample.
 
-        sgam produces daily `disturbances` and consumes `disturbances_weekly`, and
-        the daily P-model's outputs feed SGAM's weekly drivers.
+        The daily P-model's outputs feed SGAM's weekly drivers as weekly means.
+        sgam produces daily `disturbances` and consumes `disturbances_weekly` as
+        the weekly maximum, so it has an entry of its own: in the shared mean
+        entry one short event would be diluted by the quiet days around it.
         """
         config = tomllib.loads((quickstart / "config.toml").read_text())
-        weekly = {
-            var
+        daily_to_weekly = [
+            entry
             for entry in config["resample"]
             if entry["from"] == "" and entry["to"] == "weekly"
-            for var in entry["vars"]
-        }
-        assert {"disturbances", "gpp_flux", "lue_photon", "iwue"} <= weekly
+        ]
+        by_aggfunc: dict[str, set[str]] = {}
+        for entry in daily_to_weekly:
+            by_aggfunc.setdefault(entry.get("aggfunc", "mean"), set()).update(
+                entry["vars"]
+            )
+        assert {"gpp_flux", "lue_photon", "iwue"} <= by_aggfunc["mean"]
+        assert "disturbances" not in by_aggfunc["mean"]
+        assert by_aggfunc["max"] == {"disturbances"}
 
     def test_rates_are_accumulated_not_averaged(self, quickstart):
         """`mm d-1` onto RothC's `mm` is a total: a summing node, not a resample.

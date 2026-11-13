@@ -228,6 +228,31 @@ class TestGenerateConfigBuiltinModels:
             assert "from" in entry
             assert "to" in entry
 
+    def test_disturbances_get_their_own_max_resample(self):
+        """SGAM wants the weekly maximum of `disturbances`, never its mean.
+
+        A mean dilutes one short event by the quiet days around it, and nothing
+        downstream catches it: the units agree and the pipeline runs.
+        """
+        resamples = generate_config(
+            builtin_models=["splash", "pmodel", "sgam", "rothc"],
+            custom_modules=[],
+            paths=PATH_DEFAULTS,
+        )._data["resample"]
+        holding = [entry for entry in resamples if "disturbances" in entry["vars"]]
+        assert holding == [
+            {
+                "vars": ["disturbances"],
+                "from": "",
+                "to": "weekly",
+                "freq": "7D",
+                "aggfunc": "max",
+            }
+        ]
+        means = [entry for entry in resamples if "aggfunc" not in entry]
+        assert means
+        assert all("disturbances" not in entry["vars"] for entry in means)
+
     def test_combined_models_share_resample_vars(self):
         config = generate_config(
             builtin_models=["splash", "pmodel"],
