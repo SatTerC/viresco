@@ -21,6 +21,7 @@ from xarray_annotated import Declared, Freq, declaration_from_hint
 from .. import models as model_modules
 from .. import temporal
 from ..temporal import resample_offset
+from .aggregations import aggfunc_for
 from .bridges import Bridge, bridge_for
 
 
@@ -531,26 +532,30 @@ def generate_config(
         if required_data[f"inputs_{freq}"]
     }
 
+    # One entry per direction and aggregation. Mean is catena's default, so its
+    # entry omits `aggfunc` and comes first; a variable `scaffold.aggregations`
+    # lists gets an entry of its own. A rate wanted as a total is emitted as a
+    # node instead, never as a summing resample: see `_accumulates`.
     resample_list = []
     for k in (
         "resample_daily_to_weekly",
         "resample_daily_to_monthly",
         "resample_weekly_to_monthly",
     ):
-        vars_ = required_data[k]
-        if vars_:
-            direction = k.removeprefix("resample_")
-            from_freq, to_freq = direction.split("_to_")
+        direction = k.removeprefix("resample_")
+        from_freq, to_freq = direction.split("_to_")
+        by_aggfunc: dict[str, list[str]] = {}
+        for var in required_data[k]:
+            by_aggfunc.setdefault(aggfunc_for(var), []).append(var)
+        for aggfunc in sorted(by_aggfunc, key=lambda a: (a != "mean", a)):
             resample_list.append(
                 {
-                    "vars": vars_,
+                    "vars": by_aggfunc[aggfunc],
                     # `from` is a node-name suffix, and daily nodes have none.
                     "from": "" if from_freq in _BARE_LABELS else from_freq,
                     "to": to_freq,
                     "freq": resample_offset(from_freq, to_freq),
-                    # aggfunc omitted → defaults to "mean" at parse time. A
-                    # variable needing "sum" is a rate wanted as a total, and is
-                    # emitted as a node instead — see `_accumulates`.
+                    **({} if aggfunc == "mean" else {"aggfunc": aggfunc}),
                 }
             )
 

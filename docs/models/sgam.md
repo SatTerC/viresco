@@ -209,7 +209,7 @@ Two of those inputs are produced by this module rather than loaded: `pft_params`
       heading_level: 4
       docstring_section_style: spacy
 
-`disturbances_weekly` is the daily severity aggregated to a weekly maximum, which the generated config does with a `[[resample]]` entry.
+`disturbances_weekly` is the daily severity aggregated to a weekly maximum, which the generated config does with a `[[resample]]` entry of its own, `aggfunc = "max"`, as listed in [`scaffold.aggregations`](../reference/modules/viresco.scaffold/aggregations.md).
 
 ### Outputs
 

@@ -61,6 +61,7 @@ The [Input nodes](../nodes/index.md) page shows how a config uses them.
 | --- | --- |
 | [`viresco.scaffold.config_gen`](modules/viresco.scaffold/config_gen.md) | Reading a model's signatures to work out what it needs, and writing the TOML that supplies it. |
 | [`viresco.scaffold.bridges`](modules/viresco.scaffold/bridges.md) | Producer/consumer pairs whose units disagree, and the factor between them. |
+| [`viresco.scaffold.aggregations`](modules/viresco.scaffold/aggregations.md) | Variables coarsened by something other than a mean, and the aggregation they get instead. |
 | [`viresco.scaffold.data_gen.generate`](modules/viresco.scaffold/data_gen/generate.md) | Config in, input files out. |
 | [`viresco.scaffold.data_gen.spec`](modules/viresco.scaffold/data_gen/spec.md) | What a variable's generator is handed: the grid, the calendar, and the values already computed. |
 | [`viresco.scaffold.data_gen.daily`](modules/viresco.scaffold/data_gen/daily.md) | The daily variables with a hand-written generator. |

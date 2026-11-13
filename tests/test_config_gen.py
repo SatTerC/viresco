@@ -228,15 +228,54 @@ class TestGenerateConfigBuiltinModels:
             assert "from" in entry
             assert "to" in entry
 
-    def test_combined_models_share_resample_vars(self):
-        config = generate_config(
-            builtin_models=["splash", "pmodel"],
+    def test_disturbances_get_their_own_max_resample(self):
+        """SGAM wants the weekly maximum of `disturbances`, never its mean.
+
+        A mean dilutes one short event by the quiet days around it, and nothing
+        downstream catches it: the units agree and the pipeline runs.
+        """
+        resamples = generate_config(
+            builtin_models=["splash", "pmodel", "sgam", "rothc"],
             custom_modules=[],
             paths=PATH_DEFAULTS,
-        )
-        data = config._data
-        # If any variable is needed at two frequencies, resample appears
-        assert "resample" in data or "inputs" in data
+        )._data["resample"]
+        holding = [entry for entry in resamples if "disturbances" in entry["vars"]]
+        assert holding == [
+            {
+                "vars": ["disturbances"],
+                "from": "",
+                "to": "weekly",
+                "freq": "7D",
+                "aggfunc": "max",
+            }
+        ]
+        means = [entry for entry in resamples if "aggfunc" not in entry]
+        assert means
+        assert all("disturbances" not in entry["vars"] for entry in means)
+
+    def test_variable_shared_across_frequencies_is_loaded_once(self):
+        """A variable wanted at several frequencies is loaded at the finest.
+
+        SGAM's disturbance detection wants daily `temperature`, SGAM weekly and
+        RothC monthly. It is loaded daily only, and coarsened step by step.
+        """
+        data = generate_config(
+            builtin_models=["sgam", "rothc"],
+            custom_modules=[],
+            paths=PATH_DEFAULTS,
+        )._data
+        loaded_at = {
+            label
+            for label, section in data["inputs"].items()
+            if "temperature" in section["vars"]
+        }
+        assert loaded_at == {"daily"}
+        hops = {
+            (entry["from"], entry["to"])
+            for entry in data["resample"]
+            if "temperature" in entry["vars"]
+        }
+        assert hops == {("", "weekly"), ("weekly", "monthly")}
 
 
 class TestInferRequiredData:

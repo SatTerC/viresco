@@ -50,6 +50,7 @@ nav = [
           "reference/modules/viresco.nodes/interpolate.md",
           "reference/modules/viresco.scaffold/config_gen.md",
           "reference/modules/viresco.scaffold/bridges.md",
+          "reference/modules/viresco.scaffold/aggregations.md",
           "reference/modules/viresco.scaffold/data_gen/generate.md",
           "reference/modules/viresco.scaffold/data_gen/spec.md",
           "reference/modules/viresco.scaffold/data_gen/daily.md",

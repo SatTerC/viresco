@@ -402,7 +402,8 @@ def disturbances(
     (0.2) in between.
 
     SGAM consumes this as a weekly maximum, which a config makes with a
-    ``[[resample]]`` entry using ``aggfunc = "max"``. It is the one daily node
+    ``[[resample]]`` entry using ``aggfunc = "max"``; ``viresco setup`` reads
+    that from `viresco.scaffold.aggregations`. It is the one daily node
     of this weekly module, allowed by name in ``tests/test_module_frequency.py``.
 
     Parameters
