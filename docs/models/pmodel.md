@@ -128,6 +128,9 @@ Which inputs a run needs depends on the configured methods.
 The defaults need only the drivers under *Always required*.
 Each table after that applies only when its method is configured, and a run without that method never asks for those inputs.
 
+Every time-varying driver is daily.
+Few datasets distribute them daily in these units: the [input nodes](../nodes/index.md) derive VPD from humidity, PPFD from shortwave radiation or SPLASH, pressure from elevation, and daily fAPAR and CO₂ from composites and monthly records.
+
 #### Always required
 
 Every run needs these, whatever the methods.
