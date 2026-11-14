@@ -168,15 +168,21 @@ class TestGeneratedConfigShape:
         assert by_aggfunc["max"] == {"disturbances"}
 
     def test_rates_are_accumulated_not_averaged(self, quickstart):
-        """`mm d-1` onto RothC's `mm` is a total: a summing node, not a resample.
+        """`mm d-1` onto RothC's `mm` is a total: a summing, relabelling resample.
 
-        A `[[resample]]` preserves units, so coarsening this one as a mean would
-        hand RothC a rate labelled as a total.
+        A `[[resample]]` keeps its input's units label, so a sum alone would hand
+        RothC a total still labelled as a rate.
         """
-        config = (quickstart / "config.toml").read_text()
-        for name in ("precipitation_monthly", "potential_evapotranspiration_monthly"):
-            assert f'name = "{name}"' in config
-            assert f"{name.rsplit('_', 1)[0]}.resample" in config
+        config = tomllib.loads((quickstart / "config.toml").read_text())
+        summed = [
+            entry for entry in config["resample"] if entry.get("aggfunc") == "sum"
+        ]
+        assert len(summed) == 1
+        (entry,) = summed
+        assert set(entry["vars"]) == {"precipitation", "potential_evapotranspiration"}
+        assert entry["to"] == "monthly"
+        assert set(entry["units"].values()) == {"mm"}
+        assert entry["overwrite_units"] is True
 
 
 @pytest.mark.skipif(not shutil.which("dot"), reason="graphviz not installed")

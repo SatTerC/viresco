@@ -7,9 +7,9 @@ another aggregation of the same units. The config generator reads it to give
 each exception its own ``[[resample]]`` entry with that ``aggfunc``, and
 `recipes/config.toml` writes the same entries by hand.
 
-A rate wanted as a per-period total is not listed here: its units change, so the
-generator emits a summing ``[[node]]`` for it instead, decided from the declared
-units alone.
+A rate wanted as a per-period total is not listed here: the generator decides it
+from the declared units alone, and emits a summing ``[[resample]]`` that
+overwrites the rate's label with the consumer's units.
 """
 
 from dataclasses import dataclass

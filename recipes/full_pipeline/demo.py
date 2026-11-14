@@ -61,8 +61,8 @@ def _():
     import catena
     import marimo as mo
     import matplotlib.pyplot as plt
-    from catena.graph import _node_maps as node_maps
-    from catena.graph import relabel_with_units
+    from catena.graph import GraphStyle
+    from catena.graph_style import GraphvizSpec
     from catena.importing import import_user_module
 
     recipe_dir = Path(__file__).parent
@@ -70,15 +70,15 @@ def _():
     nodes_path = recipe_dir / "nodes.py"
     (recipe_dir / "results").mkdir(exist_ok=True)
     return (
+        GraphStyle,
+        GraphvizSpec,
         catena,
         config_path,
         import_user_module,
         mo,
-        node_maps,
         nodes_path,
         plt,
         recipe_dir,
-        relabel_with_units,
     )
 
 
@@ -113,7 +113,7 @@ def _(config_path, mo):
     Everything else in the file exists to connect them:
 
     - `[bridges]` imports `nodes.py`, below, which defines the bridges between the models, and sets their two settings.
-    - `[[resample]]` changes the frequency of a variable, which is how a daily model feeds a weekly one.
+    - `[[resample]]` changes the frequency of a variable, which is how a daily model feeds a weekly one, and declares the units of what it makes.
     - `[inputs.*]` and `[outputs.*]` say what is read from and written to disk.
 
     ```toml
@@ -185,46 +185,44 @@ def _(mo):
     The whole DAG runs to over a hundred nodes, which is far too many to look at.
     `visualize_path_between` draws only the sub-graph connecting two nodes, and each model contributes a node under its own name, so `show_path("pmodel", "sgam")` draws exactly the wiring between those two models.
 
-    Three settings do the tidying:
-
-    - `strict_path_visualization=True` keeps the nodes on the path and drops their unrelated parents.
-    - Hamilton draws every driver-config value as a floating `shape=note` box. They are unconnected to anything, so we filter them out of the rendered source.
-    - The style we pass is *merged* into Hamilton's own defaults rather than replacing them. Hamilton already does this for nested attribute dicts such as `graph_attr`, and `show_path` does the same for its per-call arguments, so changing the orientation of one graph does not silently discard the shared style.
+    `strict_path_visualization=True` keeps the nodes on the path and drops their unrelated parents.
+    catena's `GraphStyle` then styles Hamilton's view as `catena graph` would: it reads each node's declared unit and frequency off the whole DAG, so a node looks the same in every sub-graph, and it draws each node's settings as a table beside it.
+    The shared Graphviz attributes go in its `GraphvizSpec`, and `show_path` updates a copy of them for its per-call arguments, so changing the orientation of one graph does not discard the rest.
     """)
     return
 
 
 @app.cell
-def _(dr, node_maps, relabel_with_units):
+def _(GraphStyle, GraphvizSpec, dr):
     #: Shared appearance for every sub-graph drawn below.
-    GRAPH_STYLE = {
-        "graph_attr": {"rankdir": "LR", "ranksep": "0.5", "bgcolor": "transparent"},
-        "node_attr": {"fontsize": "11"},
-    }
+    GRAPH_STYLE = GraphvizSpec(
+        show_legend=False,
+        graphviz_kwargs={
+            "graph_attr": {"rankdir": "LR", "ranksep": "0.5", "bgcolor": "transparent"},
+            "node_attr": {"fontsize": "11"},
+        },
+    )
+    style = GraphStyle.from_driver(dr, spec=GRAPH_STYLE)
 
     def show_path(upstream, downstream, **graph_attr):
         """Draw the sub-DAG connecting two nodes, using the shared style.
 
-        Keyword arguments update ``GRAPH_STYLE["graph_attr"]`` rather than
-        replacing it, and Hamilton in turn merges the result into its own
-        defaults, so each level adds to the one below it.
+        Keyword arguments update a copy of the shared ``graph_attr`` rather
+        than replacing it, so one graph can change its orientation and keep the
+        rest of the style.
         """
-        style = {key: dict(value) for key, value in GRAPH_STYLE.items()}
-        style["graph_attr"].update(graph_attr)
-
+        kwargs = style.hamilton_kwargs()
+        graphviz_kwargs = {k: dict(v) for k, v in kwargs["graphviz_kwargs"].items()}
+        graphviz_kwargs["graph_attr"].update(graph_attr)
+        kwargs["graphviz_kwargs"] = graphviz_kwargs
         graph = dr.visualize_path_between(
             upstream,
             downstream,
             output_file_path=None,
             strict_path_visualization=True,
-            show_legend=False,
-            graphviz_kwargs=style,
+            **kwargs,
         )
-        unit_map, _ = node_maps(dr)
-        relabel_with_units(graph, unit_map)
-        # Driver-config values are drawn as unconnected notes; drop them.
-        graph.body = [line for line in graph.body if "shape=note" not in line]
-        return graph
+        return style.apply(graph)
 
     return (show_path,)
 
@@ -324,10 +322,11 @@ def _(mo):
     Drawn left to right like the others it comes out 2020 pixels wide and unreadable in a page column, so this one is drawn top to bottom instead.
     The per-call `rankdir` overrides the shared style's without discarding the rest of it.
 
-    Two more bridges appear here, and both are about aggregating a daily rate into a monthly total.
+    Two more conversions appear here, and both aggregate a daily rate into a monthly total.
+    They are not bridges in `nodes.py` but one summing `[[resample]]` in the config.
     Summing a rate in mm d-1 over a month integrates it, because the daily timestep is one day, but the sum keeps the rate's `mm d-1` label.
-    Each bridge declares `mm` and stamps it over the old label.
-    That label is stated rather than checked, so the docstring of `_monthly_total` is what records why it is right.
+    The entry declares `units = "mm"` with `overwrite_units = true`, which stamps the total's unit over the old label.
+    That label is stated rather than checked, so the comment beside the entry is what records why it is right.
 
     The choice of *which* water flux to send RothC matters more than the arithmetic.
     It is potential evapotranspiration, not actual.
@@ -427,9 +426,9 @@ def _(mo):
     mo.md(r"""
     ## Where the joins live, and why
 
-    Every conversion in this recipe is a function in its own `nodes.py` rather than a line of Python inside a model wrapper.
+    Every conversion in this recipe sits in the pipeline rather than inside a model wrapper: a function in its own `nodes.py`, or, for the monthly totals, a `[[resample]]` entry in the config.
     A wrapper that quietly converted pyrealm's GPP on the way out would leave the next person with no way to see the assumption, let alone change it without editing Viresco.
-    Here the conversion sits in the pipeline, under the name of the node it produces, with a docstring that says why and annotations that catena checks.
+    Here each conversion is under the name of the node it produces, with a docstring or comment that says why and units that catena checks.
     """)
     return
 

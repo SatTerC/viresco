@@ -54,6 +54,7 @@ vars = [
 from = ""
 to = "weekly"
 freq = "7D"
+units = { temperature = "degC", volumetric_water_content = "m3 m-3", vpd = "Pa", gpp_flux = "ug m-2 s-1", lue_photon = "g mol-1", iwue = "umol mol-1" }
 
 [[resample]]
 vars = ["disturbances"]
@@ -61,6 +62,7 @@ from = ""
 to = "weekly"
 freq = "7D"
 aggfunc = "max"
+units = "1"
 
 [outputs.weekly]
 path = "results/weekly.nc"

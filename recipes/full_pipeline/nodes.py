@@ -99,44 +99,7 @@ def leaf_area_index_weekly(
     return leaf_pool_weekly / pft_params["leaf_carbon_area"]
 
 
-# SPLASH and SGAM to RothC: monthly totals and soil carbon input.
-
-
-def _monthly_total(rate: xr.DataArray, what: str) -> xr.DataArray:
-    """Sum a daily rate over each month.
-
-    The daily timestep is one day, so the sum of a rate in mm d-1 is numerically
-    the monthly total in mm. The sum keeps the rate's label, which the caller's
-    declared unit overwrites.
-    """
-    return rate.resample({sole_time_dim(rate, what): offset("monthly")}).sum()
-
-
-@xra.check_annotations
-@xra.stamp_output_units(overwrite=True)
-def potential_evapotranspiration_monthly(
-    potential_evapotranspiration: Annotated[xr.DataArray, Unit("mm d-1")],
-) -> Annotated[xr.DataArray, Unit("mm"), MONTHLY]:
-    """Monthly total of SPLASH's potential evapotranspiration.
-
-    PET, not AET: RothC's water balance is rainfall minus evaporative demand. AET
-    is already suppressed by the dryness RothC is trying to compute, so feeding it
-    in would double-count the limitation and hold the soil too wet.
-    """
-    return _monthly_total(potential_evapotranspiration, "potential_evapotranspiration")
-
-
-@xra.check_annotations
-@xra.stamp_output_units(overwrite=True)
-def precipitation_monthly(
-    precipitation: Annotated[xr.DataArray, Unit("mm d-1")],
-) -> Annotated[xr.DataArray, Unit("mm"), MONTHLY]:
-    """Monthly total precipitation.
-
-    A ``[[resample]]`` would average the rate rather than total it, and would feed
-    mm d-1 into RothC's mm input.
-    """
-    return _monthly_total(precipitation, "precipitation")
+# SGAM to RothC: soil carbon input.
 
 
 @xra.check_annotations
