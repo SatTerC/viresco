@@ -319,43 +319,34 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
     weekly: set[str] = set()
     monthly: set[str] = set()
     static: set[str] = set()
-    # (base, source_label, target_label) for each coarsening a consumer needs.
-    resamples: set[tuple[str, str, str]] = set()
-    # Coarsenings that also restate the units, so must be nodes rather than
-    # `[[resample]]` entries. See `_accumulates`.
-    accumulations: list[dict[str, Any]] = []
-    # (base, target_label) for every coarsening, by either route: a variable
-    # derived like this must not also be loaded.
+    # (base, source_label, target_label) for each coarsening, mapped to the
+    # units the coarsened node is declared with.
+    resamples: dict[tuple[str, str, str], str | None] = {}
+    # Coarsenings of a rate onto a per-period total. See `_accumulates`.
+    summed: set[tuple[str, str, str]] = set()
+    # (base, target_label) for every coarsening: a variable derived like this
+    # must not also be loaded.
     derived: set[tuple[str, str]] = set()
     # Units-restating nodes for producer/consumer pairs that disagree. Not a
-    # coarsening, so tracked apart from `accumulations`. See `scaffold.bridges`.
+    # coarsening, so tracked apart from `resamples`. See `scaffold.bridges`.
     bridge_nodes: list[dict[str, Any]] = []
 
     def _record(base: str, source: str, target: str) -> None:
-        """File one coarsening as either a resample or a units-restating node."""
-        source_name = _node_name(base, source)
-        target_name = _node_name(base, target)
+        """File one coarsening, with the units its output is declared with.
+
+        The consumer's declaration wins. Where nothing consumes the coarsened
+        node directly (a bridge's input), a mean keeps the producer's units, so
+        those are declared instead.
+        """
+        key = (base, source, target)
+        source_units = _units(_node_name(base, source))
+        target_units = _units(_node_name(base, target))
         derived.add((base, target))
-        if _accumulates(_units(source_name), _units(target_name)):
-            # A rate wanted as a per-period total. `[[resample]]` preserves units,
-            # so summing there would hand the consumer an `mm d-1` array still
-            # labelled as such where it declares `mm`. A derive node can restate
-            # them, so emit one of those instead.
-            freq_offset = temporal.offset(target)
-            accumulations.append(
-                {
-                    "name": target_name,
-                    "inputs": [source_name],
-                    "expression": (
-                        f"{source_name}.resample(time='{freq_offset}').sum()"
-                    ),
-                    "units": _units(target_name),
-                    "overwrite_units": True,
-                    "freq": freq_offset,
-                }
-            )
-        else:
-            resamples.add((base, source, target))
+        resamples[key] = target_units or source_units
+        if _accumulates(source_units, target_units):
+            # A rate wanted as a per-period total: summed, and relabelled with
+            # the consumer's units, since a resample keeps its input's label.
+            summed.add(key)
 
     def _record_bridge(base: str, label: str | None) -> bool:
         """Emit the units-restating node for ``base``, if a bridge supplies it.
@@ -443,12 +434,43 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
     inputs_weekly = weekly - {b for b, t in derived if t == "weekly"}
     inputs_monthly = monthly - {b for b, t in derived if t == "monthly"}
 
-    def _pairs(source: str, target: str) -> list[str]:
-        return sorted(b for b, s, t in resamples if s == source and t == target)
+    # One entry per direction and aggregation, mean first since it is catena's
+    # default and its entry omits `aggfunc`. A variable `scaffold.aggregations`
+    # lists gets an entry of its own, and so does a rate summed into a total,
+    # which also overwrites the label it kept.
+    groups: dict[tuple[str, str, str, bool], dict[str, str | None]] = {}
+    for key in sorted(resamples):
+        base, source, target = key
+        aggfunc = "sum" if key in summed else aggfunc_for(base)
+        group = (source, target, aggfunc, key in summed)
+        groups.setdefault(group, {})[base] = resamples[key]
 
-    resample_daily_to_weekly = _pairs("daily", "weekly")
-    resample_daily_to_monthly = _pairs("daily", "monthly")
-    resample_weekly_to_monthly = _pairs("weekly", "monthly")
+    def _order(group: tuple[str, str, str, bool]) -> tuple[int, int, bool, str, bool]:
+        source, target, aggfunc, overwrite = group
+        return (
+            _LABEL_ORDER.index(source),
+            _LABEL_ORDER.index(target),
+            aggfunc != "mean",
+            aggfunc,
+            overwrite,
+        )
+
+    resample_entries: list[dict[str, Any]] = []
+    for group in sorted(groups, key=_order):
+        source, target, aggfunc, overwrite = group
+        units = {var: u for var, u in groups[group].items() if u is not None}
+        resample_entries.append(
+            {
+                "vars": list(groups[group]),
+                # `from` is a node-name suffix, and daily nodes have none.
+                "from": "" if source in _BARE_LABELS else source,
+                "to": target,
+                "freq": resample_offset(source, target),
+                **({} if aggfunc == "mean" else {"aggfunc": aggfunc}),
+                **({"units": units} if units else {}),
+                **({"overwrite_units": True} if overwrite else {}),
+            }
+        )
 
     # Categorize model outputs for output file lists
     outputs_daily: list[str] = []
@@ -470,10 +492,7 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
         "inputs_monthly": sorted(inputs_monthly),
         "inputs_static": sorted(static),
         "bridges": bridge_nodes,
-        "accumulations": accumulations,
-        "resample_daily_to_weekly": resample_daily_to_weekly,
-        "resample_daily_to_monthly": resample_daily_to_monthly,
-        "resample_weekly_to_monthly": resample_weekly_to_monthly,
+        "resamples": resample_entries,
         "outputs_daily": sorted(set(outputs_daily)),
         "outputs_weekly": sorted(set(outputs_weekly)),
         "outputs_monthly": sorted(set(outputs_monthly)),
@@ -532,42 +551,12 @@ def generate_config(
         if required_data[f"inputs_{freq}"]
     }
 
-    # One entry per direction and aggregation. Mean is catena's default, so its
-    # entry omits `aggfunc` and comes first; a variable `scaffold.aggregations`
-    # lists gets an entry of its own. A rate wanted as a total is emitted as a
-    # node instead, never as a summing resample: see `_accumulates`.
-    resample_list = []
-    for k in (
-        "resample_daily_to_weekly",
-        "resample_daily_to_monthly",
-        "resample_weekly_to_monthly",
-    ):
-        direction = k.removeprefix("resample_")
-        from_freq, to_freq = direction.split("_to_")
-        by_aggfunc: dict[str, list[str]] = {}
-        for var in required_data[k]:
-            by_aggfunc.setdefault(aggfunc_for(var), []).append(var)
-        for aggfunc in sorted(by_aggfunc, key=lambda a: (a != "mean", a)):
-            resample_list.append(
-                {
-                    "vars": by_aggfunc[aggfunc],
-                    # `from` is a node-name suffix, and daily nodes have none.
-                    "from": "" if from_freq in _BARE_LABELS else from_freq,
-                    "to": to_freq,
-                    "freq": resample_offset(from_freq, to_freq),
-                    **({} if aggfunc == "mean" else {"aggfunc": aggfunc}),
-                }
-            )
-
     # Nodes before resamples: a reader meets the derivations that change what a
     # variable *means* before the ones that only change its cadence.
-    # Bridges first: a units restatement is the shorter story, and the reader
-    # meets `gpp_weekly` before anything that consumes it.
-    nodes = required_data["bridges"] + required_data["accumulations"]
-    if nodes:
-        config_data["node"] = nodes
-    if resample_list:
-        config_data["resample"] = resample_list
+    if required_data["bridges"]:
+        config_data["node"] = required_data["bridges"]
+    if required_data["resamples"]:
+        config_data["resample"] = required_data["resamples"]
 
     output_freqs = ("daily", "weekly", "monthly")
     config_data["outputs"] = {

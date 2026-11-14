@@ -53,7 +53,6 @@ vars = [
 [[resample]]
 vars = [
   "temperature",
-  "precipitation",
   "volumetric_water_content",
   "vpd",
   "gpp_flux",
@@ -63,6 +62,7 @@ vars = [
 from = ""
 to = "weekly"
 freq = "7D"
+units = { temperature = "degC", volumetric_water_content = "m3 m-3", vpd = "Pa", gpp_flux = "ug m-2 s-1", lue_photon = "g mol-1", iwue = "umol mol-1" }
 
 [[resample]]
 vars = [
@@ -71,6 +71,7 @@ vars = [
 from = ""
 to = "monthly"
 freq = "1ME"
+units = "degC"
 
 [[resample]]
 vars = ["disturbances"]
@@ -78,6 +79,23 @@ from = ""
 to = "weekly"
 freq = "7D"
 aggfunc = "max"
+units = "1"
+
+# RothC's monthly water balance: totals of SPLASH's daily rates. PET, not AET:
+# RothC's water balance is rainfall minus evaporative demand, and AET is already
+# suppressed by the dryness RothC is trying to compute, so it would double-count
+# the limitation and hold the soil too wet.
+# Summing a daily rate in mm d-1 over a month gives the total in mm, because the
+# daily timestep is one day. The sum keeps the rate's label, so `overwrite_units`
+# replaces it: a stated claim, which holds only because the input is daily.
+[[resample]]
+vars = ["potential_evapotranspiration", "precipitation"]
+from = ""
+to = "monthly"
+freq = "1ME"
+aggfunc = "sum"
+units = "mm"
+overwrite_units = true
 
 [outputs.daily]
 path = "results/daily.nc"

@@ -15,7 +15,7 @@ The model takes an initial estimate of soil moisture, then uses time series of p
 We wrap the [NumPy-based `pyrealm` implementation](https://github.com/ImperialCollegeLondon/pyrealm) of SPLASH.
 The [pyrealm SPLASH documentation](https://pyrealm.readthedocs.io/en/latest/users/splash.html) is the authoritative source for the model theory.
 
-The DAG for a pipeline running SPLASH alone, with the dashed cluster grouping nodes by declared frequency (`D` for daily):
+The DAG for a pipeline running SPLASH alone, with nodes coloured by declared frequency (`D` for daily):
 
 <div class="model-graph">
 --8<-- "docs/models/_graphs/splash.svg"

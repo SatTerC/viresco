@@ -32,7 +32,7 @@ bio_rate = 0.66
 hum_rate = 0.02
 # RothC's own evaporation driver is open-pan, which it multiplies by evap_factor
 # to get evapotranspiration. We supply potential evapotranspiration directly (see
-# the potential_evapotranspiration_monthly node below), so there is nothing to
+# the monthly-total [[resample]] below), so there is nothing to
 # convert: 1.0 passes it through unscaled.
 evap_factor = 1.0
 equilibrium_threshold = 1e-06
@@ -163,35 +163,6 @@ units = "m2 m-2"  # leaf carbon per ground area / leaf carbon per leaf area
 overwrite_units = true
 freq = "7D"
 
-# PET, not AET: RothC's water balance is rainfall minus evaporative *demand*, and
-# it derives its own moisture deficit from that. Feeding it AET -- the water the
-# soil actually gave up, which is already suppressed by the very dryness RothC is
-# trying to compute -- double-counts the limitation and holds the soil too wet.
-#
-# SPLASH PET is a daily rate (mm d-1); RothC wants a monthly total (mm).
-# Summing the daily rate over the month integrates it (daily Δt = 1 day, so
-# Σ mm d-1 is numerically the monthly mm total), so `overwrite_units` relabels
-# the rate as the resulting total.
-[[node]]
-name = "potential_evapotranspiration_monthly"
-inputs = ["potential_evapotranspiration"]
-expression = "potential_evapotranspiration.resample(time='1ME').sum()"
-units = "mm"
-overwrite_units = true
-freq = "1ME"
-
-# Precipitation is likewise a daily rate (mm d-1); aggregate to a monthly
-# total (mm) for RothC the same way. (Done as a derive rather than a plain
-# [[resample]] because that would feed the mm d-1 rate straight into RothC's
-# mm input and the resample output name would collide with this one.)
-[[node]]
-name = "precipitation_monthly"
-inputs = ["precipitation"]
-expression = "precipitation.resample(time='1ME').sum()"
-units = "mm"
-overwrite_units = true
-freq = "1ME"
-
 # Carbon entering the soil each month = the litter produced that month. SGAM's
 # litter_pool is an accumulate-only stock (no decomposition; that is RothC's
 # job), so the monthly litterfall is its *increment*: diff the weekly pool and
@@ -214,12 +185,14 @@ units = "t ha-1"
 # `from` and `to` are node-name suffixes, nothing more; `freq` is what actually
 # happens to the time axis, and becomes the generated node's declared frequency
 # contract. `from = ""` reads the bare daily name.
+# `units` declares each output's unit, as on a [[node]]: catena carries nothing
+# across a resample, so an undeclared unit leaves the edge out of it unchecked
+# until it runs. A resample keeps its input's label, so these are the daily units.
 # The P-model's outputs and SGAM's other daily drivers, as weekly means. SGAM
 # wants weekly mean LUE and iWUE, so a plain mean is the right aggregate.
 [[resample]]
 vars = [
     "temperature",
-    "precipitation",
     "volumetric_water_content",
     "vpd",
     "gpp_flux",
@@ -229,6 +202,7 @@ vars = [
 from = ""
 to = "weekly"
 freq = "7D"
+units = { temperature = "degC", volumetric_water_content = "m3 m-3", vpd = "Pa", gpp_flux = "ug m-2 s-1", lue_photon = "g mol-1", iwue = "umol mol-1" }
 
 [[resample]]
 vars = [
@@ -237,6 +211,7 @@ vars = [
 from = ""
 to = "monthly"
 freq = "1ME"
+units = "degC"
 
 [[resample]]
 vars = ["disturbances"]
@@ -244,6 +219,26 @@ from = ""
 to = "weekly"
 freq = "7D"
 aggfunc = "max"
+units = "1"
+
+# PET, not AET: RothC's water balance is rainfall minus evaporative *demand*, and
+# it derives its own moisture deficit from that. Feeding it AET -- the water the
+# soil actually gave up, which is already suppressed by the very dryness RothC is
+# trying to compute -- double-counts the limitation and holds the soil too wet.
+#
+# SPLASH PET and precipitation are daily rates (mm d-1); RothC wants monthly
+# totals (mm). Summing a daily rate over the month integrates it (daily Δt = 1
+# day, so Σ mm d-1 is numerically the monthly mm total). The sum keeps the
+# rate's label, so `overwrite_units` replaces it with the total's. That relabel
+# is a claim, not a check: it holds only because the input is daily.
+[[resample]]
+vars = ["potential_evapotranspiration", "precipitation"]
+from = ""
+to = "monthly"
+freq = "1ME"
+aggfunc = "sum"
+units = "mm"
+overwrite_units = true
 
 [outputs.daily]
 path = "outputs/daily.nc"

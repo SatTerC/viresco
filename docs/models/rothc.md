@@ -22,7 +22,7 @@ The five pools are:
 
 We forked the Python implementation from [Rothamsted Research](https://github.com/Rothamsted-Models/RothC_Py/), repackaged it for pip installation and made it ~20× faster. Our fork is available at [github.com/SatTerC/RothC_Py](https://github.com/SatTerC/RothC_Py).
 
-The DAG for a pipeline running RothC alone, with the dashed cluster grouping nodes by declared frequency (`1ME` for monthly):
+The DAG for a pipeline running RothC alone, with nodes coloured by declared frequency (`1ME` for monthly):
 
 <div class="model-graph">
 --8<-- "docs/models/_graphs/rothc.svg"

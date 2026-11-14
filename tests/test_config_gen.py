@@ -1,6 +1,9 @@
 """Tests for scaffold/config_gen.py."""
 
 import pytest
+import xarray_annotated as xra
+from catena import build_driver
+from catena.errors import CatenaValueError
 from hamilton.settings import ENABLE_POWER_USER_MODE
 from xarray_annotated import Declared, Freq
 
@@ -247,6 +250,7 @@ class TestGenerateConfigBuiltinModels:
                 "to": "weekly",
                 "freq": "7D",
                 "aggfunc": "max",
+                "units": {"disturbances": "1"},
             }
         ]
         means = [entry for entry in resamples if "aggfunc" not in entry]
@@ -277,6 +281,59 @@ class TestGenerateConfigBuiltinModels:
         }
         assert hops == {("", "weekly"), ("weekly", "monthly")}
 
+    def test_every_resample_declares_its_output_units(self):
+        """Each coarsened node declares units, so its edge out is checked.
+
+        catena checks the edge out of a ``[[resample]]`` before compute only for
+        what the entry declares, and propagates nothing across it.
+        """
+        resamples = generate_config(
+            builtin_models=["splash", "pmodel", "sgam", "rothc"],
+            custom_modules=[],
+            paths=PATH_DEFAULTS,
+        )._data["resample"]
+        for entry in resamples:
+            assert set(entry["units"]) == set(entry["vars"]), entry
+
+    def test_rates_onto_totals_are_summing_resamples(self):
+        """RothC's monthly `mm` from SPLASH's daily `mm d-1` is a relabelled sum."""
+        data = generate_config(
+            builtin_models=["splash", "rothc"],
+            custom_modules=[],
+            paths=PATH_DEFAULTS,
+        )._data
+        summed = [entry for entry in data["resample"] if entry.get("aggfunc") == "sum"]
+        assert summed == [
+            {
+                "vars": ["potential_evapotranspiration", "precipitation"],
+                "from": "",
+                "to": "monthly",
+                "freq": "1ME",
+                "aggfunc": "sum",
+                "units": {"potential_evapotranspiration": "mm", "precipitation": "mm"},
+                "overwrite_units": True,
+            }
+        ]
+        assert "node" not in data
+
+    def test_declared_resample_units_are_checked_on_build(self):
+        """A resample declaring units its consumer contradicts fails the build."""
+        config = generate_config(
+            builtin_models=["splash", "rothc"],
+            custom_modules=[],
+            paths=PATH_DEFAULTS,
+        )
+        for entry in config._data["resample"]:
+            if entry.get("aggfunc") == "sum":
+                entry["units"] = {var: "mm d-1" for var in entry["vars"]}
+        parsed = config.parse()
+        with xra.enabled(True), pytest.raises(CatenaValueError, match="rothc"):
+            build_driver(
+                modules=parsed.modules,
+                config=parsed.driver_config,
+                node_specs=parsed.node_specs,
+            )
+
 
 class TestInferRequiredData:
     """_infer_required_data categorises inputs and outputs by frequency."""
@@ -304,9 +361,13 @@ class TestInferRequiredData:
         that, rather than the bridge giving up and the input being loaded.
         """
         result = _infer_required_data(["pmodel", "sgam"])
-        assert {"gpp_flux", "lue_photon", "iwue"} <= set(
-            result["resample_daily_to_weekly"]
-        )
+        weekly_means = {
+            var
+            for entry in result["resamples"]
+            if (entry["from"], entry["to"]) == ("", "weekly") and "aggfunc" not in entry
+            for var in entry["vars"]
+        }
+        assert {"gpp_flux", "lue_photon", "iwue"} <= weekly_means
         bridges = {node["name"]: node for node in result["bridges"]}
         assert bridges["gpp_weekly"]["inputs"] == ["gpp_flux_weekly"]
         assert bridges["lue_weekly"]["inputs"] == ["lue_photon_weekly"]
@@ -324,9 +385,8 @@ class TestInferRequiredData:
             "inputs_weekly",
             "inputs_monthly",
             "inputs_static",
-            "resample_daily_to_weekly",
-            "resample_daily_to_monthly",
-            "resample_weekly_to_monthly",
+            "bridges",
+            "resamples",
             "outputs_daily",
             "outputs_weekly",
             "outputs_monthly",

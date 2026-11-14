@@ -20,6 +20,8 @@ from .setup import app as setup_app
 
 app = typer.Typer(
     help="Command-line interface for Viresco, built on the catena framework.",
+    # Rich markup would read `[outputs.*]` in catena's docstrings as a style tag.
+    rich_markup_mode="markdown",
     context_settings={"help_option_names": ["-h", "--help"]},
     # `main` renders CatenaError itself; typer's traceback would bury the message.
     pretty_exceptions_enable=False,
