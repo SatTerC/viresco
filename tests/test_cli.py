@@ -164,6 +164,12 @@ class TestGraphCommand:
         result = runner.invoke(app, ["graph", str(tmp_path / "no.toml")])
         assert result.exit_code != 0
 
+    def test_help_keeps_bracketed_section_names(self):
+        """Rich markup would drop `[outputs.*]` from the help as a style tag."""
+        result = runner.invoke(app, ["graph", "--help"])
+        assert result.exit_code == 0
+        assert "[outputs.*]" in result.output
+
 
 class TestComposedApp:
     """The pipeline commands are catena's, mounted into viresco's app."""

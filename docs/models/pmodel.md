@@ -33,7 +33,7 @@ Its rates (PPFD, GPP, Vcmax, Jmax) are per second, and stand for the mean over t
 A model wanting coarser values, such as weekly SGAM, takes means of the daily outputs.
 Because the model is nonlinear, those are not the outputs of a run on weekly mean drivers.
 
-The DAG for a pipeline running the P-model alone, with the dashed clusters grouping nodes by declared frequency (`D` for daily):
+The DAG for a pipeline running the P-model alone, with nodes coloured by declared frequency (`D` for daily):
 
 <div class="model-graph">
 --8<-- "docs/models/_graphs/pmodel.svg"

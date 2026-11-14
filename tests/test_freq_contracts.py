@@ -3,7 +3,7 @@
 The model wrappers no longer receive a ``dates_*`` node; each reads its calendar
 off a time-bearing input instead, and declares the frequency it expects with a
 `xarray_annotated.Freq` marker. Those declarations are load-bearing in
-two places — catena's build-time contract check, and the frequency clustering in
+two places — catena's build-time contract check, and the frequency colouring in
 ``viresco graph`` — so they need to be right, not merely present.
 
 The rest of the suite runs with validation switched off (see conftest), so every
