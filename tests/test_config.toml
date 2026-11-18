@@ -42,6 +42,7 @@ path = "static.nc"
 suffix = ""
 vars = [
   "elevation",
+  "latitude",
   "plant_type",
   "max_soil_moisture",
   "clay_content",

@@ -119,8 +119,8 @@ def _(mo):
     mo.md(r"""
     ## Input data
 
-    `make_data.py` writes two years of stand-in inputs at two pixels with viresco's synthetic-data generator.
-    The generator cycles plant type through tree, grass, shrub and crop by pixel index, so pixel 1 is the grassland this notebook calibrates.
+    `make_data.py` writes two years of stand-in inputs on a grid of one row and two columns with viresco's synthetic-data generator.
+    The generator cycles plant type through tree, grass, shrub and crop cell by cell, so the second cell, at `x` index 1, is the grassland this notebook calibrates.
     """)
     return
 
@@ -129,7 +129,7 @@ def _(mo):
 def _(catena, config_path, import_user_module, recipe_dir):
     make_data = import_user_module(str(recipe_dir / "make_data.py"))
     make_data.write_inputs()
-    GRASS_PIXEL = 1
+    GRASS_CELL = {"y": 0, "x": 1}
 
     config = catena.load_config(config_path)
     inputs = catena.load_inputs(config.input_specs)
@@ -140,7 +140,7 @@ def _(catena, config_path, import_user_module, recipe_dir):
         base=config.base,
         registered=config.registered_modules,
     )
-    return GRASS_PIXEL, dr, inputs
+    return GRASS_CELL, dr, inputs
 
 
 @app.cell(hide_code=True)
@@ -157,7 +157,7 @@ def _(mo):
 
 
 @app.cell
-def _(GRASS_PIXEL, dr, inputs, np):
+def _(GRASS_CELL, dr, inputs, np):
     _SGAM_INPUTS = [
         "gpp_weekly",
         "lue_weekly",
@@ -179,13 +179,13 @@ def _(GRASS_PIXEL, dr, inputs, np):
     # each step only recomputes the sgam node, not the upstream SPLASH/P-model chain.
     upstream = {k: _all_outputs[k] for k in _SGAM_INPUTS if k != "leaf_pool_weekly"}
 
-    true_lue_max = float(_all_outputs["pft_params"]["lue_max"].values[GRASS_PIXEL])
+    true_lue_max = float(_all_outputs["pft_params"]["lue_max"].isel(GRASS_CELL))
     true_leaf_turnover = float(
-        _all_outputs["pft_params"]["leaf_turnover_rate"].values[GRASS_PIXEL]
+        _all_outputs["pft_params"]["leaf_turnover_rate"].isel(GRASS_CELL)
     )
 
     np.random.seed(42)
-    _true_leaf_pool = _all_outputs["leaf_pool_weekly"].values[:, GRASS_PIXEL]
+    _true_leaf_pool = _all_outputs["leaf_pool_weekly"].isel(GRASS_CELL).values
     synthetic_obs = _true_leaf_pool + np.random.normal(0, 2.0, _true_leaf_pool.shape)
     return synthetic_obs, true_leaf_turnover, true_lue_max, upstream
 
@@ -339,7 +339,7 @@ def _(mo):
 
 
 @app.cell
-def _(GRASS_PIXEL, inputs, np):
+def _(GRASS_CELL, inputs, np):
     def objective_function(params, dr, observations, upstream):
         lue_max, leaf_turnover = params
         modified_pft = upstream["pft_params"].copy()
@@ -349,7 +349,7 @@ def _(GRASS_PIXEL, inputs, np):
         outputs = dr.execute(
             final_vars=["leaf_pool_weekly"], inputs=inputs, overrides=overrides
         )
-        modelled = outputs["leaf_pool_weekly"].values[:, GRASS_PIXEL]
+        modelled = outputs["leaf_pool_weekly"].isel(GRASS_CELL).values
         return np.mean((modelled - observations) ** 2)
 
     return (objective_function,)

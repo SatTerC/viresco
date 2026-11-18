@@ -207,7 +207,7 @@ def _(mo):
     ### Step 3: Generate synthetic data
 
     The config says which variables the pipeline needs, so `viresco data-gen` can make up plausible values for each, with the right units, and write them to the input paths.
-    `--grid 1 1` asks for a single pixel, and `--seed` makes the values reproducible.
+    `--grid 1 1` asks for a single cell, and `--seed` makes the values reproducible.
 
     /// admonition | SPLASH needs a full calendar year
         type: note

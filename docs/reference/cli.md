@@ -6,8 +6,8 @@ icon: lucide/square-terminal
 # CLI
 
 The `viresco` command is mostly [catena][catena-cli]'s.
-`run`, `graph` and `gridded` are mounted unchanged, so that a pipeline is driven from one entry point rather than two.
-They are documented below as they appear under `viresco`, but the behaviour is catena's and so is the explanation of it: see [catena's CLI reference][catena-cli] for what the options mean, and [scale up][catena-scale] for the workflow `gridded` belongs to.
+`run`, `graph` and `subset` are mounted unchanged, so that a pipeline is driven from one entry point rather than two.
+They are documented below as they appear under `viresco`, but the behaviour is catena's and so is the explanation of it: see [catena's CLI reference][catena-cli] for what the options mean, and [scale up][catena-scale] for the workflow `subset` belongs to.
 
 Only `setup` and `data-gen` are viresco's own.
 Both exist to get a pipeline running before there is any real data to run it on: `setup` writes the config, `data-gen` fills the input files it names.
@@ -64,27 +64,27 @@ This limitation is tracked in [#56](https://github.com/NERC-CEH/viresco/issues/5
     :width: 80
     :prompt: ❯
 
-## `viresco gridded`
+## `viresco subset`
 
-Parallel-Zarr commands for gridded pipelines.
+Commands for parallel `[subset]` runs.
 They bracket a set of independent `[subset]` runs: create the shared store once, run the subsets concurrently, then stitch the parts back together.
 
-### `viresco gridded create-store`
+### `viresco subset create-store`
 
 ::: mkdocs-typer2
     :module: viresco.cli
     :name: viresco
-    :command: gridded create-store
+    :command: subset create-store
     :termynal: true
     :width: 80
     :prompt: ❯
 
-### `viresco gridded merge`
+### `viresco subset merge`
 
 ::: mkdocs-typer2
     :module: viresco.cli
     :name: viresco
-    :command: gridded merge
+    :command: subset merge
     :termynal: true
     :width: 80
     :prompt: ❯

@@ -23,7 +23,6 @@ from types import ModuleType
 from typing import Any
 
 import numpy as np
-import pandas as pd
 import xarray as xr
 from numpy.typing import DTypeLike, NDArray
 
@@ -111,9 +110,10 @@ def smooth2d(arr: NDArray[np.float64], radius: int) -> NDArray[np.float64]:
 class Grid:
     """The lat/lon grid and time axis the synthetic data is generated on.
 
-    Pixels are the cartesian product of the latitude and longitude points,
-    flattened into catena's ``pixel`` dimension in row-major order, so ``lat``
-    and ``lon`` are per-pixel arrays rather than axes.
+    Pixels are the cartesian product of the latitude and longitude points. The
+    generators see them flattened in row-major order, so ``lat`` and ``lon`` are
+    per-pixel arrays rather than axes; `Resolver` reshapes each result onto the
+    ``(y, x)`` grid, whose coordinates are `y` and `x`.
     """
 
     def __init__(
@@ -139,9 +139,26 @@ class Grid:
         )
         self.lat: NDArray[np.float64] = lat_grid.ravel()
         self.lon: NDArray[np.float64] = lon_grid.ravel()
-        self.pixel_coords = pd.MultiIndex.from_arrays(
-            [self.lat, self.lon], names=["y", "x"]
+        self.y = xr.DataArray(
+            lat_grid[:, 0],
+            dims="y",
+            attrs={
+                "units": "degrees_north",
+                "standard_name": "latitude",
+                "axis": "Y",
+            },
         )
+        """Latitude of each grid row, the ``y`` dimension coordinate."""
+        self.x = xr.DataArray(
+            lon_grid[0, :],
+            dims="x",
+            attrs={
+                "units": "degrees_east",
+                "standard_name": "longitude",
+                "axis": "X",
+            },
+        )
+        """Longitude of each grid column, the ``x`` dimension coordinate."""
 
 
 class _Ctx:
@@ -200,7 +217,7 @@ class _Ctx:
 
     def static(self, name: str) -> NDArray[np.float64]:
         """Values of another static variable, shape ``(n_pixels,)``."""
-        return self._resolver.static(name).values
+        return self._resolver.static(name).values.reshape(-1)
 
     def uniform(self, low: float, high: float) -> NDArray[np.float64]:
         return self.rng.uniform(low, high, self.shape)
@@ -257,7 +274,7 @@ class DailyCtx(_Ctx):
 
     def daily(self, name: str) -> NDArray[np.float64]:
         """Values of another daily variable, shape ``(n_days, n_pixels)``."""
-        return self._resolver.daily(name).values
+        return self._resolver.daily(name).values.reshape(self.grid.n_days, -1)
 
     def cycle(
         self, amplitude: float, phase: float = 0.0, baseline: float = 0.0
@@ -364,21 +381,20 @@ class Resolver:
         values = np.array(values, dtype=var.dtype)
 
         attrs = {"units": var.units, "long_name": var.long_name}
+        grid = self.grid
+        spatial = {"y": grid.y, "x": grid.x}
         if isinstance(ctx, DailyCtx):
             return xr.DataArray(
-                data=values,
-                dims=["time", "pixel"],
-                coords={
-                    "time": self.grid.time_coord,
-                    "pixel": self.grid.pixel_coords,
-                },
+                data=values.reshape(grid.n_days, grid.n_lat, grid.n_lon),
+                dims=["time", "y", "x"],
+                coords={"time": grid.time_coord, **spatial},
                 attrs=attrs,
                 name=name,
             )
         return xr.DataArray(
-            data=values,
-            dims=["pixel"],
-            coords={"pixel": self.grid.pixel_coords},
+            data=values.reshape(grid.n_lat, grid.n_lon),
+            dims=["y", "x"],
+            coords=spatial,
             attrs=attrs,
             name=name,
         )

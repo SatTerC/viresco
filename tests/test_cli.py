@@ -174,17 +174,15 @@ class TestGraphCommand:
 class TestComposedApp:
     """The pipeline commands are catena's, mounted into viresco's app."""
 
-    @pytest.mark.parametrize(
-        "command", ["run", "graph", "gridded", "setup", "data-gen"]
-    )
+    @pytest.mark.parametrize("command", ["run", "graph", "subset", "setup", "data-gen"])
     def test_command_is_registered(self, command):
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
         assert command in result.output
 
     @pytest.mark.parametrize("subcommand", ["create-store", "merge"])
-    def test_gridded_subcommands_registered(self, subcommand):
-        result = runner.invoke(app, ["gridded", "--help"])
+    def test_subset_subcommands_registered(self, subcommand):
+        result = runner.invoke(app, ["subset", "--help"])
         assert result.exit_code == 0
         assert subcommand in result.output
 

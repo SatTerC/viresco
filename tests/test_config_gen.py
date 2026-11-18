@@ -153,6 +153,19 @@ class TestGenerateConfigBuiltinModels:
             for v in daily_vars
         )
 
+    def test_every_input_section_is_checked_for_one_grid(self):
+        config = generate_config(
+            builtin_models=["splash", "pmodel", "sgam", "rothc"],
+            custom_modules=[],
+            paths=PATH_DEFAULTS,
+        )
+        sections = set(config._data["inputs"])
+        checks = {c["check"]: c for c in config._data["validation"]["checks"]}
+        assert set(checks) == {"crs_equal", "coords_equal"}
+        assert set(checks["crs_equal"]["inputs"]) == sections
+        assert set(checks["coords_equal"]["inputs"]) == sections
+        assert checks["coords_equal"]["coords"] == ["y", "x"]
+
     def test_rothc_generates_model_section_with_params(self):
         config = generate_config(
             builtin_models=["rothc"],
@@ -393,16 +406,11 @@ class TestInferRequiredData:
         ):
             assert key in result, f"Missing key: {key}"
 
-    def test_grid_vars_not_in_inputs(self):
+    def test_latitude_is_a_static_input(self):
+        # catena no longer adds latitude to gridded inputs, so it is loaded like
+        # any other static variable.
         result = _infer_required_data(["splash"])
-        all_inputs = (
-            result["inputs_daily"]
-            + result["inputs_weekly"]
-            + result["inputs_monthly"]
-            + result["inputs_static"]
-        )
-        assert "latitude" not in all_inputs
-        assert "longitude" not in all_inputs
+        assert "latitude" in result["inputs_static"]
 
 
 class TestUnitDiscovery:

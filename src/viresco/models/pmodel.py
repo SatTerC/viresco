@@ -102,7 +102,7 @@ def _pmodel_block(
     """Run the P-Model on a whole numpy block (element-wise over every cell).
 
     pyrealm's P-Model is vectorised over the spatial axis, so this kernel runs on the
-    full array — or a single dask chunk — in one call; there is no per-pixel loop.
+    full array — or a single dask chunk — in one call; there is no per-cell loop.
     ``extra_values`` are the method-dependent inputs, passed positionally because
     `xarray.apply_ufunc` only maps over positional arguments, and named by
     ``extra_names`` in the same order.
@@ -163,7 +163,7 @@ def _pmodel(
     them.
     """
     # Some extra inputs (`mean_growth_temperature`, `aridity_index`) are
-    # climatological: one value per pixel, no time axis. apply_ufunc would hand
+    # climatological: one value per cell, no time axis. apply_ufunc would hand
     # them to the kernel with a length-1 time axis, and pyrealm's
     # `check_input_shapes` rejects that rather than broadcasting it, so expand them
     # here. Broadcasting an input that already has a time axis is a no-op.
@@ -458,7 +458,7 @@ def arrhenius_inputs__kattge_knorr(
 def mean_growth_temperature(
     temperature: Annotated[DataArray, Unit("degC"), DAILY],
 ) -> Annotated[DataArray, Unit("degC")]:
-    """Mean temperature over the growing days of the record, one value per pixel.
+    """Mean temperature over the growing days of the record, one value per cell.
 
     pyrealm consumes this as an *acclimation* quantity: the ``sandoval`` quantum
     yield method uses it to set the temperature at which the highest kphio is
@@ -467,7 +467,7 @@ def mean_growth_temperature(
     separate term, driven by ``tc``.
 
     The mean is taken over the whole record, not a rolling window, and over days
-    above 0 degC only. A pixel that never rises above 0 degC over the record
+    above 0 degC only. A cell that never rises above 0 degC over the record
     yields NaN. Under ``sandoval`` that propagates through kphio into GPP; under
     ``kattge_knorr`` it reaches only ``vcmax25`` and ``jmax25``.
 

@@ -15,7 +15,6 @@ from pathlib import Path
 import xarray as xr
 from catena import IOSpec, ParsedConfig
 from catena.formats import format_for
-from catena.gridded.io import unstack_if_gridded
 from catena.transforms import resample
 
 from ...temporal import offset
@@ -53,16 +52,31 @@ def _spec_vars(label: str, spec: "IOSpec | None") -> list[str]:
     return list(spec.vars)
 
 
+#: CF grid mapping for the synthetic grid, whose ``y`` and ``x`` are latitude and
+#: longitude on WGS 84. Written by hand, so that writing it needs no geospatial
+#: dependency.
+_GRID_MAPPING = {
+    "grid_mapping_name": "latitude_longitude",
+    "semi_major_axis": 6378137.0,
+    "inverse_flattening": 298.257223563,
+    "longitude_of_prime_meridian": 0.0,
+}
+
+
 def _save_dataset_with_crs(ds: xr.Dataset, path: str | PathLike) -> None:
-    """Save a dataset in whichever format ``path``'s extension names.
+    """Save a dataset, with its CRS, in whichever format ``path``'s extension names.
 
     Dispatch is catena's: `catena.formats` is the one table of supported
-    formats, and raises for any other extension. The CRS global attribute makes
-    `catena.load_inputs` take its geospatial path on the way back in.
+    formats, and raises for any other extension. Each variable points at a CF
+    grid-mapping variable, ``crs``, which is what catena's ``crs_equal`` input
+    check compares.
     """
     p = Path(path)
     fmt = format_for(p)
-    ds.attrs["crs"] = "EPSG:4326"
+    ds = ds.copy()
+    for var in ds.data_vars.values():
+        var.attrs["grid_mapping"] = "crs"
+    ds["crs"] = xr.DataArray(0, attrs=_GRID_MAPPING)
     fmt.write(ds, p)
 
 
@@ -139,11 +153,9 @@ def generate_synthetic_data(
     ]
     for names, spec, freq in sections:
         if names and spec:
-            ds = unstack_if_gridded(xr.merge([_at(v, freq) for v in sorted(names)]))
+            ds = xr.merge([_at(v, freq) for v in sorted(names)])
             _save_dataset_with_crs(ds, spec.path)
 
     if static_vars and static_spec:
-        static_ds = unstack_if_gridded(
-            xr.merge([resolver.static(v) for v in static_vars])
-        )
+        static_ds = xr.merge([resolver.static(v) for v in static_vars])
         _save_dataset_with_crs(static_ds, static_spec.path)

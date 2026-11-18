@@ -23,7 +23,7 @@ from pandas import DatetimeIndex
 from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
-from .._dims import space_dim
+from .._chunks import chunk_like
 from ..temporal import DAILY, time_index
 
 
@@ -100,15 +100,45 @@ _OUTPUT_FIELDS = (
 #: Elevations beyond these are not land surface, so are likely an undeclared fill value.
 _PLAUSIBLE_ELEVATION_M = (-500.0, 9000.0)
 
-#: How many pixels an error or warning lists before truncating.
-_MAX_PIXELS_NAMED = 10
+#: How many cells an error or warning lists before truncating.
+_MAX_CELLS_NAMED = 10
 
 
-def _describe_pixels(labels: NDArray) -> str:
-    """Name up to `_MAX_PIXELS_NAMED` pixels in an error or warning."""
-    named = ", ".join(str(label) for label in labels[:_MAX_PIXELS_NAMED])
-    more = ", ..." if labels.size > _MAX_PIXELS_NAMED else ""
-    return f"{labels.size} pixel(s) ({named}{more})"
+def _describe_cells(labels: NDArray) -> str:
+    """Name up to `_MAX_CELLS_NAMED` cells in an error or warning."""
+    named = ", ".join(str(label) for label in labels[:_MAX_CELLS_NAMED])
+    more = ", ..." if labels.size > _MAX_CELLS_NAMED else ""
+    return f"{labels.size} cell(s) ({named}{more})"
+
+
+def _cell_labels(time: str, *arrays: DataArray) -> DataArray:
+    """Label each cell of ``arrays``' non-time dimensions for `_describe_cells`.
+
+    A cell on one dimension is named by its coordinate value, as a site or an
+    index; a cell on several by ``dim=value`` for each, as ``y=50.0
+    x=-2.0``. A dimension with no coordinate gives its position instead.
+    """
+    template = xr.broadcast(
+        *(a.isel({time: 0}, drop=True) if time in a.dims else a for a in arrays)
+    )[0]
+    dims = [str(dim) for dim in template.dims]
+    axes = [
+        template[dim].values if dim in template.coords else np.arange(size)
+        for dim, size in template.sizes.items()
+    ]
+    labels = np.empty(template.shape, dtype=object)
+    for index in np.ndindex(template.shape):
+        values = [axis[i] for axis, i in zip(axes, index, strict=True)]
+        labels[index] = (
+            str(values[0])
+            if len(values) == 1
+            else " ".join(
+                f"{dim}={value}" for dim, value in zip(dims, values, strict=True)
+            )
+        )
+    return chunk_like(
+        xr.DataArray(labels, dims=template.dims, coords=template.coords), *arrays
+    )
 
 
 def _require_consecutive_days(dates: DatetimeIndex) -> None:
@@ -129,12 +159,12 @@ def _require_consecutive_days(dates: DatetimeIndex) -> None:
 def _spin_up(
     model: pyrealm.splash.splash.SplashModel, max_iter: int, max_diff: float
 ) -> NDArray[np.float64]:
-    """Estimate initial soil moisture, allowing for every pixel being NaN.
+    """Estimate initial soil moisture, allowing for every cell being NaN.
 
-    pyrealm's convergence test ignores NaN pixels until there are no others, and then
+    pyrealm's convergence test ignores NaN cells until there are no others, and then
     reports that it failed to converge with a difference of NaN. That only matters to a
-    block where pyrealm's calculation gives NaN for every pixel, which should get the
-    same outcome as it would in a block with other pixels.
+    block where pyrealm's calculation gives NaN for every cell, which should get the
+    same outcome as it would in a block with other cells.
     """
     try:
         return model.estimate_initial_soil_moisture(
@@ -164,11 +194,11 @@ def _run_pyrealm(
     max_iter: int,
     max_diff: float,
 ) -> tuple[NDArray[np.float64], ...]:
-    """Run SPLASH on ``(time, pixel)`` arrays, in the order of `_OUTPUT_FIELDS`.
+    """Run SPLASH on ``(time, cell)`` arrays, in the order of `_OUTPUT_FIELDS`.
 
-    ``lat``/``elv`` go in as ``(1, pixel)``: they pass through ``check_input_shapes``,
+    ``lat``/``elv`` go in as ``(1, cell)``: they pass through ``check_input_shapes``,
     which demands equal ndim with the climate arrays, then ``broadcast_time``. ``kWm``
-    goes in as ``(pixel,)``: it is neither time-broadcast nor shape-checked, and a 2D
+    goes in as ``(cell,)``: it is neither time-broadcast nor shape-checked, and a 2D
     value corrupts the per-day spatial shape.
     """
     model = pyrealm.splash.splash.SplashModel(
@@ -198,47 +228,61 @@ def _splash_block(
     elevation: NDArray[np.float64],
     latitude: NDArray[np.float64],
     max_soil_moisture: NDArray[np.float64],
-    pixel_labels: NDArray,
+    cell_labels: NDArray,
     initial_soil_moisture: NDArray[np.float64] | None = None,
     *,
     dates: pyrealm.core.calendar.Calendar,
     max_iter: int,
     max_diff: float,
 ) -> tuple[NDArray[np.float64], ...]:
-    """Run SPLASH on a whole pixel-block, deciding each pixel from its own inputs.
+    """Run SPLASH on a whole block, deciding each cell from its own inputs.
 
-    ``apply_ufunc`` places the ``time`` core dim last, so the climate inputs arrive as
-    ``(pixel, time)`` and the rest as ``(pixel,)``. Outputs are returned as
-    ``(pixel, time)`` for ``apply_ufunc``, in the order of `_OUTPUT_FIELDS`.
+    ``apply_ufunc`` places the ``time`` core dim last and hands every input the
+    block's other dimensions, however many there are, possibly as length-1 axes.
+    Those are broadcast together and flattened into one axis of cells here,
+    because the masked cells have to be picked out before pyrealm sees the rest;
+    the outputs are put back on the block's shape, with ``time`` last, in the
+    order of `_OUTPUT_FIELDS`.
 
-    A pixel's outcome must not depend on which other pixels share its block, or the
+    A cell's outcome must not depend on which other cells share its block, or the
     outcome would change with the block size:
 
     - Masked: a NaN static or initial state, or no climate data at all. The output is
-      NaN, and pyrealm never sees the pixel.
+      NaN, and pyrealm never sees the cell.
     - Gap: some climate values are missing. This raises, because soil moisture carries
       over from one day to the next, so everything after the gap would be lost.
     - Model failure: complete inputs but NaN soil moisture. The output is NaN and this
       warns, because a rare failure in pyrealm should not stop a large run.
     """
+    climate_in = [
+        np.asarray(values, dtype=float)
+        for values in (sunshine_fraction, temperature, precipitation)
+    ]
+    static_in = [
+        np.asarray(values, dtype=float)
+        for values in (elevation, latitude, max_soil_moisture)
+    ] + (
+        []
+        if initial_soil_moisture is None
+        else [np.asarray(initial_soil_moisture, dtype=float)]
+    )
+    n_days = climate_in[0].shape[-1]
+    shape = np.broadcast_shapes(
+        *(values.shape[:-1] for values in climate_in),
+        *(values.shape for values in static_in),
+        np.shape(cell_labels),
+    )
+    n_cells = int(np.prod(shape))
     climate = np.stack(
         [
-            np.moveaxis(np.asarray(values, dtype=float), -1, 0)
-            for values in (sunshine_fraction, temperature, precipitation)
+            np.broadcast_to(values, (*shape, n_days)).reshape(n_cells, n_days).T
+            for values in climate_in
         ]
     )
-    n_days, n_pixels = climate.shape[1:]
     statics = np.stack(
-        [
-            np.broadcast_to(np.asarray(values, dtype=float), (n_pixels,))
-            for values in (elevation, latitude, max_soil_moisture)
-        ]
-        + (
-            []
-            if initial_soil_moisture is None
-            else [np.asarray(initial_soil_moisture, dtype=float).ravel()]
-        )
+        [np.broadcast_to(values, shape).reshape(n_cells) for values in static_in]
     )
+    labels = np.broadcast_to(cell_labels, shape).reshape(n_cells)
 
     missing = np.isnan(climate)
     masked = missing.all(axis=(0, 1)) | np.isnan(statics).any(axis=0)
@@ -246,22 +290,22 @@ def _splash_block(
     if gaps.any():
         raise ValueError(
             "SPLASH inputs have missing values in "
-            f"{_describe_pixels(pixel_labels[gaps])}. Soil moisture carries over from "
+            f"{_describe_cells(labels[gaps])}. Soil moisture carries over from "
             "day to day, so everything after a gap would be lost. Fill the gaps, or "
-            "mask each pixel by making all of its climate inputs NaN."
+            "mask each cell by making all of its climate inputs NaN."
         )
 
-    outputs = np.full((len(_OUTPUT_FIELDS), n_pixels, n_days), np.nan)
+    outputs = np.full((len(_OUTPUT_FIELDS), n_cells, n_days), np.nan)
     valid = ~masked
     if not valid.any():
-        return tuple(outputs)
+        return tuple(output.reshape(*shape, n_days) for output in outputs)
 
     low, high = _PLAUSIBLE_ELEVATION_M
     implausible = valid & ((statics[0] < low) | (statics[0] > high))
     if implausible.any():
         warnings.warn(
             f"Elevation is outside {low:g} to {high:g} m in "
-            f"{_describe_pixels(pixel_labels[implausible])}, which suggests an "
+            f"{_describe_cells(labels[implausible])}, which suggests an "
             "undeclared fill value. SPLASH will still use these values.",
             stacklevel=2,
         )
@@ -288,11 +332,11 @@ def _splash_block(
     if failed.any():
         warnings.warn(
             "SPLASH returned NaN soil moisture for "
-            f"{_describe_pixels(pixel_labels[failed])} despite complete inputs. "
+            f"{_describe_cells(labels[failed])} despite complete inputs. "
             "pyrealm's AET calculation can fail at high latitudes.",
             stacklevel=2,
         )
-    return tuple(outputs)
+    return tuple(output.reshape(*shape, n_days) for output in outputs)
 
 
 def _splash(
@@ -308,11 +352,11 @@ def _splash(
     soil_moisture_init_max_diff: float,
     initial_soil_moisture: DataArray | None = None,
 ) -> SplashOut:
-    """Apply SPLASH over the ``(time, space)`` block via `xarray.apply_ufunc`.
+    """Apply SPLASH over a block via `xarray.apply_ufunc`.
 
     SPLASH is sequential along time (soil moisture carries state day to day) but
     embarrassingly parallel over space, so time is the input/output core dim and
-    space the broadcast (mapped) dim; `viresco._dims` says how each is found.
+    every other dimension, whatever there is of it, is broadcast (mapped).
     ``vectorize`` is left ``False`` so the whole block reaches pyrealm in one call
     and is vectorised internally; with ``dask="parallelized"`` a future dask
     backend can still chunk over space.
@@ -320,14 +364,6 @@ def _splash(
     """
     _require_consecutive_days(dates)
     time = sole_time_dim(temperature, "temperature")
-    space = space_dim(
-        sunshine_fraction=sunshine_fraction,
-        temperature=temperature,
-        precipitation=precipitation,
-        elevation=elevation,
-        latitude=latitude,
-        max_soil_moisture=max_soil_moisture,
-    )
     prescribed = [] if initial_soil_moisture is None else [initial_soil_moisture]
     calendar = pyrealm.core.calendar.Calendar(dates.values)
 
@@ -340,7 +376,15 @@ def _splash(
         elevation,
         latitude,
         max_soil_moisture,
-        sunshine_fraction[space],
+        _cell_labels(
+            time,
+            sunshine_fraction,
+            temperature,
+            precipitation,
+            elevation,
+            latitude,
+            max_soil_moisture,
+        ),
         *prescribed,
         input_core_dims=[[time]] * 3 + [[]] * (4 + len(prescribed)),
         output_core_dims=[[time]] * n_outputs,
@@ -354,13 +398,13 @@ def _splash(
         output_dtypes=[float] * n_outputs,
     )
 
-    # apply_ufunc drops the time coord (a core dim) and orders outputs as
-    # (space, time); reattach the coord and restore the canonical (time, space).
+    # apply_ufunc drops the time coord (a core dim) and puts time last; reattach
+    # the coord and put time first.
     time_coord = temperature.coords[time]
     return cast(
         SplashOut,
         {
-            name: out.assign_coords({time: time_coord}).transpose(time, space)
+            name: out.assign_coords({time: time_coord}).transpose(time, ...)
             for name, out in zip(_OUTPUT_FIELDS, outputs, strict=True)
         },
     )
@@ -386,7 +430,7 @@ def soil_moisture_init_inputs__prescribed(
     ----------
     initial_soil_moisture
         Soil moisture on the day before the first date (millimetres), one value
-        per pixel, between 0 and ``max_soil_moisture``.
+        per cell, between 0 and ``max_soil_moisture``.
     """
     return {"initial_soil_moisture": initial_soil_moisture}
 
@@ -535,7 +579,7 @@ def splash(
         `soil_moisture_init_inputs__prescribed`.
     soil_moisture_init_max_iter
         Maximum number of one-year iterations used to estimate initial soil
-        moisture. If any pixel in a block with a non-NaN result has not converged
+        moisture. If any cell in a block with a non-NaN result has not converged
         by then, the run stops with an error. Only used by ``equilibrate``.
     soil_moisture_init_max_diff
         Maximum acceptable difference between year-start and year-end soil

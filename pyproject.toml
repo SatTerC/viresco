@@ -15,7 +15,7 @@ license-files = ["LICENSE"]
 classifiers = ["Development Status :: 2 - Pre-Alpha"]
 requires-python = ">=3.13"
 dependencies = [
-    "ukceh-catena[cli,geo,viz]",
+    "ukceh-catena[cli,viz]",
     "numpy>=2.4.2",
     "xarray>=2026.2.0",
     "xarray-annotated>=0.8.0",

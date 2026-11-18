@@ -43,7 +43,7 @@ vars = ["co2", "fapar"]
 [inputs.static]
 path = "inputs/static.nc"
 suffix = ""
-vars = ["elevation", "max_soil_moisture"]
+vars = ["elevation", "latitude", "max_soil_moisture"]
 
 [outputs.daily]
 path = "outputs/daily.nc"

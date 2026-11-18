@@ -8,9 +8,9 @@ the pipeline's daily time axis, taken from ``temperature``.
 
 Each series is interpolated linearly in time through its valid values, so a gap
 is bridged by the values either side of it. Days before the first valid value
-or after the last take that value: nothing is extrapolated. A pixel with no
+or after the last take that value: nothing is extrapolated. A cell with no
 valid value at all stays NaN. A series with no spatial axis is repeated to every
-pixel.
+cell.
 
 Upsampling like this is not specific to carbon. If catena gains it, these nodes
 go.
@@ -102,7 +102,7 @@ def co2(
     co2_coarse
         Atmospheric CO2 concentration (parts per million) at the record's
         dates, such as NOAA's Mauna Loa monthly means. It declares no frequency,
-        and may have no spatial axis, in which case every pixel gets the same
+        and may have no spatial axis, in which case every cell gets the same
         series.
     temperature
         Daily mean air temperature (degrees Celsius), used for its time axis

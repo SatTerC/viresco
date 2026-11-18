@@ -3,9 +3,10 @@
 The pipeline reads some fifteen variables, so rather than write each one out this
 uses viresco's synthetic-data generator, which knows a plausible range, unit and
 seasonal shape for every model input. It writes each ``[inputs.*]`` file of
-``config.toml`` to the path that section gives: two years at two pixels. The
-generator cycles plant type through tree, grass, shrub, crop by pixel index, so
-pixel 1 is grassland. The data is deterministic, so the results are reproducible.
+``config.toml`` to the path that section gives: two years on a grid of one row
+and two columns. The generator cycles plant type through tree, grass, shrub, crop
+cell by cell, so the cell at ``x`` index 1 is grassland. The data is
+deterministic, so the results are reproducible.
 
 Run it directly, or call `write_inputs` from a notebook.
 """

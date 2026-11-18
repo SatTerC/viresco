@@ -1,12 +1,13 @@
 """The models read dimension names off the data, so none is assumed.
 
 A static scan fails on any dimension name written into the package's source, and
-an end-to-end test checks that the models work on whatever names the data has.
-A file can name its axes ``date`` and ``site`` rather than ``time`` and ``pixel``.
-The end-to-end test runs the four-model example pipeline twice, as generated and
-with every input's dimensions renamed, and expects the same numbers on the renamed
-axes. The example config's own expressions name ``time``, as a config written for
-such a file would not, so the renamed run swaps that name in the config too.
+an end-to-end test checks that the models work on whatever non-time dimensions
+the data has. The four-model example pipeline runs on the generated ``(time, y,
+x)`` grid, on the same data stacked into one ``site`` dimension, and with every
+dimension renamed, and is expected to give the same numbers each time. The
+example config's own expressions name ``time``, as a config written for a file
+with another time dimension would not, so the renamed run swaps that name in the
+config too.
 """
 
 import ast
@@ -20,14 +21,13 @@ import xarray_annotated as xra
 from catena import get_final_vars, load_config, load_inputs
 from conftest import driver_from_config
 
-from viresco._dims import space_dim
 from viresco.scaffold.data_gen import generate_synthetic_data
 
 EXAMPLE_CONFIG = Path(__file__).parent.parent / "recipes" / "config.toml"
-RENAMED = {"time": "date", "pixel": "site"}
+RENAMED = {"time": "date", "y": "north", "x": "east"}
 
 PACKAGE = Path(__file__).parent.parent / "src" / "viresco"
-DIM_NAMES = {"time", "pixel", "site", "date", "x", "y"}
+DIM_NAMES = {"time", "pixel", "site", "date", "x", "y", "north", "east"}
 # The synthetic-data generator names the dimensions of the data it makes, and the
 # CLI handles no arrays: its 'x' and 'y' are a checkbox marker and a unit.
 NOT_SCANNED = {"scaffold", "cli"}
@@ -66,7 +66,7 @@ def _dim_names_in(path: Path) -> list[str]:
 
 
 def test_no_dimension_name_is_written_into_the_source():
-    """Models take names from `sole_time_dim` and `viresco._dims.space_dim`."""
+    """Models take the time dimension from `sole_time_dim` and map over the rest."""
     hits = [
         hit
         for path in sorted(PACKAGE.rglob("*.py"))
@@ -80,12 +80,19 @@ def _rename_dims(da: xr.DataArray, mapping: dict[str, str]) -> xr.DataArray:
     return da.rename({old: new for old, new in mapping.items() if old in da.dims})
 
 
-def _run(config_path: Path, mapping: dict[str, str]) -> dict[str, xr.DataArray]:
+def _to_sites(da: xr.DataArray) -> xr.DataArray:
+    """Stack ``(y, x)`` into a plain ``site`` index, keeping the other dims."""
+    if not {"y", "x"} <= set(da.dims):
+        return da
+    stacked = da.stack(site=("y", "x"))
+    return stacked.drop_vars(["site", "y", "x"]).assign_coords(
+        site=np.arange(stacked.sizes["site"])
+    )
+
+
+def _run(config_path: Path, reshape) -> dict[str, xr.DataArray]:
     config = load_config(config_path)
-    inputs = {
-        name: _rename_dims(da, mapping)
-        for name, da in load_inputs(config.input_specs).items()
-    }
+    inputs = {name: reshape(da) for name, da in load_inputs(config.input_specs).items()}
     final_vars: list = get_final_vars(config.output_specs)
     with xra.enabled(True):
         return driver_from_config(config).execute(final_vars, inputs=inputs)
@@ -100,7 +107,7 @@ def data_dir(tmp_path_factory) -> Path:
         path = data_dir / Path(spec.path).relative_to(EXAMPLE_CONFIG.parent)
         path.parent.mkdir(exist_ok=True)
         spec.path = str(path)
-    generate_synthetic_data(config=config, grid=(2, 1), n_days=730, seed=7)
+    generate_synthetic_data(config=config, grid=(2, 2), n_days=730, seed=7)
 
     text = EXAMPLE_CONFIG.read_text()
     (data_dir / "config.toml").write_text(text)
@@ -109,40 +116,34 @@ def data_dir(tmp_path_factory) -> Path:
     return data_dir
 
 
-def test_models_run_on_any_dimension_names(data_dir):
-    reference = _run(data_dir / "config.toml", {})
-    renamed = _run(data_dir / "renamed.toml", RENAMED)
+@pytest.fixture(scope="module")
+def reference(data_dir) -> dict[str, xr.DataArray]:
+    return _run(data_dir / "config.toml", lambda da: da)
+
+
+def test_models_run_on_a_grid(reference):
+    for name, result in reference.items():
+        assert {"y", "x"} <= set(result.dims), name
+        assert result.dims[0] == "time", name
+
+
+def test_models_run_on_sites(data_dir, reference):
+    sites = _run(data_dir / "config.toml", _to_sites)
+
+    assert set(sites) == set(reference)
+    for name, expected in reference.items():
+        actual = sites[name]
+        assert actual.dims == _to_sites(expected).dims, name
+        np.testing.assert_array_equal(
+            actual.values, _to_sites(expected).values, err_msg=name
+        )
+
+
+def test_models_run_on_any_dimension_names(data_dir, reference):
+    renamed = _run(data_dir / "renamed.toml", lambda da: _rename_dims(da, RENAMED))
 
     assert set(renamed) == set(reference)
     for name, expected in reference.items():
         actual = renamed[name]
         assert actual.dims == tuple(RENAMED.get(str(d), d) for d in expected.dims), name
         np.testing.assert_array_equal(actual.values, expected.values, err_msg=name)
-
-
-def _da(*dims: str) -> xr.DataArray:
-    coords = {"date": np.arange("2020-01-01", "2020-01-04", dtype="datetime64[D]")}
-    shape = [3 if d == "date" else 2 for d in dims]
-    return xr.DataArray(
-        np.zeros(shape), dims=dims, coords={d: coords[d] for d in dims if d in coords}
-    )
-
-
-class TestSpaceDim:
-    def test_ignores_the_time_dimension(self):
-        assert space_dim(a=_da("date", "site"), b=_da("site")) == "site"
-
-    def test_allows_an_input_with_no_spatial_dimension(self):
-        assert space_dim(a=_da("date", "site"), b=_da()) == "site"
-
-    def test_rejects_two_spatial_dimensions(self):
-        with pytest.raises(ValueError, match=r"a has non-time dimensions \['y', 'x'\]"):
-            space_dim(a=_da("date", "y", "x"))
-
-    def test_rejects_disagreeing_inputs(self):
-        with pytest.raises(ValueError, match="'site' on a; 'pixel' on b"):
-            space_dim(a=_da("date", "site"), b=_da("pixel"))
-
-    def test_rejects_no_spatial_dimension(self):
-        with pytest.raises(ValueError, match="None of a, b has a spatial dimension"):
-            space_dim(a=_da("date"), b=_da())

@@ -52,6 +52,7 @@ class TestSyntheticDataGeneration:
         """Test static dataset contains expected variables."""
         expected_vars = {
             "elevation",
+            "latitude",
             "plant_type",
             "max_soil_moisture",
             "clay_content",
@@ -105,6 +106,13 @@ class TestSyntheticDataValues:
         assert np.nanmax(elev) < 1000
 
     def test_crs_metadata(self, daily_ds, static_ds):
-        """Test CRS metadata is set correctly."""
-        assert daily_ds.attrs.get("crs") == "EPSG:4326"
-        assert static_ds.attrs.get("crs") == "EPSG:4326"
+        """Every variable points at one CF latitude-longitude grid mapping."""
+        for ds in (daily_ds, static_ds):
+            mapping = ds["crs"].attrs
+            assert mapping["grid_mapping_name"] == "latitude_longitude"
+            for name, var in ds.data_vars.items():
+                if name != "crs":
+                    grid_mapping = var.encoding.get("grid_mapping") or var.attrs.get(
+                        "grid_mapping"
+                    )
+                    assert grid_mapping == "crs", name

@@ -8,7 +8,6 @@ from viresco.scaffold.data_gen.spec import Grid, Resolver
 
 N_DAYS = 10
 N_LAT, N_LON = 2, 3
-N_PIXELS = N_LAT * N_LON
 
 
 @pytest.fixture
@@ -58,8 +57,8 @@ class TestFallbackVar:
 class TestFallbackAsDaily:
     def test_dims_and_shape(self, resolver):
         result = resolver.daily("some_var")
-        assert result.dims == ("time", "pixel")
-        assert result.sizes == {"time": N_DAYS, "pixel": N_PIXELS}
+        assert result.dims == ("time", "y", "x")
+        assert result.sizes == {"time": N_DAYS, "y": N_LAT, "x": N_LON}
 
     def test_bounded_values_in_range(self, resolver):
         values = resolver.daily("sunshine_fraction").values
@@ -79,8 +78,8 @@ class TestFallbackAsStatic:
 
     def test_dims_and_shape(self, resolver):
         result = resolver.static("some_var")
-        assert result.dims == ("pixel",)
-        assert result.sizes == {"pixel": N_PIXELS}
+        assert result.dims == ("y", "x")
+        assert result.sizes == {"y": N_LAT, "x": N_LON}
 
     def test_bounded_values_in_range(self, resolver):
         values = resolver.static("sunshine_fraction").values
