@@ -46,3 +46,36 @@ catena names an input `{var}{suffix}`, with the suffix defaulting to `_<section 
 Because daily and static names are both bare, a name alone does not say which a node is: its declared frequency does.
 
 
+
+## Inputs on a grid { #inputs-on-a-grid }
+
+The models take whatever dimensions their inputs have besides time: a grid `(y, x)`, a set of sites, or a single point.
+catena passes each input on as its file holds it, and every cell is modelled independently.
+
+`latitude` is an ordinary input, read from a file like any other.
+`viresco data-gen` writes it as a variable.
+A file that carries it as a coordinate binds it with the mapping form of `vars`:
+
+| File | Binding |
+|------|---------|
+| A latitude-longitude grid | `vars = { latitude = "y" }` |
+| A projected grid with a CF `lat` coordinate | `vars = { latitude = "lat" }` |
+| A station file with a `lat` coordinate on `site` | `vars = { latitude = "lat" }` |
+
+catena does not check that gridded inputs share a grid unless a config asks it to, and xarray's default inner join silently drops the cells that do not line up.
+`viresco setup` therefore writes these checks over its input sections:
+
+```toml
+[validation]
+checks = [
+  { check = "crs_equal", inputs = ["daily", "static"] },
+  { check = "coords_equal", inputs = ["daily", "static"], coords = ["y", "x"] },
+]
+```
+
+Name only the gridded sections: `crs_equal` fails a file with no CRS, such as a table of sites.
+See catena's [configuration reference][catena-validation] for the checks.
+
+`[blocking]` and `[subset]` split one dimension of the inputs, `y` on a grid, so a block is a set of whole rows.
+
+[catena-validation]: https://nerc-ceh.github.io/catena/reference/configuration.html#validation

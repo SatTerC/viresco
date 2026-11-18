@@ -13,7 +13,6 @@ from rothc_py.containers import InputData
 from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
-from .._dims import space_dim
 from ..temporal import MONTHLY, time_index
 
 
@@ -86,13 +85,13 @@ def _rothc_1px(
     equilibrium_threshold: float,
     zero_threshold: float,
 ) -> tuple[NDArray[np.float64], ...]:
-    """Run RothC for a single pixel.
+    """Run RothC for a single cell.
 
-    The climate/driver arguments are 1D ``(time,)`` arrays for one pixel; ``clay``,
-    ``depth`` and ``iom`` are per-pixel scalars. ``t_mod`` (the percent-modern-carbon
+    The climate/driver arguments are 1D ``(time,)`` arrays for one cell; ``clay``,
+    ``depth`` and ``iom`` are per-cell scalars. ``t_mod`` (the percent-modern-carbon
     series) depends only on the date range, so it is computed once in `_rothc`
     and passed through unchanged. Returns one ``(time,)`` array per output pool/flux,
-    ordered as `_ROTHC_OUTPUT_KEYS`. This is the per-pixel kernel mapped over the
+    ordered as `_ROTHC_OUTPUT_KEYS`. This is the per-cell kernel mapped over the
     spatial dimension by `_rothc` via `xarray.apply_ufunc`.
     """
     params = RothCParams(
@@ -159,30 +158,17 @@ def _rothc(
     equilibrium_threshold: float = 1e-6,
     zero_threshold: float = 1e-8,
 ) -> RothCOut:
-    """Map `_rothc_1px` over the spatial dimension.
+    """Map `_rothc_1px` over every cell.
 
-    The per-pixel RothC kernel is applied via `xarray.apply_ufunc` with time as the
-    input/output core dimension and space as the broadcast (mapped) dim; see
-    `viresco._dims` for how each is found. The 2D ``(time, space)`` climate/driver
-    inputs declare time as their core dim; the 1D ``(space,)`` soil inputs declare
-    no core dim (so each call receives a per-pixel scalar). ``t_mod`` and the rate
-    constants are pixel-invariant constants passed through ``kwargs``.
+    The per-cell RothC kernel is applied via `xarray.apply_ufunc` with time as the
+    input/output core dimension and every other dimension broadcast (mapped). The
+    climate/driver inputs declare time as their core dim; the static soil inputs
+    declare no core dim (so each call receives a per-cell scalar). ``t_mod`` and
+    the rate constants are cell-invariant constants passed through ``kwargs``.
     ``dask="parallelized"`` is a no-op for eager numpy inputs but keeps the node
     compatible with a future dask-backed (chunked over space) execution strategy.
     """
     time = sole_time_dim(temperature_monthly, "temperature_monthly")
-    space = space_dim(
-        temperature_monthly=temperature_monthly,
-        precipitation_monthly=precipitation_monthly,
-        potential_evapotranspiration_monthly=potential_evapotranspiration_monthly,
-        plant_cover_monthly=plant_cover_monthly,
-        dpm_rpm_ratio_monthly=dpm_rpm_ratio_monthly,
-        soil_carbon_input_monthly=soil_carbon_input_monthly,
-        farmyard_manure_input_monthly=farmyard_manure_input_monthly,
-        clay_content=clay_content,
-        soil_depth=soil_depth,
-        inert_organic_matter=inert_organic_matter,
-    )
     n_months = temperature_monthly.sizes[time]
 
     # NOTE: need to pass a datetime.datetime object (not a numpy.datetime64)
@@ -190,7 +176,7 @@ def _rothc(
     # the pandas type stubs, hence the type: ignore.
     start_date = dates_monthly.to_pydatetime()[0]  # type: ignore[reportAttributeAccessIssue]
 
-    # t_mod depends only on the date range, so compute it once and share across pixels.
+    # t_mod depends only on the date range, so compute it once and share across cells.
     t_mod = percent_modern_c(start_date=start_date, n_months=n_months)
 
     outputs = xr.apply_ufunc(
@@ -224,13 +210,13 @@ def _rothc(
         output_dtypes=[float] * 6,
     )
 
-    # apply_ufunc drops the time coordinate (a core dim) and orders outputs as
-    # (space, time); reattach the coordinate and restore the canonical (time, space).
+    # apply_ufunc drops the time coordinate (a core dim) and puts time last;
+    # reattach the coordinate and put time first.
     time_coord = temperature_monthly.coords[time]
     return cast(
         RothCOut,
         {
-            name: da.assign_coords({time: time_coord}).transpose(time, space)
+            name: da.assign_coords({time: time_coord}).transpose(time, ...)
             for name, da in zip(_ROTHC_OUTPUT_NAMES, outputs, strict=True)
         },
     )
@@ -353,7 +339,7 @@ def rothc(
 
 
 # --- Bridge nodes, needed for RothC --- #
-# Each of these produces a monthly series out of per-pixel static data, so it needs
+# Each of these produces a monthly series out of per-cell static data, so it needs
 # a monthly calendar to build that series against. The time axis lives on the data,
 # so each takes ``temperature_monthly`` purely for its time coordinate.
 
@@ -375,9 +361,9 @@ def plant_cover_monthly(
     ----------
     plant_type
         Plant functional type as an integer (0=tree, 1=grass, 2=shrub, 3=crop),
-        on the spatial dimension.
+        one per cell.
     latitude
-        Latitude for each pixel, on the spatial dimension.
+        Latitude of each cell, on any of ``plant_type``'s dimensions.
     temperature_monthly
         Read only for its monthly time coordinate, which sets the returned
         series' calendar.
@@ -385,35 +371,15 @@ def plant_cover_monthly(
     Returns
     -------
     DataArray
-        Boolean plant cover on ``(time, space)``, named as on the inputs.
+        Boolean plant cover, on ``time`` then the inputs' other dimensions.
     """
     time = sole_time_dim(temperature_monthly, "temperature_monthly")
-    space = space_dim(plant_type=plant_type, latitude=latitude)
     dates_monthly = time_index(temperature_monthly, "temperature_monthly")
-    n_months = len(dates_monthly)
-    n_pixels = len(plant_type)
-    months = np.array([d.month for d in dates_monthly])
-
-    is_crop = plant_type.values == 3
-    nh = latitude.values >= 0
-
-    bare_months_nh = np.isin(months, [11, 12, 1, 2])
-    bare_months_sh = np.isin(months, [5, 6, 7, 8])
-
-    cover = np.ones((n_months, n_pixels), dtype=bool)
-
-    for i in range(n_pixels):
-        if is_crop[i]:
-            if nh[i]:
-                cover[:, i] = ~bare_months_nh
-            else:
-                cover[:, i] = ~bare_months_sh
-
-    return xr.DataArray(
-        data=cover,
-        dims=[time, space],
-        coords={time: dates_monthly, space: plant_type.coords[space]},
+    months = xr.DataArray(dates_monthly.month, coords={time: dates_monthly}, dims=time)
+    bare = xr.where(
+        latitude >= 0, months.isin([11, 12, 1, 2]), months.isin([5, 6, 7, 8])
     )
+    return (~((plant_type == 3) & bare)).transpose(time, ...)
 
 
 @check_annotations
@@ -435,7 +401,7 @@ def dpm_rpm_ratio_monthly(
     ----------
     plant_type
         Plant functional type as an integer (0=tree, 1=grass, 2=shrub, 3=crop),
-        on the spatial dimension.
+        one per cell.
     temperature_monthly
         Read only for its monthly time coordinate, which sets the returned
         series' calendar.
@@ -454,7 +420,7 @@ def dpm_rpm_ratio_monthly(
     Returns
     -------
     DataArray
-        DPM/RPM ratio on ``(time, space)``, named as on the inputs.
+        DPM/RPM ratio, on ``time`` then ``plant_type``'s dimensions.
     """
     ratio_map = {
         0: dpm_rpm_ratio_tree,
@@ -463,14 +429,13 @@ def dpm_rpm_ratio_monthly(
         3: dpm_rpm_ratio_crop,
     }
     time = sole_time_dim(temperature_monthly, "temperature_monthly")
-    space = space_dim(plant_type=plant_type)
     dates_monthly = time_index(temperature_monthly, "temperature_monthly")
-    values = np.array([ratio_map[int(t)] for t in plant_type.values])
-    return xr.DataArray(
-        data=np.tile(values, (len(dates_monthly), 1)),
-        dims=[time, space],
-        coords={time: dates_monthly, space: plant_type.coords[space]},
-    )
+    values = [ratio_map[int(t)] for t in plant_type.values.ravel()]
+    ratio = plant_type.copy(data=np.reshape(values, plant_type.shape))
+    # Built on ``plant_type`` only for its dims and coords, so drop its attrs for
+    # the stamp to fill.
+    ratio.attrs.clear()
+    return ratio.expand_dims({time: dates_monthly}).copy()
 
 
 @check_annotations
@@ -485,7 +450,7 @@ def farmyard_manure_input_monthly(
     ----------
     plant_type
         Plant functional type as an integer (0=tree, 1=grass, 2=shrub, 3=crop).
-        Used only for its shape and coordinates, on the spatial dimension.
+        Used only for its dimensions and coordinates.
     temperature_monthly
         Read only for its monthly time coordinate, which sets the returned
         series' calendar.
@@ -493,8 +458,8 @@ def farmyard_manure_input_monthly(
     Returns
     -------
     DataArray
-        Monthly farmyard manure carbon input, all zeros, with shape
-        ``(time, space)``, named as on the inputs (tonnes of carbon per hectare).
+        Monthly farmyard manure carbon input, all zeros, on ``time`` then
+        ``plant_type``'s dimensions (tonnes of carbon per hectare).
     """
     time = sole_time_dim(temperature_monthly, "temperature_monthly")
     dates_monthly = time_index(temperature_monthly, "temperature_monthly")

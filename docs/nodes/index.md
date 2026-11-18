@@ -94,7 +94,7 @@ ERA5 gives temperatures in kelvin and `ssrd` as accumulated joules, so convert t
 ## Interpolation { #interpolate }
 
 Each series is interpolated linearly in time through its valid values, so a gap is bridged by the values either side.
-Days outside the record take its first or last value, and a pixel with no valid value stays NaN.
+Days outside the record take its first or last value, and a cell with no valid value stays NaN.
 
 ::: viresco.nodes.interpolate.fapar
     options:

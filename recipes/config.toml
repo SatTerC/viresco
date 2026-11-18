@@ -63,12 +63,17 @@ vars = [
 
 # Static variables are bare too (`elevation`, not `elevation_static`). A bare
 # name is therefore daily or static, and only a node's declared `Freq` says which.
+# `latitude` is an ordinary input. `viresco data-gen` writes it as a variable; a
+# file that carries it as a coordinate binds it with the mapping form of `vars`
+# instead: `{ latitude = "y" }` on a latitude-longitude grid, or `{ latitude =
+# "lat" }` for the 2-D coordinate a CF file on a projected grid carries.
 [inputs.static]
 path = "inputs/static.nc"
 suffix = ""
 vars = [
     "clay_content",
     "elevation",
+    "latitude",
     "leaf_pool_init",
     "max_soil_moisture",
     "organic_carbon_stocks",
@@ -78,9 +83,19 @@ vars = [
     "stem_pool_init",
 ]
 
+# catena does not check that gridded inputs share a grid unless asked, and
+# without these checks xarray's default inner join silently drops the cells that
+# do not line up. Name the gridded sections only: `crs_equal` fails a file with no
+# CRS, such as a table of sites.
+[validation]
+checks = [
+    { check = "crs_equal", inputs = ["daily", "static"] },
+    { check = "coords_equal", inputs = ["daily", "static"], coords = ["y", "x"] },
+]
+
 # pyrealm's `aridity_index` is climatological and oriented PET/P: potential
 # demand over supply, so above 1 is water-limited. Both accumulate over the whole
-# record, giving one value per pixel rather than a time series -- which is what
+# record, giving one value per cell rather than a time series -- which is what
 # "climatological" means, and what the sandoval quantum-yield method expects.
 # Only that method consumes it: with the `method_kphio` above it goes unused,
 # and is here so that switching to sandoval needs no new node.

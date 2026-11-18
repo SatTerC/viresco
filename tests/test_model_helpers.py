@@ -230,7 +230,7 @@ class TestSgamHelpers:
 
         plant_type = _static(np.array([0.0, 1.0]))
         ds = sgam_module._build_pft_params_dataset(plant_type)
-        params = sgam_module._pft_params_from_dataset(ds, 0)
+        params = sgam_module._pft_params_from_dataset(ds, (0,))
         assert isinstance(params, PftParams)
 
     def test_pft_params_function_wraps_build(self):

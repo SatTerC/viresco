@@ -240,7 +240,7 @@ def _(mo):
     Both models run daily, so the frequency does not change here.
 
     The aridity index is a different shape of problem.
-    pyrealm's is climatological, potential evapotranspiration over precipitation with both terms accumulated across the whole record, so it is one number per pixel rather than a time series.
+    pyrealm's is climatological, potential evapotranspiration over precipitation with both terms accumulated across the whole record, so it is one number per cell rather than a time series.
     SPLASH computes PET on its way to actual evapotranspiration and exposes it, so the bridge is a sum and a divide.
     """)
     return
@@ -373,7 +373,7 @@ def _(mo):
     mo.md(r"""
     ## Diagnostics
 
-    One panel per model, averaged over the sixteen pixels, in the order the carbon travels.
+    One panel per model, averaged over the sixteen cells, in the order the carbon travels.
     Each panel runs at its model's own frequency: SPLASH daily, the P-model and SGAM weekly, RothC monthly.
 
     What to look for is whether the chain behaves: soil moisture should cycle seasonally, productivity should track it, the plant pools should accumulate, and the soil pools should respond to litter arriving from above.

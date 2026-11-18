@@ -312,9 +312,6 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
     for output in all_model_outputs:
         produced_at.setdefault(_base(output), set()).add(_label(output))
 
-    # Grid variables come from the grid module, not from files.
-    grid_vars = {"latitude", "longitude"}
-
     daily: set[str] = set()
     weekly: set[str] = set()
     monthly: set[str] = set()
@@ -398,8 +395,6 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
 
     for name in sorted(all_data_inputs):
         base, label = _base(name), _label(name)
-        if base in grid_vars:
-            continue
 
         produced = produced_at.get(base, set())
         if label in produced:
@@ -550,6 +545,18 @@ def generate_config(
         for freq in freq_keys
         if required_data[f"inputs_{freq}"]
     }
+
+    # catena does not check that gridded inputs share a grid unless asked, and
+    # without the check xarray's default inner join silently drops the cells that
+    # do not line up. Every section here is written on one grid by data-gen.
+    gridded = list(config_data["inputs"])
+    if len(gridded) > 1:
+        config_data["validation"] = {
+            "checks": [
+                {"check": "crs_equal", "inputs": gridded},
+                {"check": "coords_equal", "inputs": gridded, "coords": ["y", "x"]},
+            ]
+        }
 
     # Nodes before resamples: a reader meets the derivations that change what a
     # variable *means* before the ones that only change its cadence.

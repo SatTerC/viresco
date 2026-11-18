@@ -24,7 +24,7 @@ def aridity_index(
     potential_evapotranspiration: Annotated[xr.DataArray, Unit("mm d-1")],
     precipitation: Annotated[xr.DataArray, Unit("mm d-1")],
 ) -> Annotated[xr.DataArray, Unit("1")]:
-    """Climatological aridity, PET over precipitation, one value per pixel.
+    """Climatological aridity, PET over precipitation, one value per cell.
 
     pyrealm's aridity index accumulates both terms over the whole record rather
     than giving a time series. SPLASH computes PET on its way to AET and exposes

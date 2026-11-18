@@ -101,7 +101,7 @@ def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
     per_pixel: list[dict] = []
     for i in range(N_PIXELS):
         pft_enum = _pft_int_to_enum(int(inputs["plant_type"].values[i]))
-        params = _pft_params_from_dataset(pft_params, i)
+        params = _pft_params_from_dataset(pft_params, (i,))
         hemisphere = "NH" if inputs["latitude"].values[i] >= 0 else "SH"
 
         output = Sgam(

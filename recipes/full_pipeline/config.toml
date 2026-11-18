@@ -39,6 +39,7 @@ path = "data/static.nc"
 suffix = ""
 vars = [
   "elevation",
+  "latitude",
   "plant_type",
   "max_soil_moisture",
   "clay_content",
@@ -47,6 +48,13 @@ vars = [
   "root_pool_init",
   "leaf_pool_init",
   "stem_pool_init",
+]
+
+# The two files must be on one grid; catena checks this only when asked.
+[validation]
+checks = [
+  { check = "crs_equal", inputs = ["daily", "static"] },
+  { check = "coords_equal", inputs = ["daily", "static"], coords = ["y", "x"] },
 ]
 
 # SGAM's weekly drivers, as means of the daily SPLASH and P-model values.

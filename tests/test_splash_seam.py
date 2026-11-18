@@ -34,7 +34,7 @@ from xarray_annotated.units import UnitError
 from viresco.models.splash import (
     _FLUX_ATTRIBUTES,
     _OUTPUT_FIELDS,
-    _describe_pixels,
+    _describe_cells,
     _splash,
     splash,
     sunshine_fraction__shortwave,
@@ -416,20 +416,19 @@ class TestInvalidPixels:
         self, splash_inputs, pixels, day
     ):
         inputs = self._with_nan(splash_inputs, "precipitation", day, 1)
-        with pytest.raises(ValueError, match=r"missing values in 1 pixel\(s\) \(1\)"):
+        with pytest.raises(ValueError, match=r"missing values in 1 cell\(s\) \(1\)"):
             _splash(**self._pixels(inputs, pixels))
 
     def test_one_variable_with_no_data_is_a_gap_not_a_mask(self, splash_inputs):
         inputs = dict(splash_inputs)
         inputs["temperature"] = inputs["temperature"] * np.nan
-        with pytest.raises(ValueError, match=r"missing values in 3 pixel\(s\)"):
+        with pytest.raises(ValueError, match=r"missing values in 3 cell\(s\)"):
             _splash(**inputs)
 
     def test_many_pixels_are_truncated_in_the_message(self):
         labels = np.arange(25)
         assert (
-            _describe_pixels(labels)
-            == "25 pixel(s) (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ...)"
+            _describe_cells(labels) == "25 cell(s) (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ...)"
         )
 
     def test_gap_uses_the_pixel_label_not_the_position(self, splash_inputs):
@@ -449,7 +448,7 @@ class TestInvalidPixels:
         inputs = dict(splash_inputs)
         inputs["latitude"] = _static(np.array([51.5, -80.0, 10.0]))
         with pytest.warns(
-            UserWarning, match=r"NaN soil moisture for 1 pixel\(s\) \(1\)"
+            UserWarning, match=r"NaN soil moisture for 1 cell\(s\) \(1\)"
         ):
             result = _splash(**self._pixels(inputs, pixels))
         moisture = result["soil_moisture"]
@@ -469,7 +468,7 @@ class TestInvalidPixels:
     def test_fill_value_elevation_warns_naming_the_pixel(self, splash_inputs):
         inputs = dict(splash_inputs)
         inputs["elevation"] = _static(np.array([50.0, -9999.0, 2000.0]))
-        with pytest.warns(UserWarning, match=r"Elevation.*1 pixel\(s\) \(1\)"):
+        with pytest.warns(UserWarning, match=r"Elevation.*1 cell\(s\) \(1\)"):
             _splash(**inputs)
 
     @pytest.mark.parametrize("elevation", [-430.0, 0.0, 8800.0])
@@ -538,7 +537,7 @@ class TestStrategyCStaysOpen:
         inputs = dict(splash_inputs)
         inputs["precipitation"] = inputs["precipitation"].copy()
         inputs["precipitation"][100, 2] = np.nan
-        with pytest.raises(ValueError, match=r"1 pixel\(s\) \(2\)"):
+        with pytest.raises(ValueError, match=r"1 cell\(s\) \(2\)"):
             _splash(**self._chunked(inputs))["soil_moisture"].compute()
 
 

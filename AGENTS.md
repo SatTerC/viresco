@@ -9,7 +9,10 @@ compatibility shims.
 
 Viresco is a thin domain package on top of [**catena**](https://github.com/NERC-CEH/catena), which owns the framework:
 config parsing, the DAG, contract validation, I/O, caching, blocking, subsetting,
-the gridded/Zarr layer, and the `run` / `graph` / `gridded` CLI commands.
+parallel subset I/O, and the `run` / `graph` / `subset` CLI commands.
+catena passes inputs to nodes with the dimensions their files have (its ADR
+0003): it does not stack a grid, add `latitude`/`longitude`, or check that
+gridded inputs share a grid unless a config's `[validation]` asks it to.
 catena's **`main` branch is the source of truth** — read it (or the local
 checkout, if present) rather than guessing at its API.
 
@@ -67,6 +70,19 @@ checkout, if present) rather than guessing at its API.
   convert (kelvin for degC, `%` for `1`). Convert at the point data
   enters, with `xarray_annotated.units.convert` or in the fetching notebook, and
   do not loosen a declaration to accept a second unit.
+- Models work on whatever non-time dimensions their inputs have: `(y, x)`, a
+  `site`, or none. Each takes the time dimension from `sole_time_dim` and lets
+  `xarray.apply_ufunc` map over the rest; nothing stacks to one spatial
+  dimension, and no dimension name is written into the source.
+  `tests/test_dims.py` runs the example pipeline on a grid, on the same data
+  stacked to `site`, and with every dimension renamed, and expects the same
+  numbers. A kernel that needs a flat axis of cells (SPLASH, to drop masked
+  cells) reshapes in numpy inside its block function.
+- `latitude` is an ordinary input, read from a file: a variable, as data-gen
+  writes it, or a coordinate bound with the mapping form of `vars` (`{ latitude
+  = "y" }` on a latitude-longitude grid, `{ latitude = "lat" }` for a CF
+  projected grid's 2-D coordinate or a station file). `config_gen` also writes
+  `crs_equal` and `coords_equal` checks over the gridded input sections.
 - Generic behaviour belongs upstream. If a change would be useful to a pipeline
   that is not about carbon, it probably belongs in catena, not here.
 
@@ -93,7 +109,8 @@ The schema is catena's; there is no viresco-specific config code.
 
 ## Block size is not numerically free
 
-`[blocking]` and `[subset]` partition the `pixel` dimension, and SPLASH's results
+`[blocking]` and `[subset]` partition one dimension of the inputs (`y` on a grid,
+so a block is whole rows), and SPLASH's results
 depend slightly on that partition: `estimate_initial_soil_moisture` iterates to a
 convergence tolerance evaluated over the whole block, so a different block size
 stops at a different iteration. The effect is ~1e-4 relative on `soil_moisture`

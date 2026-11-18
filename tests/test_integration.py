@@ -8,7 +8,7 @@ then execute pipeline nodes to verify the full stack — config → load_inputs
 import numpy as np
 from catena import IOSpec, get_final_vars
 
-N_PIXELS = 4  # 2x2 grid
+GRID = {"y": 2, "x": 2}
 N_DAYS = 365
 N_MONTHS = 12
 
@@ -19,21 +19,21 @@ class TestLoadedInputs:
     def test_daily_input_shape(self, pipeline_inputs):
         da = pipeline_inputs["temperature"]
         assert da.sizes["time"] == N_DAYS
-        assert da.sizes["pixel"] == N_PIXELS
+        assert {d: da.sizes[d] for d in GRID} == GRID
 
     def test_weekly_input_shape(self, pipeline_inputs):
         da = pipeline_inputs["dummy_variable_weekly"]
         assert 50 <= da.sizes["time"] <= 54
-        assert da.sizes["pixel"] == N_PIXELS
+        assert {d: da.sizes[d] for d in GRID} == GRID
 
     def test_monthly_input_shape(self, pipeline_inputs):
         da = pipeline_inputs["dummy_variable_monthly"]
         assert da.sizes["time"] == N_MONTHS
-        assert da.sizes["pixel"] == N_PIXELS
+        assert {d: da.sizes[d] for d in GRID} == GRID
 
     def test_static_input_shape(self, pipeline_inputs):
         da = pipeline_inputs["elevation"]
-        assert da.sizes["pixel"] == N_PIXELS
+        assert {d: da.sizes[d] for d in GRID} == GRID
         assert "time" not in da.dims
 
     def test_no_nan_in_daily_inputs(self, pipeline_inputs):
@@ -52,21 +52,19 @@ class TestLoadedInputs:
 
 
 class TestGridInputs:
-    """Test that load_inputs() computes latitude and longitude from spatial CRS data."""
+    """`latitude` is an ordinary static input, read from the generated file."""
 
     def test_latitude_in_uk_bounds(self, pipeline_inputs):
         lat = pipeline_inputs["latitude"].values
         assert np.all(lat >= 49.0)
         assert np.all(lat <= 55.0)
 
-    def test_longitude_in_uk_bounds(self, pipeline_inputs):
-        lon = pipeline_inputs["longitude"].values
-        assert np.all(lon >= -5.0)
-        assert np.all(lon <= 3.0)
-
-    def test_grid_pixel_count(self, pipeline_inputs):
-        assert pipeline_inputs["latitude"].sizes["pixel"] == N_PIXELS
-        assert pipeline_inputs["longitude"].sizes["pixel"] == N_PIXELS
+    def test_latitude_is_the_grid_y_coordinate(self, pipeline_inputs):
+        latitude = pipeline_inputs["latitude"]
+        assert latitude.dims == ("y", "x")
+        np.testing.assert_array_equal(
+            latitude.values, latitude["y"].broadcast_like(latitude).values
+        )
 
 
 class TestDriverExecution:
@@ -91,9 +89,8 @@ class TestDriverExecution:
         ]
         results = pipeline_driver.execute(final_vars, inputs=pipeline_inputs)
         assert all(v in results for v in final_vars)
-        assert results["temperature"].sizes["pixel"] == N_PIXELS
-        assert results["dummy_variable_weekly"].sizes["pixel"] == N_PIXELS
-        assert results["dummy_variable_monthly"].sizes["pixel"] == N_PIXELS
+        for name in final_vars:
+            assert {d: results[name].sizes[d] for d in GRID} == GRID, name
 
     def test_get_final_vars_single_frequency(self, pipeline_driver, pipeline_inputs):
         """Filtering output_specs to one frequency requests only those targets."""

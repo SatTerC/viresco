@@ -57,7 +57,7 @@ class TestGrid:
     def test_pixels_are_the_lat_lon_product(self):
         grid = Grid(n_lat=N_LAT, n_lon=N_LON, n_days=N_DAYS)
         assert grid.n_pixels == N_PIXELS
-        assert len(grid.pixel_coords) == N_PIXELS
+        assert (grid.y.size, grid.x.size) == (N_LAT, N_LON)
 
     def test_time_coord_length(self):
         grid = Grid(n_lat=1, n_lon=1, n_days=N_DAYS)
@@ -111,7 +111,7 @@ class TestClimateFollowsTheBox:
             seed=1,
         )
         temperature = resolver.daily("temperature")
-        return temperature.mean("pixel").groupby("time.month").mean().values
+        return temperature.mean(["y", "x"]).groupby("time.month").mean().values
 
     def test_tropics_are_warm_and_aseasonal(self):
         monthly = self._monthly_mean((-5.0, 5.0))
@@ -134,13 +134,13 @@ class TestBuild:
     def test_scalar_is_broadcast_to_full_shape(self):
         table = {"const": Var("1", "constant", lambda _: 3.0)}
         result = make_resolver(daily_vars=table).daily("const")
-        assert result.shape == (N_DAYS, N_PIXELS)
+        assert result.shape == (N_DAYS, N_LAT, N_LON)
         assert np.all(result.values == 3.0)
 
     def test_column_is_broadcast_across_pixels(self):
         table = {"uniform_in_space": Var("1", "", lambda g: g.day)}
         result = make_resolver(daily_vars=table).daily("uniform_in_space")
-        assert result.shape == (N_DAYS, N_PIXELS)
+        assert result.shape == (N_DAYS, N_LAT, N_LON)
         assert np.all(result.values[5, :] == 5.0)
 
     def test_bounds_are_applied(self):
@@ -170,11 +170,13 @@ class TestDependencies:
         """`pressure` reads `elevation`, a static, from within a daily lambda."""
         pressure = resolver.daily("pressure")
         elevation = resolver.static("elevation")
-        assert pressure.shape == (N_DAYS, N_PIXELS)
+        assert pressure.shape == (N_DAYS, N_LAT, N_LON)
         # Pressure falls with elevation, so the two are strongly anticorrelated
         # across pixels. (Per-pixel ranking is not safe: synoptic noise can swap
         # neighbouring pixels whose elevations are close.)
-        correlation = np.corrcoef(pressure.mean("time").values, elevation.values)[0, 1]
+        correlation = np.corrcoef(
+            pressure.mean("time").values.ravel(), elevation.values.ravel()
+        )[0, 1]
         assert correlation < -0.9
 
     def test_result_is_memoised(self, resolver):
@@ -248,7 +250,7 @@ class TestTables:
     @pytest.mark.parametrize("name", sorted(DAILY_VARS))
     def test_every_daily_var_generates(self, resolver, name):
         result = resolver.daily(name)
-        assert result.shape == (N_DAYS, N_PIXELS)
+        assert result.shape == (N_DAYS, N_LAT, N_LON)
         low, high = DAILY_VARS[name].bounds
         if low is not None:
             assert np.nanmin(result.values) >= low
@@ -258,7 +260,7 @@ class TestTables:
     @pytest.mark.parametrize("name", sorted(STATIC_VARS))
     def test_every_static_var_generates(self, resolver, name):
         result = resolver.static(name)
-        assert result.shape == (N_PIXELS,)
+        assert result.shape == (N_LAT, N_LON)
         low, high = STATIC_VARS[name].bounds
         if low is not None:
             assert np.nanmin(result.values) >= low
@@ -284,5 +286,5 @@ class TestTables:
             static_vars=STATIC_VARS,
             fallback=fallback_var,
         )
-        assert resolver.daily("temperature").shape == (N_DAYS, 1)
-        assert resolver.static("elevation").shape == (1,)
+        assert resolver.daily("temperature").shape == (N_DAYS, 1, 1)
+        assert resolver.static("elevation").shape == (1, 1)

@@ -92,7 +92,7 @@ Each pool loses biomass at a fixed first-order rate each week. Losses from leaf,
 
 ### Disturbances
 
-Disturbance events are detected from daily time series by checking simultaneous declines in GPP and LAI during the growing season. Detection is per-PFT: the decline must exceed that PFT's `disturbance_threshold` (tree 0.3, shrub 0.25, grass 0.2, crop 0.1), so crops flag events that leave a tree pixel untouched. The response also differs by PFT:
+Disturbance events are detected from daily time series by checking simultaneous declines in GPP and LAI during the growing season. Detection is per-PFT: the decline must exceed that PFT's `disturbance_threshold` (tree 0.3, shrub 0.25, grass 0.2, crop 0.1), so crops flag events that leave a tree cell untouched. The response also differs by PFT:
 
 - **Crops** – complete removal of above-ground biomass (harvest); root carbon transfers to litter
 - **Other PFTs** – partial defoliation proportional to severity (fire, grazing, pests)
@@ -117,7 +117,7 @@ SGAM ships one parameter set per PFT. The values below are its defaults; we have
 
 The pattern in those numbers is the intended one: trees hold carbon in long-lived structure, grasses turn leaves and roots over fast, shrubs tolerate drought at high water-use efficiency, crops put carbon above ground.
 
-These are not pipeline config: they come from the `sgam` package, keyed on each pixel's `plant_type`, via the `pft_params` node.
+These are not pipeline config: they come from the `sgam` package, keyed on each cell's `plant_type`, via the `pft_params` node.
 
 ### Mass balance
 
@@ -172,6 +172,8 @@ Disturbance detection runs on daily observations and has one setting of its own,
       docstring_section_style: spacy
 
 ### Inputs
+
+`latitude` is read from a file, as a variable or a coordinate; see [Inputs on a grid](index.md#inputs-on-a-grid).
 
 ::: viresco.models.sgam.sgam
     options:

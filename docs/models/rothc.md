@@ -108,6 +108,8 @@ The per-PFT DPM/RPM ratios are settings of the `dpm_rpm_ratio_monthly` bridge no
 
 ### Inputs
 
+`latitude` is read from a file, as a variable or a coordinate; see [Inputs on a grid](index.md#inputs-on-a-grid).
+
 ::: viresco.models.rothc.rothc
     options:
       show_root_heading: false
@@ -122,7 +124,7 @@ The per-PFT DPM/RPM ratios are settings of the `dpm_rpm_ratio_monthly` bridge no
 ### Bridge nodes
 
 Three of those monthly inputs are produced by this module rather than loaded.
-Each builds a monthly series out of per-pixel static data, which leaves it nothing to get a calendar from — so each also takes `temperature_monthly`, read purely for its time coordinate.
+Each builds a monthly series out of per-cell static data, which leaves it nothing to get a calendar from — so each also takes `temperature_monthly`, read purely for its time coordinate.
 If you supply your own version of one of these nodes, it needs a time-bearing input for the same reason.
 
 ::: viresco.models.rothc.plant_cover_monthly

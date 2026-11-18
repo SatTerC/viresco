@@ -12,7 +12,7 @@ from sgam import Disturbances, Sgam
 from sgam.pft import PftParams, PlantFunctionalType, get_default_pft_params
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
-from .._dims import space_dim
+from .._chunks import chunk_like
 from ..temporal import DAILY, WEEKLY, time_index
 
 #: `SgamOut` fields, in the order `_sgam_1px` returns them. The units are
@@ -169,40 +169,41 @@ def _build_pft_params_dataset(plant_type: xr.DataArray) -> xr.Dataset:
 
     pft_vars: dict[str, xr.DataArray] = {}
     for field_name in field_names:
-        values = []
-        for pft_int in plant_type.values:
-            pft_enum = _pft_int_to_enum(int(pft_int))
-            params = get_default_pft_params(pft_enum)
-            values.append(getattr(params, field_name))
-        pft_vars[field_name] = xr.DataArray(data=np.array(values), dims=plant_type.dims)
+        values = [
+            getattr(get_default_pft_params(_pft_int_to_enum(int(pft_int))), field_name)
+            for pft_int in plant_type.values.ravel()
+        ]
+        pft_vars[field_name] = xr.DataArray(
+            data=np.reshape(values, plant_type.shape), dims=plant_type.dims
+        )
 
     return xr.Dataset(pft_vars)
 
 
-def _pft_params_from_dataset(ds: xr.Dataset, pixel_idx: int) -> PftParams:
+def _pft_params_from_dataset(ds: xr.Dataset, index: tuple[int, ...]) -> PftParams:
     return PftParams(
-        leaf_base_allocation=ds["leaf_base_allocation"].values[pixel_idx],
-        stem_base_allocation=ds["stem_base_allocation"].values[pixel_idx],
-        root_base_allocation=ds["root_base_allocation"].values[pixel_idx],
-        leaf_turnover_rate=ds["leaf_turnover_rate"].values[pixel_idx],
-        stem_turnover_rate=ds["stem_turnover_rate"].values[pixel_idx],
-        root_turnover_rate=ds["root_turnover_rate"].values[pixel_idx],
-        lue_max=ds["lue_max"].values[pixel_idx],
-        iwue_max=ds["iwue_max"].values[pixel_idx],
-        disturbance_threshold=ds["disturbance_threshold"].values[pixel_idx],
-        disturbance_leaf_loss_frac=ds["disturbance_leaf_loss_frac"].values[pixel_idx],
-        leaf_carbon_area=ds["leaf_carbon_area"].values[pixel_idx],
-        wilting_point=ds["wilting_point"].values[pixel_idx],
-        field_capacity=ds["field_capacity"].values[pixel_idx],
-        vpd_threshold=ds["vpd_threshold"].values[pixel_idx],
-        vpd_sensitivity=ds["vpd_sensitivity"].values[pixel_idx],
-        temp_optimum=ds["temp_optimum"].values[pixel_idx],
-        temp_sensitivity=ds["temp_sensitivity"].values[pixel_idx],
+        leaf_base_allocation=ds["leaf_base_allocation"].values[index],
+        stem_base_allocation=ds["stem_base_allocation"].values[index],
+        root_base_allocation=ds["root_base_allocation"].values[index],
+        leaf_turnover_rate=ds["leaf_turnover_rate"].values[index],
+        stem_turnover_rate=ds["stem_turnover_rate"].values[index],
+        root_turnover_rate=ds["root_turnover_rate"].values[index],
+        lue_max=ds["lue_max"].values[index],
+        iwue_max=ds["iwue_max"].values[index],
+        disturbance_threshold=ds["disturbance_threshold"].values[index],
+        disturbance_leaf_loss_frac=ds["disturbance_leaf_loss_frac"].values[index],
+        leaf_carbon_area=ds["leaf_carbon_area"].values[index],
+        wilting_point=ds["wilting_point"].values[index],
+        field_capacity=ds["field_capacity"].values[index],
+        vpd_threshold=ds["vpd_threshold"].values[index],
+        vpd_sensitivity=ds["vpd_sensitivity"].values[index],
+        temp_optimum=ds["temp_optimum"].values[index],
+        temp_sensitivity=ds["temp_sensitivity"].values[index],
     )
 
 
 def pft_params(plant_type: xr.DataArray) -> xr.Dataset:
-    """Get PFT parameters for each pixel based on plant_type.
+    """Get PFT parameters for each cell based on plant_type.
 
     Parameters
     ----------
@@ -213,7 +214,7 @@ def pft_params(plant_type: xr.DataArray) -> xr.Dataset:
     Returns
     -------
     xr.Dataset
-        PFT parameters for each pixel, on ``plant_type``'s dimension.
+        PFT parameters for each cell, on ``plant_type``'s dimensions.
     """
     return _build_pft_params_dataset(plant_type)
 
@@ -239,15 +240,15 @@ def _sgam_1px(
     use_dynamic_allocation: bool,
     strict_mass_balance: bool,
 ) -> tuple[NDArray[np.float64], ...]:
-    """Run SGAM for a single pixel.
+    """Run SGAM for a single cell.
 
-    The climate/driver arguments are 1D ``(time,)`` arrays for one pixel;
-    ``plant_type``, ``latitude`` and the init pools are per-pixel scalars and
-    ``pft_params`` is the per-pixel `PftParams` object (threaded
-    through ``apply_ufunc`` as one element of an object-dtype ``(pixel,)`` array).
+    The climate/driver arguments are 1D ``(time,)`` arrays for one cell;
+    ``plant_type``, ``latitude`` and the init pools are per-cell scalars and
+    ``pft_params`` is the per-cell `PftParams` object (threaded
+    through ``apply_ufunc`` as one element of an object-dtype array).
     ``week_of_year`` depends only on the date range, so it is computed once in
     `_sgam` and passed through unchanged. Returns one ``(time,)`` array per
-    output, ordered as `_SGAM_OUTPUT_NAMES`. This is the per-pixel kernel mapped
+    output, ordered as `_SGAM_OUTPUT_NAMES`. This is the per-cell kernel mapped
     over the spatial dimension by `_sgam` via `xarray.apply_ufunc`.
     """
     output = Sgam(
@@ -310,29 +311,26 @@ def _disturbances_block(
     *,
     growing_season_limit: float,
 ) -> NDArray[np.float64]:
-    """Run disturbance detection on a whole pixel-block (vectorised over pixels).
+    """Run disturbance detection on a whole block (vectorised over cells).
 
     ``apply_ufunc`` places the ``time`` core dim last, so each time series arrives
-    as ``(pixel, time)`` (or ``(time,)`` with no pixel broadcast) and the per-pixel
-    ``disturbance_threshold`` as ``(pixel,)`` (or a 0-d scalar).
+    as ``(*cells, time)``, where ``cells`` is the block's other dimensions, however
+    many there are, and the per-cell ``disturbance_threshold`` as ``(*cells,)``.
     `Disturbances.forward` diffs GPP/LAI along axis 0, so ``time`` is moved to
-    the front for the call and the result moved back to ``(pixel, time)``.
-    ``moveaxis`` is a no-op on a 1D ``(time,)`` array, so the single-pixel case is
-    handled too.
+    the front for the call and the result moved back to the end.
 
-    With ``time`` leading, the time series are ``(time, pixel)`` and the threshold
-    ``(pixel,)`` broadcasts against them along the trailing axis, so the whole
-    block is still one call: `Disturbances.forward` only ever uses
-    ``disturbance_threshold`` in an elementwise numpy comparison, so an array of
-    per-pixel thresholds works exactly like a scalar and no ``vectorize=True``
-    map over pixels is needed.
+    With ``time`` leading, the threshold broadcasts against the time series along
+    the trailing axes, so the whole block is still one call:
+    `Disturbances.forward` only ever uses ``disturbance_threshold`` in an
+    elementwise numpy comparison, so an array of per-cell thresholds works exactly
+    like a scalar and no ``vectorize=True`` map over cells is needed.
     """
     temp = np.moveaxis(np.asarray(temperature, dtype=float), -1, 0)
     g = np.moveaxis(np.asarray(gpp, dtype=float), -1, 0)
     la = np.moveaxis(np.asarray(lai, dtype=float), -1, 0)
     detector = Disturbances(
         growing_season_limit=growing_season_limit,
-        # Per-pixel array rather than the declared scalar; see the docstring.
+        # Per-cell array rather than the declared scalar; see the docstring.
         disturbance_threshold=np.asarray(disturbance_threshold, dtype=float),  # type: ignore[reportArgumentType]
     )
     result = detector.forward(temp, g, la, aggregate=False)
@@ -346,23 +344,17 @@ def _disturbances(
     disturbance_threshold: xr.DataArray,
     growing_season_limit: float,
 ) -> xr.DataArray:
-    """Apply disturbance detection over the ``(time, space)`` block via apply_ufunc.
+    """Apply disturbance detection over a block via apply_ufunc.
 
     Disturbance detection diffs along time (so time is the input/output core dim)
-    but is otherwise element-wise over space (the broadcast/mapped dim); see
-    `viresco._dims` for how each is found. ``disturbance_threshold`` is a per-pixel
-    input with no core dim, so it broadcasts alongside the time series.
+    but is otherwise element-wise over every other dimension, which is broadcast
+    (mapped). ``disturbance_threshold`` is a per-cell input with no core dim, so it
+    broadcasts alongside the time series.
     ``vectorize`` is left ``False`` so the whole block reaches the numpy kernel in
     one call; ``dask="parallelized"`` keeps a future dask-backed (chunked over
     space) run reachable.
     """
     time = sole_time_dim(temperature, "temperature")
-    space = space_dim(
-        temperature=temperature,
-        gpp_obs=gpp_obs,
-        lai_obs=lai_obs,
-        disturbance_threshold=disturbance_threshold,
-    )
     out = xr.apply_ufunc(
         _disturbances_block,
         temperature,
@@ -377,9 +369,9 @@ def _disturbances(
         output_dtypes=[float],
     )
 
-    # apply_ufunc drops the time coord (a core dim) and orders the output as
-    # (space, time); reattach the coord and restore the canonical (time, space).
-    return out.assign_coords({time: temperature.coords[time]}).transpose(time, space)
+    # apply_ufunc drops the time coord (a core dim) and puts time last; reattach
+    # the coord and put time first.
+    return out.assign_coords({time: temperature.coords[time]}).transpose(time, ...)
 
 
 @check_annotations
@@ -397,7 +389,7 @@ def disturbances(
     A disturbance is flagged on a day that is (a) within the growing season, i.e.
     warmer than ``growing_season_limit``, and (b) shows a relative decline in
     *both* GPP and LAI larger than the PFT's ``disturbance_threshold``. The
-    threshold is taken per pixel from the ``pft_params`` node, so crops (0.1)
+    threshold is taken per cell from the ``pft_params`` node, so crops (0.1)
     register far more events than trees (0.3), with shrubs (0.25) and grass
     (0.2) in between.
 
@@ -418,7 +410,7 @@ def disturbances(
     lai_obs
         Observed daily leaf area index (dimensionless).
     pft_params
-        PFT parameters for each pixel. Output of the
+        PFT parameters for each cell. Output of the
         `viresco.models.sgam.pft_params` node; only ``disturbance_threshold`` is
         used here.
 
@@ -466,57 +458,34 @@ def _sgam(
     use_dynamic_allocation: bool = True,
     strict_mass_balance: bool = False,
 ) -> SgamOut:
-    """Map `_sgam_1px` over the spatial dimension.
+    """Map `_sgam_1px` over every cell.
 
-    The per-pixel SGAM kernel is applied via `xarray.apply_ufunc` with time as the
-    input/output core dimension and space as the broadcast (mapped) dim; see
-    `viresco._dims` for how each is found. The 2D ``(time, space)`` climate/driver
-    inputs declare time as their core dim; the 1D ``(space,)`` metadata and
-    init-pool inputs declare no core dim (so each call gets a per-pixel scalar). The
-    structured per-pixel `PftParams` are passed as one object-dtype ``(space,)``
-    array. ``week_of_year`` and the boolean flags are pixel-invariant constants
-    passed through ``kwargs``. ``dask="parallelized"`` is a no-op for eager numpy
-    inputs but keeps the node compatible with a future dask-backed (chunked over
-    space) execution strategy.
+    The per-cell SGAM kernel is applied via `xarray.apply_ufunc` with time as the
+    input/output core dimension and every other dimension broadcast (mapped). The
+    climate/driver inputs declare time as their core dim; the static metadata and
+    init-pool inputs declare no core dim (so each call gets a per-cell scalar). The
+    structured per-cell `PftParams` are passed as one object-dtype array on
+    ``plant_type``'s dimensions. ``week_of_year`` and the boolean flags are
+    cell-invariant constants passed through ``kwargs``. ``dask="parallelized"`` is
+    a no-op for eager numpy inputs but keeps the node compatible with a future
+    dask-backed (chunked over space) execution strategy.
     """
     time = sole_time_dim(temperature_weekly, "temperature_weekly")
-    space = space_dim(
-        plant_type=plant_type,
-        pft_params=pft_params,
-        temperature_weekly=temperature_weekly,
-        gpp_weekly=gpp_weekly,
-        volumetric_water_content_weekly=volumetric_water_content_weekly,
-        vpd_weekly=vpd_weekly,
-        lue_weekly=lue_weekly,
-        iwue_weekly=iwue_weekly,
-        disturbances_weekly=disturbances_weekly,
-        latitude=latitude,
-        leaf_pool_init=leaf_pool_init,
-        stem_pool_init=stem_pool_init,
-        root_pool_init=root_pool_init,
-    )
     # Week index, from 1-52 — depends only on the date range, so compute once and share.
     # isocalendar() exists on the DatetimeIndex passed at runtime but is missing from
     # pandas Index type stubs, hence the type: ignore.
     week_of_year = dates_weekly.isocalendar().week.values  # type: ignore[reportAttributeAccessIssue]
 
-    # Pack the per-pixel PftParams into a single object-dtype (space,) array so each
-    # apply_ufunc call receives one PftParams without exploding its 17 fields into args.
-    n_pixels = pft_params.sizes[space]
-    pft_objs = xr.DataArray(
-        np.array(
-            [_pft_params_from_dataset(pft_params, i) for i in range(n_pixels)],
-            dtype=object,
-        ),
-        dims=[space],
+    # Pack the per-cell PftParams into a single object-dtype array so each
+    # apply_ufunc call receives one PftParams without exploding its 17 fields into
+    # args. dask cannot size object dtype, so it is chunked like the inputs.
+    params = np.empty(plant_type.shape, dtype=object)
+    for index in np.ndindex(plant_type.shape):
+        params[index] = _pft_params_from_dataset(pft_params, index)
+    pft_objs = chunk_like(
+        xr.DataArray(params, dims=plant_type.dims, coords=plant_type.coords),
+        temperature_weekly,
     )
-    # Under a dask-backed run chunked over space, this object-dtype array must be
-    # explicitly chunked to match the inputs: dask cannot auto-estimate the byte
-    # size of object dtype, so an unchunked object array triggers an
-    # auto-rechunk error inside apply_ufunc. Mirror the spatial chunks of the
-    # (dask-backed) reference input; stay eager numpy otherwise (a no-op when eager).
-    if temperature_weekly.chunks is not None:
-        pft_objs = pft_objs.chunk({space: temperature_weekly.chunksizes[space]})
 
     # apply_ufunc inputs must be real DataArrays; substitute zeros for omitted pools.
     if litter_pool_init is None:
@@ -554,13 +523,13 @@ def _sgam(
         output_dtypes=[float] * 24,
     )
 
-    # apply_ufunc drops the time coordinate (a core dim) and orders outputs as
-    # (space, time); reattach the coordinate and restore the canonical (time, space).
+    # apply_ufunc drops the time coordinate (a core dim) and puts time last;
+    # reattach the coordinate and put time first.
     time_coord = temperature_weekly.coords[time]
     return cast(
         SgamOut,
         {
-            name: da.assign_coords({time: time_coord}).transpose(time, space)
+            name: da.assign_coords({time: time_coord}).transpose(time, ...)
             for name, da in zip(_SGAM_OUTPUT_NAMES, outputs, strict=True)
         },
     )
@@ -596,7 +565,7 @@ def sgam(
     plant_type
         Plant functional type as an integer (0=tree, 1=grass, 2=shrub, 3=crop).
     pft_params
-        PFT parameters for each pixel. Output of the `pft_params` node.
+        PFT parameters for each cell. Output of the `pft_params` node.
     temperature_weekly
         Weekly mean air temperature (degrees Celsius).
     gpp_weekly
@@ -626,7 +595,7 @@ def sgam(
     root_pool_init
         Initial root carbon pool (grams of carbon per square metre).
     latitude
-        Latitude for each pixel (degrees; used to determine hemisphere).
+        Latitude for each cell (degrees; used to determine hemisphere).
     litter_pool_init
         Initial litter carbon pool (grams of carbon per square metre). Defaults
         to zero.

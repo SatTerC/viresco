@@ -44,7 +44,7 @@ R_{[t]} = \max\left(W_{n[t]} - W_m,\; 0\right), \qquad W_{n[t]} \leftarrow \min\
 $$
 
 The capacity also limits how fast the soil can supply water for evaporation, with supply rate $S_w = S_c W_{n[t-1]} / W_m$, where $S_c$ is 1.05 mm·h⁻¹.
-$W_m$ comes from the required `max_soil_moisture` input, so it can vary per pixel.
+$W_m$ comes from the required `max_soil_moisture` input, so it can vary per cell.
 
 /// admonition | Results differ from pyrealm 2.0.0 called directly
     type: note
@@ -59,8 +59,9 @@ SPLASH estimates initial soil moisture by iterating over a full year of climate 
 An input period shorter than a year cannot equilibrate and fails.
 
 That tolerance is evaluated over the whole block, so results shift by ~1e-4 relative when the `[blocking]` block size or the `[subset]` range changes.
+On a grid, both split the `y` dimension, so a block is a set of whole rows.
 
-If any valid pixel in a block has not converged within `soil_moisture_init_max_iter` iterations, the run stops with an error.
+If any valid cell in a block has not converged within `soil_moisture_init_max_iter` iterations, the run stops with an error.
 
 To start from a measured state, or to continue an earlier run, set `soil_moisture_init_method = "prescribed"` and supply `initial_soil_moisture`.
 That skips the spin-up, so the year minimum and the dependence on block size no longer apply.
@@ -80,16 +81,16 @@ Two things follow:
 
 ### Missing values
 
-Each pixel's outcome comes from its own inputs, so it does not depend on the block size:
+Each cell's outcome comes from its own inputs, so it does not depend on the block size:
 
 | Pixel | Example | Outcome |
 |---|---|---|
 | Masked | All climate inputs NaN, or a NaN in `elevation`, `latitude`, `max_soil_moisture` or `initial_soil_moisture` | NaN outputs, with no error or warning |
-| Gap | Some climate values NaN, including one variable with no data while the others have some | The run stops with an error naming the pixels |
-| Model failure | Complete inputs, but pyrealm returns NaN | NaN outputs, with a warning naming the pixels |
+| Gap | Some climate values NaN, including one variable with no data while the others have some | The run stops with an error naming the cells |
+| Model failure | Complete inputs, but pyrealm returns NaN | NaN outputs, with a warning naming the cells |
 
 A gap stops the run because soil moisture carries over from one day to the next, so everything after it would be lost.
-Fill gaps in a `[[node]]` before SPLASH, or mask the pixel.
+Fill gaps in a `[[node]]` before SPLASH, or mask the cell.
 
 A misconfigured input that makes every climate variable NaN is indistinguishable from a masked block, so that run finishes with NaN outputs and no error.
 
@@ -132,6 +133,8 @@ soil_moisture_init_max_diff = 1.0
       docstring_section_style: spacy
 
 ### Inputs
+
+`latitude` is read from a file, as a variable or a coordinate; see [Inputs on a grid](index.md#inputs-on-a-grid).
 
 #### Always required
 

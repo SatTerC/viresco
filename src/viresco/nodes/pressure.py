@@ -2,7 +2,7 @@
 
 The P-model's sensitivity to pressure is small next to its sensitivity to light,
 temperature and VPD, and day-to-day synoptic variation is a percent or two. A
-standard-atmosphere pressure for each pixel's elevation is therefore a common
+standard-atmosphere pressure for each cell's elevation is therefore a common
 stand-in where no pressure series is to hand.
 """
 
@@ -22,10 +22,10 @@ def pressure(
     elevation: Annotated[DataArray, Unit("m")],
     temperature: Annotated[DataArray, Unit("degC"), DAILY],
 ) -> Annotated[DataArray, Unit("Pa"), DAILY]:
-    """Standard-atmosphere pressure at each pixel's elevation, repeated daily.
+    """Standard-atmosphere pressure at each cell's elevation, repeated daily.
 
     pyrealm's `calc_patm`, which assumes a linear temperature lapse with height.
-    Its consumers declare a daily pressure, so the per-pixel value is repeated
+    Its consumers declare a daily pressure, so the per-cell value is repeated
     along the daily time axis of ``temperature``, which supplies nothing else.
 
     Parameters
