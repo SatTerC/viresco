@@ -2808,8 +2808,8 @@ cf = [
 
 [[package]]
 name = "xharvest"
-version = "0.1.0"
-source = { git = "https://github.com/NERC-CEH/xharvest?branch=main#3d8cf8bf0718e709453c3f8f73c22c6a05b5b731" }
+version = "0.2.0.dev1"
+source = { git = "https://github.com/NERC-CEH/xharvest?branch=main#51023fed3ca042bcaf26314086988ed47e514709" }
 dependencies = [
     { name = "netcdf4" },
     { name = "numpy" },
