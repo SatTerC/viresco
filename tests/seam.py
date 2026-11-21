@@ -1,8 +1,10 @@
-"""The tests every model's ``apply_ufunc`` seam must pass, written once.
+"""The tests every model's seam must pass, written once.
 
 A model node maps a kernel over every cell with `xarray.apply_ufunc`, the seam.
-Each model's seam test subclasses `SeamContract` and supplies what is particular
-to it: the seam function, its outputs, and three fixtures.
+A model built from stateless nodes has no such function: the composition of its
+nodes is the seam, and `driver_seam` runs it. Each model's seam test subclasses
+`SeamContract` and supplies what is particular to it: the seam function, its
+outputs, and three fixtures.
 
 ``seam_inputs``
     Keyword arguments for the seam, on ``(time, pixel)`` with columns that
@@ -43,6 +45,25 @@ def chunk_pixels(value: Any) -> Any:
     if isinstance(value, xr.DataArray) and "pixel" in value.dims:
         return value.chunk({"pixel": 1})
     return value
+
+
+def driver_seam(module: str, outputs: tuple[str, ...]) -> Callable[..., Any]:
+    """Return a seam that runs ``module``'s nodes through a catena driver.
+
+    For a model built from stateless nodes there is no ``apply_ufunc`` seam:
+    the composition of its nodes is what maps the model over cells. The
+    returned function takes the DAG's inputs as `xarray.DataArray` keyword
+    arguments, and its settings as any other keyword arguments, and returns
+    ``outputs``.
+    """
+    from catena import build_driver
+
+    def run(**kwargs: Any) -> dict[str, xr.DataArray]:
+        inputs = {k: v for k, v in kwargs.items() if isinstance(v, xr.DataArray)}
+        config = {k: v for k, v in kwargs.items() if k not in inputs}
+        return build_driver([module], config).execute(list(outputs), inputs=inputs)
+
+    return run
 
 
 class SeamContract:

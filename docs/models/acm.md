@@ -17,6 +17,18 @@ The later variants used in DALEC and CARDAMOM differ in structure as well as par
 ACM carries no state from one day to the next: each day's GPP depends only on that day's drivers.
 LAI is an observed input, so ACM needs no vegetation model upstream, and its GPP can drive [SGAM](sgam.md) through the weekly resampling `viresco setup` writes.
 
+Having no state, ACM is not one node but four, split where the later variants of ACM differ from version 1:
+
+| Node | Computes | Paper |
+|------|----------|-------|
+| `acm_nitrogen_limited_capacity` | photosynthetic capacity limited by canopy nitrogen and temperature | eq. 2 |
+| `acm_canopy_conductance` | canopy conductance to CO2 | eq. 5 |
+| `acm_seasonal_factor` | the seasonal correction, from `days_from_midsummer` | eq. 9 |
+| `acm` | internal CO2, co-limitation by light, and GPP | eqs. 3, 4 and 6–9 |
+
+A variant that changes one of the first three, as the ACM used in DALEC does all three, replaces that node and keeps the rest.
+Every intermediate node can be written out like any other, which helps in diagnosing a fit.
+
 The DAG for a pipeline running ACM alone, with nodes coloured by declared frequency (`D` for daily):
 
 <div class="model-graph">
@@ -97,6 +109,7 @@ The [quickstart](../guides/quickstart.md) walks through what each of those does,
 
 The calibrated parameters default to the paper's Table 2.
 Foliar nitrogen, canopy height and the water potential difference describe the site, and default to Harvard Forest (the paper's Table 4); set them for yours.
+All of them go in the one `[acm]` section, whichever node takes them:
 
 ```toml
 [acm]
@@ -105,34 +118,74 @@ acm_canopy_height = 24.0
 acm_water_potential_difference = -2.5
 ```
 
+#### `acm_nitrogen_limited_capacity` { #settings-acm_nitrogen_limited_capacity }
+
+::: viresco.models.acm.acm_nitrogen_limited_capacity
+    options:
+      show_root_heading: false
+      show_root_full_path: false
+      show_root_toc_entry: false
+      show_signature: false
+      separate_signature: false
+      show_docstring_returns: false
+      show_docstring_raises: false
+      show_docstring_description: false
+      show_docstring_parameters: false
+      heading_level: 4
+      docstring_section_style: spacy
+
+#### `acm_canopy_conductance` { #settings-acm_canopy_conductance }
+
+::: viresco.models.acm.acm_canopy_conductance
+    options:
+      show_root_heading: false
+      show_root_full_path: false
+      show_root_toc_entry: false
+      show_signature: false
+      separate_signature: false
+      show_docstring_returns: false
+      show_docstring_raises: false
+      show_docstring_description: false
+      show_docstring_parameters: false
+      heading_level: 4
+      docstring_section_style: spacy
+
+#### `acm_seasonal_factor` { #settings-acm_seasonal_factor }
+
+::: viresco.models.acm.acm_seasonal_factor
+    options:
+      show_root_heading: false
+      show_root_full_path: false
+      show_root_toc_entry: false
+      show_signature: false
+      separate_signature: false
+      show_docstring_returns: false
+      show_docstring_raises: false
+      show_docstring_description: false
+      show_docstring_parameters: false
+      heading_level: 4
+      docstring_section_style: spacy
+
+#### `acm` { #settings-acm }
+
 ::: viresco.models.acm.acm
     options:
       show_root_heading: false
+      show_root_full_path: false
       show_root_toc_entry: false
       show_signature: false
-      show_docstring_description: false
+      separate_signature: false
       show_docstring_returns: false
-      show_docstring_parameters: false
       show_docstring_raises: false
+      show_docstring_description: false
+      show_docstring_parameters: false
+      heading_level: 4
       docstring_section_style: spacy
 
 ### Inputs
 
 `latitude` is read from a file, as a variable or a coordinate; see [Inputs on a grid](index.md#inputs-on-a-grid).
-
-::: viresco.models.acm.acm
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_other_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-
-`days_from_midsummer` is produced by this module rather than loaded.
-It takes `lai_obs` only for its daily calendar.
+`days_from_midsummer` takes `lai_obs` only for its daily calendar.
 
 ::: viresco.models.acm.days_from_midsummer
     options:
@@ -141,11 +194,67 @@ It takes `lai_obs` only for its daily calendar.
       show_root_toc_entry: false
       show_signature: false
       separate_signature: false
+      show_docstring_returns: true
+      show_docstring_raises: false
+      show_docstring_other_parameters: false
+      heading_level: 4
+      docstring_section_style: spacy
+
+::: viresco.models.acm.acm_nitrogen_limited_capacity
+    options:
+      show_root_heading: true
+      show_root_full_path: false
+      show_root_toc_entry: false
+      show_signature: false
+      separate_signature: false
+      show_docstring_returns: true
+      show_docstring_raises: false
+      show_docstring_other_parameters: false
+      heading_level: 4
+      docstring_section_style: spacy
+
+::: viresco.models.acm.acm_canopy_conductance
+    options:
+      show_root_heading: true
+      show_root_full_path: false
+      show_root_toc_entry: false
+      show_signature: false
+      separate_signature: false
+      show_docstring_returns: true
+      show_docstring_raises: false
+      show_docstring_other_parameters: false
+      heading_level: 4
+      docstring_section_style: spacy
+
+::: viresco.models.acm.acm_seasonal_factor
+    options:
+      show_root_heading: true
+      show_root_full_path: false
+      show_root_toc_entry: false
+      show_signature: false
+      separate_signature: false
+      show_docstring_returns: true
+      show_docstring_raises: false
+      show_docstring_other_parameters: false
+      heading_level: 4
+      docstring_section_style: spacy
+
+::: viresco.models.acm.acm
+    options:
+      show_root_heading: true
+      show_root_full_path: false
+      show_root_toc_entry: false
+      show_signature: false
+      separate_signature: false
       show_docstring_returns: false
+      show_docstring_raises: false
+      show_docstring_other_parameters: false
       heading_level: 4
       docstring_section_style: spacy
 
 ### Outputs
+
+The intermediate nodes above can be listed as outputs too, in the units their tables give.
 
 ::: viresco.models.acm.AcmOut
     options:

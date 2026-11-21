@@ -1,9 +1,11 @@
 """Tests for ACM (``viresco.models.acm``).
 
-There is no upstream package to loop over, so the seam's reference is a scalar
-transcription of Williams et al. (1997), eqs 2 and 4-9, evaluated one cell and day
-at a time with `math`. The science is pinned to the paper's own predictions for
-the Toolik Lake sites (Table 5 inputs, Fig. 3 outputs).
+ACM is a set of stateless nodes, so its seam is their composition, run through a
+catena driver (`seam.driver_seam`). There is no upstream package to loop over,
+so the reference is a scalar transcription of Williams et al. (1997), eqs 2 and
+4-9, evaluated one cell and day at a time with `math`. The science is pinned to
+the paper's own predictions for the Toolik Lake sites (Table 5 inputs, Fig. 3
+outputs).
 """
 
 import inspect
@@ -14,16 +16,19 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from seam import SeamContract
+from hamilton.graph_utils import find_functions
+from seam import SeamContract, driver_seam
 
+import viresco.models.acm as acm_module
 from viresco.models.acm import (
-    _ACM_OUTPUT_NAMES,
     _W_M2_TO_MJ_M2_D,
-    _acm,
-    _acm_kernel,
-    acm,
+    acm_canopy_conductance,
     days_from_midsummer,
 )
+
+MODULE = "viresco.models.acm"
+OUTPUTS = ("gpp", "internal_co2")
+run_acm = driver_seam(MODULE, OUTPUTS)
 
 N_DAYS = 365
 N_PIXELS = 3
@@ -31,13 +36,15 @@ DAILY_DATES = pd.date_range("2021-01-01", periods=N_DAYS, freq="D")
 PIXELS = np.arange(N_PIXELS)
 LATITUDE = np.array([51.5, -33.0, 10.0])  # north, south, tropics
 
-#: The paper's parameters and Harvard Forest site settings, without the prefix
-#: the node's settings carry.
-DEFAULTS = {
-    name.removeprefix("acm_"): p.default
-    for name, p in inspect.signature(acm).parameters.items()
+#: Every node's settings and defaults: the paper's parameters and Harvard Forest.
+SETTINGS = {
+    name: p.default
+    for _, func in find_functions(acm_module)
+    for name, p in inspect.signature(func).parameters.items()
     if p.kind is inspect.Parameter.KEYWORD_ONLY
 }
+#: The same, without the prefix, as the scalar reference takes them.
+DEFAULTS = {name.removeprefix("acm_"): value for name, value in SETTINGS.items()}
 
 
 def _temporal(values: np.ndarray) -> xr.DataArray:
@@ -70,10 +77,7 @@ def acm_inputs() -> dict:
             * rng.uniform(0.5, 1.0, (N_DAYS, N_PIXELS))
         ),
         co2=_temporal(np.full((N_DAYS, N_PIXELS), 415.0)),
-        days_from_midsummer=days_from_midsummer(
-            _static(LATITUDE), _temporal(np.zeros((N_DAYS, N_PIXELS)))
-        ),
-        **DEFAULTS,
+        latitude=_static(LATITUDE),
     )
 
 
@@ -106,6 +110,7 @@ def _acm_scalar(
 
 
 def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
+    d_ms = days_from_midsummer(inputs["latitude"], inputs["lai_obs"])
     drivers = [
         inputs[name].transpose("time", "pixel").values
         for name in (
@@ -114,9 +119,8 @@ def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
             "min_temperature",
             "shortwave_radiation",
             "co2",
-            "days_from_midsummer",
         )
-    ]
+    ] + [d_ms.transpose("time", "pixel").values]
     drivers[3] = drivers[3] * 86400 / 1e6
     gpp = np.empty((N_DAYS, N_PIXELS))
     c_i = np.empty((N_DAYS, N_PIXELS))
@@ -129,11 +133,11 @@ def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
 
 
 class TestAcmSeam(SeamContract):
-    seam = staticmethod(_acm)
-    outputs = _ACM_OUTPUT_NAMES
+    seam = staticmethod(run_acm)
+    outputs = OUTPUTS
     dates = DAILY_DATES
     differs = "gpp"
-    module = "viresco.models.acm"
+    module = MODULE
     node_config: ClassVar = {}
     cached_output = "gpp"
 
@@ -147,13 +151,7 @@ class TestAcmSeam(SeamContract):
 
     @pytest.fixture
     def node_inputs(self, acm_inputs):
-        names = ("lai_obs", "max_temperature", "min_temperature")
-        return {
-            **{name: acm_inputs[name] for name in names},
-            "shortwave_radiation": acm_inputs["shortwave_radiation"],
-            "co2": acm_inputs["co2"],
-            "latitude": _static(LATITUDE),
-        }
+        return acm_inputs
 
 
 #: Toolik Lake, 1994 (Table 5): LAI, foliar N (g m-2), mean temperature and
@@ -167,6 +165,7 @@ TOOLIK = {
     "outlet greenhouse": (0.9, 2.7, 12.2, 4.9, 7.5, 204, 3.05),
     "outlet N+P": (1.7, 3.6, 11.0, 4.9, 14.3, 204, 7.45),
 }
+TOOLIK_LATITUDE = 68.63
 
 
 @pytest.mark.parametrize("site", TOOLIK)
@@ -177,21 +176,23 @@ def test_reproduces_toolik_lake(site):
     which matters most at the lowest LAI, where GPP goes roughly as LAI squared.
     """
     lai, n, t, d_t, irradiance, doy, expected = TOOLIK[site]
-    settings = DEFAULTS | {
-        "foliar_nitrogen": n,
-        "canopy_height": 0.5,
-        "water_potential_difference": -2.5,
-    }
-    gpp, _ = _acm_kernel(
-        np.array(lai),
-        np.array(t + d_t),
-        np.array(t - d_t),
-        np.array(irradiance),
-        np.array(355.0),
-        np.array(abs(173.0 - doy)),
-        **settings,
+    date = pd.Timestamp("1994-01-01") + pd.Timedelta(days=doy - 1)
+
+    def day(value: float) -> xr.DataArray:
+        return xr.DataArray([value], dims=["time"], coords={"time": [date]})
+
+    result = driver_seam(MODULE, ("gpp",))(
+        lai_obs=day(lai),
+        max_temperature=day(t + d_t),
+        min_temperature=day(t - d_t),
+        shortwave_radiation=day(irradiance / _W_M2_TO_MJ_M2_D),
+        co2=day(355.0),
+        latitude=xr.DataArray(TOOLIK_LATITUDE),
+        acm_foliar_nitrogen=n,
+        acm_canopy_height=0.5,
+        acm_water_potential_difference=-2.5,
     )
-    assert float(gpp) == pytest.approx(expected, abs=0.4)
+    assert float(result["gpp"].item()) == pytest.approx(expected, abs=0.4)
 
 
 def _days(latitude: float, dates: pd.DatetimeIndex) -> np.ndarray:
@@ -216,43 +217,39 @@ def test_days_from_midsummer(latitude, date, expected):
     assert _days(latitude, pd.DatetimeIndex([date]))[0] == expected
 
 
-def test_days_from_midsummer_declares_days(acm_inputs):
-    assert acm_inputs["days_from_midsummer"].attrs["units"] == "d"
-
-
-def test_irradiance_is_converted_from_watts():
-    """150 W m-2 for a day is 12.96 MJ m-2."""
-    assert pytest.approx(12.96) == 150.0 * _W_M2_TO_MJ_M2_D
-
-
-def _one_cell(**overrides) -> dict:
+def _one_cell(**overrides) -> dict[str, float]:
     drivers = {
-        "lai": np.array(3.0),
-        "max_temperature": np.array(25.0),
-        "min_temperature": np.array(15.0),
-        "irradiance": np.array(20.0),
-        "co2": np.array(400.0),
-        "days_from_midsummer": np.array(20.0),
-    } | {key: np.array(value) for key, value in overrides.items()}
-    gpp, c_i = _acm_kernel(*drivers.values(), **DEFAULTS)
-    return {"gpp": float(gpp), "internal_co2": float(c_i)}
+        "lai_obs": 3.0,
+        "max_temperature": 25.0,
+        "min_temperature": 15.0,
+        "shortwave_radiation": 230.0,
+        "co2": 400.0,
+    } | overrides
+    date = pd.Timestamp("2021-06-01")
+    inputs = {
+        name: xr.DataArray([value], dims=["time"], coords={"time": [date]})
+        for name, value in drivers.items()
+    }
+    result = run_acm(**inputs, latitude=xr.DataArray(51.5))
+    return {name: float(da.item()) for name, da in result.items()}
 
 
 def test_zero_lai_gives_zero_gpp_not_nan():
-    result = _one_cell(lai=0.0)
+    result = _one_cell(lai_obs=0.0)
     assert result["gpp"] == 0.0
     assert result["internal_co2"] == pytest.approx(400.0)
 
 
 def test_masked_cell_stays_masked():
-    assert math.isnan(_one_cell(lai=np.nan)["gpp"])
+    assert math.isnan(_one_cell(lai_obs=np.nan)["gpp"])
 
 
-@pytest.mark.parametrize("driver", ["lai", "irradiance", "co2"])
-def test_gpp_increases_with_driver(driver):
-    base = _one_cell()["gpp"]
-    more = {"lai": 4.0, "irradiance": 25.0, "co2": 600.0}[driver]
-    assert _one_cell(**{driver: more})["gpp"] > base
+@pytest.mark.parametrize(
+    ("driver", "more"),
+    [("lai_obs", 4.0), ("shortwave_radiation", 300.0), ("co2", 600.0)],
+)
+def test_gpp_increases_with_driver(driver, more):
+    assert _one_cell(**{driver: more})["gpp"] > _one_cell()["gpp"]
 
 
 def test_internal_co2_is_below_ambient():
@@ -260,16 +257,9 @@ def test_internal_co2_is_below_ambient():
 
 
 def test_positive_water_potential_difference_raises(acm_inputs):
-    inputs = {
-        name: acm_inputs[name]
-        for name in (
-            "lai_obs",
-            "max_temperature",
-            "min_temperature",
-            "shortwave_radiation",
-            "co2",
-            "days_from_midsummer",
-        )
-    }
     with pytest.raises(ValueError, match="must be negative"):
-        acm(**inputs, acm_water_potential_difference=0.5)
+        acm_canopy_conductance(
+            acm_inputs["max_temperature"],
+            acm_inputs["min_temperature"],
+            acm_water_potential_difference=0.5,
+        )
