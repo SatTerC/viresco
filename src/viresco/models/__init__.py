@@ -11,10 +11,10 @@ group, so a config names one by its section alone and needs no
     [rothc]
     n_years_spinup = 1
 
-The section name is the module name: ``splash``, ``pmodel``, ``sgam`` and
-``rothc``.
+The section name is the module name: ``acm``, ``splash``, ``pmodel``, ``sgam``
+and ``rothc``.
 """
 
-from . import pmodel, rothc, sgam, splash
+from . import acm, pmodel, rothc, sgam, splash
 
-__all__ = ["pmodel", "rothc", "sgam", "splash"]
+__all__ = ["acm", "pmodel", "rothc", "sgam", "splash"]

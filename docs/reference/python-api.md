@@ -25,6 +25,7 @@ Catena imports the module named by a config section, so nothing here is normally
 | --- | --- |
 | [`viresco.models.splash`](modules/viresco.models/splash.md) | [SPLASH](../models/splash.md): daily water balance, evapotranspiration and runoff. |
 | [`viresco.models.pmodel`](modules/viresco.models/pmodel.md) | [The P-model](../models/pmodel.md): daily photosynthesis, GPP and light-use efficiency. |
+| [`viresco.models.acm`](modules/viresco.models/acm.md) | [ACM](../models/acm.md): daily gross primary productivity. |
 | [`viresco.models.sgam`](modules/viresco.models/sgam.md) | [SGAM](../models/sgam.md): weekly vegetation carbon pools and allocation. |
 | [`viresco.models.rothc`](modules/viresco.models/rothc.md) | [RothC](../models/rothc.md): monthly soil carbon turnover. |
 

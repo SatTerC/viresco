@@ -64,6 +64,24 @@ winter there. Over the default UK box this is ~10 degC year-round with a ~10 deg
 seasonal amplitude, which is what the values were checked against.
 """
 
+max_temperature = Var(
+    "degC",
+    "daily maximum air temperature",
+    lambda g: g.daily("temperature") + g.uniform(2.0, 6.0),
+)
+"""The mean temperature plus a half-range drawn between 2 and 6 degC each day."""
+
+min_temperature = Var(
+    "degC",
+    "daily minimum air temperature",
+    lambda g: 2.0 * g.daily("temperature") - g.daily("max_temperature"),
+)
+"""The maximum reflected about the mean, so the two average to `temperature`.
+
+Generated independently, the two could cross, giving a negative temperature
+range, which no model reading them expects.
+"""
+
 precipitation = Var(
     "mm d-1",
     "precipitation",

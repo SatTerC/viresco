@@ -54,6 +54,7 @@ UNITLESS = {
 
 #: Inputs read only for their time coordinate, as ``(node, parameter)``.
 TIME_ONLY = {
+    ("viresco.models.acm.days_from_midsummer", "lai_obs"),
     ("viresco.models.rothc.plant_cover_monthly", "temperature_monthly"),
     ("viresco.models.rothc.dpm_rpm_ratio_monthly", "temperature_monthly"),
     ("viresco.models.rothc.farmyard_manure_input_monthly", "temperature_monthly"),
