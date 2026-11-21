@@ -5,10 +5,11 @@ icon: lucide/package
 
 # Built-in models
 
-`viresco` currently comes with five models, which can be composed into a pipeline.
-Each model is called through a single Python function, which becomes a node in the DAG.
+`viresco` comes with the models below, which can be composed into a pipeline.
+A model that carries state through time, or wraps an upstream package, is one node in the DAG, with helper nodes where its inputs need building.
+A model without state whose science is written here, such as ACM, is a few nodes, each of which can be written out or replaced.
 
-Viresco registers all five with catena, so a config names one by its section alone.
+Viresco registers every model with catena, so a config names one by its section alone.
 
 ```toml
 [splash]
