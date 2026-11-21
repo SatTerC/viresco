@@ -1,6 +1,8 @@
 """Each model module runs at exactly one frequency.
 
-SPLASH and the P-model are daily, SGAM weekly, RothC monthly. A node that does not
+SPLASH and the P-model are daily, SGAM weekly, RothC monthly, but the test does not
+list them: every registered model must declare one frequency, whichever it is, so
+a new model is checked as soon as it is registered. A node that does not
 fit its model's frequency stays in that model's module only if that model alone
 uses it, and only by name in `OFF_FREQUENCY`; see
 `docs/adr/0001-node-names-and-module-frequency.md`. Without this test the rule
@@ -17,15 +19,10 @@ from types import ModuleType
 import pytest
 from xarray_annotated import Freq, declaration_from_hint
 
-from viresco import temporal
-from viresco.models import pmodel, rothc, sgam, splash
+from viresco.models import sgam
+from viresco.registry import MODELS, import_registered
 
-MODEL_FREQUENCIES = {
-    splash: temporal.DAILY,
-    pmodel: temporal.DAILY,
-    sgam: temporal.WEEKLY,
-    rothc: temporal.MONTHLY,
-}
+MODEL_MODULES = list(import_registered(MODELS).values())
 
 #: Nodes allowed to run at another frequency than their module, each used by
 #: that model alone: SGAM's disturbance detection runs on daily observations.
@@ -67,28 +64,26 @@ def _declared_freq(hint: typing.Any) -> Freq | None:
     return None if declared is None else declared.freq
 
 
-@pytest.mark.parametrize(
-    ("module", "expected"),
-    MODEL_FREQUENCIES.items(),
-    ids=lambda value: getattr(value, "__name__", str(value)),
-)
-def test_model_module_declares_one_frequency(module, expected):
+def _module_frequency(module: ModuleType) -> Freq:
+    """Return the one frequency ``module`` declares outside `OFF_FREQUENCY`."""
     allowed = frozenset(name for mod, name in OFF_FREQUENCY if mod is module)
-    declared = {
-        name: freq
-        for name, hint in _node_hints(module, skip=allowed).items()
-        if (freq := _declared_freq(hint)) is not None
-    }
+    declared: dict[Freq, list[str]] = {}
+    for name, hint in _node_hints(module, skip=allowed).items():
+        if (freq := _declared_freq(hint)) is not None:
+            declared.setdefault(freq, []).append(name)
     assert declared, f"{module.__name__} declares no frequency at all"
-    stray = {name: freq for name, freq in declared.items() if freq != expected}
-    assert not stray, f"{module.__name__} runs at {expected}, but: {stray}"
+    assert len(declared) == 1, (
+        f"{module.__name__} declares more than one frequency: {declared}"
+    )
+    return next(iter(declared))
 
 
-@pytest.mark.parametrize(
-    "module",
-    MODEL_FREQUENCIES,
-    ids=lambda module: module.__name__,
-)
+@pytest.mark.parametrize("module", MODEL_MODULES, ids=lambda module: module.__name__)
+def test_model_module_declares_one_frequency(module):
+    _module_frequency(module)
+
+
+@pytest.mark.parametrize("module", MODEL_MODULES, ids=lambda module: module.__name__)
 def test_coarse_series_declare_their_frequency(module):
     """A `_weekly` or `_monthly` name with no `Freq` escapes the contract check.
 
@@ -118,6 +113,6 @@ def test_off_frequency_entries_are_needed(module, name):
     assert inspect.isfunction(func), f"{module.__name__}.{name} no longer exists"
     hints = typing.get_type_hints(func, include_extras=True)
     freqs = {_declared_freq(hint) for hint in hints.values()} - {None}
-    assert freqs - {MODEL_FREQUENCIES[module]}, (
+    assert freqs - {_module_frequency(module)}, (
         f"{module.__name__}.{name} declares no off-frequency contract"
     )

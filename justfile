@@ -34,12 +34,9 @@ regen-pyrealm-golden:
 graph model:
   uv run python scripts/render_model_graph.py {{model}} docs/models/_graphs/{{model}}.svg
 
-# Re-render every model graph in docs/models/_graphs/.
+# Re-render the graph of every registered model in docs/models/_graphs/.
 graph-all:
-  just graph splash
-  just graph pmodel
-  just graph sgam
-  just graph rothc
+  @for m in $(uv run python -c 'from viresco.registry import MODELS, registered; print(*registered(MODELS))'); do just graph "$m"; done
 
 # Build the documentation using Zensical.
 # Depends on `graph-all` because the model graphs are generated, not committed:

@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import numpy as np
 import pytest
 import xarray as xr
 from catena import build_driver, load_config, load_inputs
@@ -108,3 +109,22 @@ def driver_from_config(config, **kwargs):
 def pipeline_driver(pipeline_config):
     """Build Hamilton driver for integration tests."""
     return driver_from_config(pipeline_config)
+
+
+#: Dimension names swapped in to check that nothing assumes ``time``, ``y`` or ``x``.
+RENAMED = {"time": "date", "y": "north", "x": "east"}
+
+
+def rename_dims(da: xr.DataArray, mapping: dict[str, str] = RENAMED) -> xr.DataArray:
+    """Rename whichever of ``mapping``'s dimensions ``da`` has."""
+    return da.rename({old: new for old, new in mapping.items() if old in da.dims})
+
+
+def to_sites(da: xr.DataArray) -> xr.DataArray:
+    """Stack ``(y, x)`` into a plain ``site`` index, keeping the other dims."""
+    if not {"y", "x"} <= set(da.dims):
+        return da
+    stacked = da.stack(site=("y", "x"))
+    return stacked.drop_vars(["site", "y", "x"]).assign_coords(
+        site=np.arange(stacked.sizes["site"])
+    )

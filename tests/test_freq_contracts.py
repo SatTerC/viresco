@@ -20,14 +20,9 @@ from catena import build_driver
 from xarray_annotated.temporal import FreqError, check_freq
 
 from viresco import temporal as _time
-from viresco.models import pmodel, rothc, sgam, splash
+from viresco.registry import MODELS, registered
 
-MODULES = {
-    "splash": splash,
-    "pmodel": pmodel,
-    "sgam": sgam,
-    "rothc": rothc,
-}
+MODULES = registered(MODELS)
 
 
 def _series(dates):
@@ -77,14 +72,14 @@ class TestModelContractsAgainstPipelineData:
         # here, before any compute.
         with xra.enabled(True):
             build_driver(
-                [f"viresco.models.{name}"],
+                [MODULES[name]],
                 pipeline_config.driver_config,
             )
 
     def test_all_models_together_pass_contract_check(self, pipeline_config):
         with xra.enabled(True):
             build_driver(
-                [f"viresco.models.{name}" for name in sorted(MODULES)],
+                list(MODULES.values()),
                 pipeline_config.driver_config,
             )
 

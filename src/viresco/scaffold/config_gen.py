@@ -18,8 +18,8 @@ from hamilton import driver
 from hamilton.settings import ENABLE_POWER_USER_MODE
 from xarray_annotated import Declared, Freq, declaration_from_hint
 
-from .. import models as model_modules
 from .. import temporal
+from ..registry import MODELS, registered
 from ..temporal import resample_offset
 from .aggregations import aggfunc_for
 from .bridges import Bridge, bridge_for
@@ -155,10 +155,8 @@ def _base_name(name: str, label: str | None) -> str:
 
 
 def get_builtin_models() -> list[str]:
-    """Get list of builtin models."""
-    from ..scaffold import BuiltinModels
-
-    return [m.value for m in BuiltinModels]
+    """Return the name of every model viresco registers, sorted."""
+    return list(registered(MODELS))
 
 
 def get_model_config(model_name: str) -> dict[str, Any]:
@@ -171,11 +169,7 @@ def get_model_config(model_name: str) -> dict[str, Any]:
     dict because catena merges a section's keys into one flat driver config
     regardless of which node consumes them.
     """
-    module_path = (
-        f"viresco.models.{model_name}"
-        if model_name in model_modules.__all__
-        else model_name
-    )
+    module_path = registered(MODELS).get(model_name, model_name)
 
     try:
         module = import_module(module_path)
@@ -298,7 +292,7 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
         return _declared_unit(declared.get(name))
 
     for model_name in model_names:
-        module = getattr(model_modules, model_name)
+        module = import_module(registered(MODELS)[model_name])
         data_inputs, _, data_outputs = _analyze_model_module(
             module, base_config, declared
         )
