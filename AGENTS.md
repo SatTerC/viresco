@@ -63,6 +63,8 @@ checkout, if present) rather than guessing at its API.
   nav against it, and `tests/test_model_conformance.py` checks every registered
   module's signatures and docstrings, and runs each model alone on synthetic data
   with contracts enforced.
+- `docs/contributing/models.md` is the contributor-facing account of the
+  conventions in this file; change it when they change.
 - A model's `apply_ufunc` seam is tested by subclassing `SeamContract` in
   `tests/seam.py`, which needs the seam, an independent reference (usually a
   per-cell loop over the upstream package) and inputs for a cached node run.

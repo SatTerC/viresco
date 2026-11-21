@@ -35,6 +35,9 @@ nav = [
       "recipes/my_first_pipeline.md",
       "recipes/soil_moisture.md",
   ]},
+  { "Contributing" = [
+      "contributing/models.md",
+  ]},
   { "Reference" = [
       "reference/index.md",
       "reference/cli.md",
