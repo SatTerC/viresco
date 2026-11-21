@@ -73,6 +73,14 @@ checkout, if present) rather than guessing at its API.
   `tests/seam.py`, which needs the seam, an independent reference (usually a
   per-cell loop over the upstream package) and inputs for a cached node run.
   Tests particular to one model go beside the subclass, in its own file.
+- A model is a module, `models/<name>.py`, or if larger a subpackage,
+  `models/<name>/`, whose `__init__.py` imports its nodes and their output
+  `TypedDict`s from the submodules, lists them in `__all__`, and exports
+  nothing else. A module's nodes are
+  whatever `hamilton.graph_utils.find_functions` returns, which takes in a
+  subpackage's submodules; `config_gen` and the tests use it, and must not
+  filter on `func.__module__ == module.__name__`. `tests/toy_subpackage/` is the
+  test-only example that fails a check which misses submodule nodes.
 - A new node goes in its model's module if only that model uses it, even at
   another frequency (then add it to `OFF_FREQUENCY` in
   `tests/test_module_frequency.py`). A node no single model owns goes in

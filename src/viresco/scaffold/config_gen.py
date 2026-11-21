@@ -15,6 +15,7 @@ import pint
 import xarray as xr
 from catena.config import Config
 from hamilton import driver
+from hamilton.graph_utils import find_functions
 from hamilton.settings import ENABLE_POWER_USER_MODE
 from xarray_annotated import Declared, Freq, declaration_from_hint
 
@@ -101,17 +102,16 @@ def _unwrap_annotated(hint: Any) -> Any:
 def _output_hints(module: ModuleType) -> dict[str, Any]:
     """Return each node function's declared output type, keyed by node name.
 
+    Node functions are Hamilton's `find_functions`, as for `get_model_config`.
     A model returns a TypedDict that `@extract_fields` splits into one node per
     field. That decorator does not carry the fields' `Annotated` metadata onto
     the resulting nodes, so the units are only reachable through the return
     annotation itself.
     """
     hints: dict[str, Any] = {}
-    for obj in vars(module).values():
-        if not callable(obj) or getattr(obj, "__module__", None) != module.__name__:
-            continue
+    for name, func in find_functions(module):
         try:
-            returned = typing.get_type_hints(obj, include_extras=True).get("return")
+            returned = typing.get_type_hints(func, include_extras=True).get("return")
         except (NameError, TypeError):
             continue
         if returned is None:
@@ -119,7 +119,7 @@ def _output_hints(module: ModuleType) -> dict[str, Any]:
         if typing.is_typeddict(returned):
             hints.update(typing.get_type_hints(returned, include_extras=True))
         else:
-            hints.setdefault(getattr(obj, "__name__", ""), returned)
+            hints.setdefault(name, returned)
     return hints
 
 
@@ -163,8 +163,10 @@ def get_model_config(model_name: str) -> dict[str, Any]:
     """Collect a model's configurable settings and their defaults.
 
     Settings are the keyword-only arguments of the node that consumes them.
-    Every public function the module defines is read, not just the model node,
-    because some settings sit elsewhere: RothC's per-PFT DPM/RPM ratios are on
+    Every node function is read, not just the model node: Hamilton's
+    `find_functions`, which in a subpackage includes the nodes its
+    ``__init__.py`` imports from submodules. Some settings sit off the model
+    node: RothC's per-PFT DPM/RPM ratios are on
     `viresco.models.rothc.dpm_rpm_ratio_monthly`. The result is still one flat
     dict because catena merges a section's keys into one flat driver config
     regardless of which node consumes them.
@@ -177,11 +179,7 @@ def get_model_config(model_name: str) -> dict[str, Any]:
         return {}
 
     settings: dict[str, Any] = {}
-    for name, func in vars(module).items():
-        if name.startswith("_") or not inspect.isfunction(func):
-            continue
-        if func.__module__ != module.__name__:
-            continue
+    for _, func in find_functions(module):
         settings.update(
             {
                 p.name: p.default

@@ -25,19 +25,24 @@ from types import ModuleType
 
 import numpy as np
 import pytest
+import toy_subpackage
 import xarray as xr
 import xarray_annotated as xra
 from catena import get_final_vars, load_config, load_inputs
 from conftest import RENAMED, driver_from_config, rename_dims, to_sites
+from hamilton.graph_utils import find_functions
 from xarray_annotated import declaration_from_hint, declarations_from_signature
 
 from viresco.registry import MODELS, NODES, import_registered
 from viresco.scaffold.config_gen import generate_config
 from viresco.scaffold.data_gen import generate_synthetic_data
 
+#: The registered modules, and a test-only model written as a subpackage, whose
+#: node lives in a submodule (see `toy_subpackage`).
 MODULES: dict[str, ModuleType] = {
     **import_registered(MODELS),
     **import_registered(NODES),
+    "toy_subpackage": toy_subpackage,
 }
 
 #: Variables with no unit to declare, each with the reason.
@@ -60,19 +65,25 @@ _CHECKED = "_xarray_annotated_checked"
 
 
 def _nodes() -> list[tuple[str, typing.Callable]]:
-    """Every public function a registered module defines, by qualified name."""
+    """Every node function of a registered module, by qualified name.
+
+    The node functions are Hamilton's, so a subpackage's include those its
+    ``__init__.py`` imports from submodules.
+    """
     return [
         (f"{module.__name__}.{name}", func)
         for module in MODULES.values()
-        for name, func in vars(module).items()
-        if not name.startswith("_")
-        and inspect.isfunction(func)
-        and func.__module__ == module.__name__
+        for name, func in find_functions(module)
     ]
 
 
 NODE_FUNCS = _nodes()
 NODE_IDS = [name for name, _ in NODE_FUNCS]
+
+
+def test_nodes_in_a_subpackage_are_checked():
+    """A larger model is a subpackage whose ``__init__.py`` exports its nodes."""
+    assert "toy_subpackage.toy" in NODE_IDS
 
 
 def _is_dataarray(hint: typing.Any) -> bool:

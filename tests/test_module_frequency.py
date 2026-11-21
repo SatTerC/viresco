@@ -17,12 +17,17 @@ import typing
 from types import ModuleType
 
 import pytest
+import toy_subpackage
+from hamilton.graph_utils import find_functions
 from xarray_annotated import Freq, declaration_from_hint
 
 from viresco.models import sgam
 from viresco.registry import MODELS, import_registered
 
-MODEL_MODULES = list(import_registered(MODELS).values())
+#: The registered models, and a test-only model written as a subpackage, whose
+#: node lives in a submodule: if its frequency is not found, nor would a real
+#: subpackage's be.
+MODEL_MODULES = [*import_registered(MODELS).values(), toy_subpackage]
 
 #: Nodes allowed to run at another frequency than their module, each used by
 #: that model alone: SGAM's disturbance detection runs on daily observations.
@@ -46,10 +51,8 @@ def _node_hints(
     ``skip`` are left out.
     """
     hints: dict[str, typing.Any] = {}
-    for name, func in vars(module).items():
-        if name.startswith("_") or not inspect.isfunction(func):
-            continue
-        if func.__module__ != module.__name__ or name in skip:
+    for name, func in find_functions(module):
+        if name in skip:
             continue
         for param, hint in typing.get_type_hints(func, include_extras=True).items():
             if param == "return" and typing.is_typeddict(hint):

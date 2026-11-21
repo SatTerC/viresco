@@ -141,6 +141,24 @@ RothC's `plant_cover_monthly`, `dpm_rpm_ratio_monthly` and `farmyard_manure_inpu
 A helper that builds a time series from static data takes a time-bearing input, here `temperature_monthly`, purely for its calendar.
 Settings on a helper stay on the helper: RothC's per-PFT DPM/RPM ratios are keyword-only arguments of `dpm_rpm_ratio_monthly`.
 
+### A model too large for one module
+
+A larger model is a subpackage, `src/viresco/models/<name>/`, laid out however suits it.
+Its `__init__.py` imports the public nodes and their output `TypedDict`s from the submodules, lists them in `__all__`, and holds nothing else public:
+
+```python
+"""The <name> model."""
+
+from ._canopy import canopy_conductance
+from ._model import NameOut, name
+
+__all__ = ["NameOut", "canopy_conductance", "name"]
+```
+
+catena, `viresco setup` and the tests all find a module's nodes as Hamilton does: the public functions in its namespace that are defined in it or in one of its submodules.
+So everything in this page applies to the package as a whole: one frequency, one config section, one entry point naming the package.
+A stateless piece that another model could use belongs in `viresco.nodes` instead.
+
 ## Register it
 
 1. Add the module to the `catena.modules` entry points in `pyproject.toml`, and run `uv sync`:
