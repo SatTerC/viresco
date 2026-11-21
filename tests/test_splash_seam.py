@@ -9,18 +9,14 @@ a live correctness bug: the old code passed ``latitude[0]``/``elevation[0]``/
 ``max_soil_moisture[0]`` to pyrealm, so every pixel silently received pixel 0's static
 parameters.
 
-1. Regression — the seam reproduces an independent *whole-block* pyrealm call with the
-   statics correctly broadcast per pixel (the anchor pins the apply_ufunc plumbing:
-   moveaxis, core-dim handling, coord reattach, transpose).
-2. Bug fix — feeding identical climate to two pixels with *different* latitudes yields
-   *different* outputs; the old ``[0]``-indexing would have tied them together.
-3. Strategy C stays open — ``.chunk({"pixel": k})`` (dask-backed) inputs give identical
-   results. Skipped when dask is absent.
-4. Caching intact — the seam is internal to the node, so the cached pipeline still
-   matches the uncached one.
+The contract is `seam.SeamContract`'s, against an independent whole-block pyrealm
+call with the statics broadcast per pixel. The classes below cover what is
+particular to SPLASH: per-pixel statics, the soil capacity, the initial state,
+masked cells, the calendar, and the latitude and sunshine inputs.
 """
 
 from operator import attrgetter
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -29,6 +25,7 @@ import pyrealm.splash.splash
 import pytest
 import xarray as xr
 import xarray_annotated as xra
+from seam import SeamContract, chunk_pixels
 from xarray_annotated.units import UnitError
 
 from viresco.models.splash import (
@@ -119,31 +116,32 @@ def _reference_block(inputs: dict) -> dict[str, np.ndarray]:
     }
 
 
-class TestRegression:
-    """The block seam reproduces the whole-block pyrealm reference, for every output."""
+class TestSplashSeam(SeamContract):
+    seam = staticmethod(_splash)
+    outputs = tuple(_OUTPUT_FIELDS)
+    dates = DAILY_DATES
+    differs = "soil_moisture"
+    # Chunking changes the block that spin-up's convergence test sees, so this
+    # allows for the ~1e-4 that AGENTS.md documents.
+    chunk_rtol = 1e-3
+    module = "viresco.models.splash"
+    node_config: ClassVar = {
+        "soil_moisture_init_max_iter": MAX_ITER,
+        "soil_moisture_init_max_diff": MAX_DIFF,
+    }
+    cached_output = "soil_moisture"
 
     @pytest.fixture(scope="class")
-    def seam_result(self, splash_inputs):
-        return _splash(**splash_inputs)
+    def seam_inputs(self, splash_inputs):
+        return splash_inputs
 
     @pytest.fixture(scope="class")
-    def reference(self, splash_inputs) -> dict:
+    def reference(self, splash_inputs):
         return _reference_block(splash_inputs)
 
-    @pytest.mark.parametrize("name", _OUTPUT_FIELDS)
-    def test_matches_reference(self, seam_result, reference, name):
-        np.testing.assert_allclose(
-            seam_result[name].transpose("time", "pixel").values, reference[name]
-        )
-
-    def test_canonical_dims_and_coords(self, seam_result):
-        for da in seam_result.values():
-            assert da.dims == ("time", "pixel")
-            assert da.sizes == {"time": N_DAYS, "pixel": N_PIXELS}
-            # apply_ufunc drops the time coord; the seam must reattach it.
-            assert "time" in da.coords
-            assert "pixel" in da.coords
-            np.testing.assert_array_equal(da.coords["time"].values, DAILY_DATES.values)
+    @pytest.fixture
+    def node_inputs(self, splash_inputs):
+        return {k: v for k, v in splash_inputs.items() if k not in self.node_config}
 
 
 class TestPerPixelStaticsThreaded:
@@ -505,75 +503,14 @@ class TestConsecutiveDays:
         assert result.sizes["time"] == 30
 
 
-class TestStrategyCStaysOpen:
-    """Chunked (dask-backed) ``pixel`` inputs match eager numpy, within the partition effect.
-
-    Chunking changes the block that spin-up's convergence test sees, so ``rtol`` allows
-    for the ~1e-4 that AGENTS.md documents rather than asserting bit-identical results.
-    """
-
-    @staticmethod
-    def _chunked(inputs: dict) -> dict:
-        return {
-            key: value.chunk({"pixel": 1})
-            if isinstance(value, xr.DataArray) and "pixel" in value.dims
-            else value
-            for key, value in inputs.items()
-        }
-
-    def test_chunked_pixel_equivalence(self, splash_inputs):
-        pytest.importorskip("dask")
-        eager = _splash(**splash_inputs)
-        chunked = _splash(**self._chunked(splash_inputs))
-
-        for name in _OUTPUT_FIELDS:
-            out = chunked[name].compute().transpose("time", "pixel").values
-            np.testing.assert_allclose(
-                out, eager[name].transpose("time", "pixel").values, rtol=1e-3
-            )
-
+class TestChunkedGaps:
     def test_chunked_gap_names_the_pixel_label(self, splash_inputs):
         pytest.importorskip("dask")
         inputs = dict(splash_inputs)
         inputs["precipitation"] = inputs["precipitation"].copy()
         inputs["precipitation"][100, 2] = np.nan
         with pytest.raises(ValueError, match=r"1 cell\(s\) \(2\)"):
-            _splash(**self._chunked(inputs))["soil_moisture"].compute()
-
-
-class TestCachingIntact:
-    """The cached splash node matches the uncached one (seam is internal to the node)."""
-
-    def test_cached_run_matches_uncached(self, tmp_path, splash_inputs):
-        from catena import CacheSpec, build_driver
-
-        inputs = {
-            k: v
-            for k, v in splash_inputs.items()
-            if k not in ("soil_moisture_init_max_iter", "soil_moisture_init_max_diff")
-        }
-        spec = CacheSpec(path=str(tmp_path / "cache"))
-
-        def run(cache):
-            dr = build_driver(
-                ["viresco.models.splash"],
-                {
-                    "soil_moisture_init_max_iter": MAX_ITER,
-                    "soil_moisture_init_max_diff": MAX_DIFF,
-                },
-                cache=cache,
-            )
-            return dr.execute(["soil_moisture"], inputs=inputs)  # type: ignore[reportArgumentType]
-
-        uncached = run(None)
-        run(spec)  # cold cache
-        cached = run(spec)  # warm cache
-
-        np.testing.assert_allclose(
-            cached["soil_moisture"].values,
-            uncached["soil_moisture"].values,
-        )
-        assert (tmp_path / "cache").exists()
+            _splash(**chunk_pixels(inputs))["soil_moisture"].compute()
 
 
 class TestLatitudeCheck:

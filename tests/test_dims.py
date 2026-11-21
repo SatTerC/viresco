@@ -19,12 +19,11 @@ import pytest
 import xarray as xr
 import xarray_annotated as xra
 from catena import get_final_vars, load_config, load_inputs
-from conftest import driver_from_config
+from conftest import RENAMED, driver_from_config, rename_dims, to_sites
 
 from viresco.scaffold.data_gen import generate_synthetic_data
 
 EXAMPLE_CONFIG = Path(__file__).parent.parent / "recipes" / "config.toml"
-RENAMED = {"time": "date", "y": "north", "x": "east"}
 
 PACKAGE = Path(__file__).parent.parent / "src" / "viresco"
 DIM_NAMES = {"time", "pixel", "site", "date", "x", "y", "north", "east"}
@@ -76,20 +75,6 @@ def test_no_dimension_name_is_written_into_the_source():
     assert not hits, "dimension names in the source:\n" + "\n".join(hits)
 
 
-def _rename_dims(da: xr.DataArray, mapping: dict[str, str]) -> xr.DataArray:
-    return da.rename({old: new for old, new in mapping.items() if old in da.dims})
-
-
-def _to_sites(da: xr.DataArray) -> xr.DataArray:
-    """Stack ``(y, x)`` into a plain ``site`` index, keeping the other dims."""
-    if not {"y", "x"} <= set(da.dims):
-        return da
-    stacked = da.stack(site=("y", "x"))
-    return stacked.drop_vars(["site", "y", "x"]).assign_coords(
-        site=np.arange(stacked.sizes["site"])
-    )
-
-
 def _run(config_path: Path, reshape) -> dict[str, xr.DataArray]:
     config = load_config(config_path)
     inputs = {name: reshape(da) for name, da in load_inputs(config.input_specs).items()}
@@ -128,19 +113,19 @@ def test_models_run_on_a_grid(reference):
 
 
 def test_models_run_on_sites(data_dir, reference):
-    sites = _run(data_dir / "config.toml", _to_sites)
+    sites = _run(data_dir / "config.toml", to_sites)
 
     assert set(sites) == set(reference)
     for name, expected in reference.items():
         actual = sites[name]
-        assert actual.dims == _to_sites(expected).dims, name
+        assert actual.dims == to_sites(expected).dims, name
         np.testing.assert_array_equal(
-            actual.values, _to_sites(expected).values, err_msg=name
+            actual.values, to_sites(expected).values, err_msg=name
         )
 
 
 def test_models_run_on_any_dimension_names(data_dir, reference):
-    renamed = _run(data_dir / "renamed.toml", lambda da: _rename_dims(da, RENAMED))
+    renamed = _run(data_dir / "renamed.toml", lambda da: rename_dims(da, RENAMED))
 
     assert set(renamed) == set(reference)
     for name, expected in reference.items():

@@ -1,23 +1,15 @@
 """Tests for the SGAM ``apply_ufunc`` pixel seam (``viresco.models.sgam._sgam``).
 
-These cover the inner block-level parallelisation seam that replaced the explicit
-``for i in range(len(plant_type))`` loop:
-
-1. Regression — the seam reproduces, bit-for-bit, an independent per-pixel reference
-   loop across *multiple, heterogeneous* pixels (distinct plant types, mixed-sign
-   latitudes, and per-pixel init pools). A single-pixel smoke test cannot catch a
-   pixel-misalignment bug, so the heterogeneity here is the point.
-2. Strategy C stays open — feeding ``.chunk({"pixel": k})`` (dask-backed) inputs yields
-   identical results, proving the seam is ready for a future dask execution backend
-   without building it. Skipped when dask is absent.
-3. Caching intact — the seam is internal to the node, so the cached pipeline still
-   matches the uncached one.
+The contract is `seam.SeamContract`'s. The reference is an independent per-pixel
+loop over sgam, on pixels with distinct plant types, mixed-sign latitudes and
+initial pools, since a single pixel cannot catch a misalignment.
 """
 
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+from seam import SeamContract
 
 from viresco.models.sgam import (
     _SGAM_OUTPUT_NAMES,
@@ -160,104 +152,37 @@ def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
     }
 
 
-class TestRegression:
-    """The seam reproduces the per-pixel reference loop, for every output."""
+class TestSGAMSeam(SeamContract):
+    seam = staticmethod(_sgam)
+    outputs = _SGAM_OUTPUT_NAMES
+    dates = WEEKLY_DATES
+    # Distinct PFTs and hemispheres must give distinct leaf pools.
+    differs = "leaf_pool_weekly"
+    module = "viresco.models.sgam"
+    cached_output = "leaf_pool_weekly"
 
     @pytest.fixture(scope="class")
-    def seam_result(self, sgam_inputs):
-        return _sgam(**sgam_inputs)
+    def seam_inputs(self, sgam_inputs):
+        return sgam_inputs
 
     @pytest.fixture(scope="class")
-    def reference(self, sgam_inputs) -> dict:
+    def reference(self, sgam_inputs):
         return _reference_loop(sgam_inputs)
 
-    @pytest.mark.parametrize("name", _SGAM_OUTPUT_NAMES)
-    def test_matches_reference_loop(self, seam_result, reference, name):
-        np.testing.assert_allclose(
-            seam_result[name].transpose("time", "pixel").values, reference[name]
-        )
-
-    def test_canonical_dims_and_coords(self, seam_result):
-        for da in seam_result.values():
-            assert da.dims == ("time", "pixel")
-            assert da.sizes == {"time": N_WEEKS, "pixel": N_PIXELS}
-            # apply_ufunc drops the time coord; the seam must reattach it.
-            assert "time" in da.coords
-            assert "pixel" in da.coords
-            np.testing.assert_array_equal(da.coords["time"].values, WEEKLY_DATES.values)
-
-    def test_per_pixel_params_actually_differ(self, seam_result):
-        # Distinct PFTs/hemispheres must produce distinct leaf-pool columns; identical
-        # columns would mean per-pixel metadata was not threaded through the seam.
-        leaf = seam_result["leaf_pool_weekly"].transpose("time", "pixel").values
-        assert not np.allclose(leaf[:, 0], leaf[:, 1])
-        assert not np.allclose(leaf[:, 1], leaf[:, 2])
-
-
-class TestStrategyCStaysOpen:
-    """Chunked (dask-backed) ``pixel`` inputs give identical results to eager numpy."""
-
-    def test_chunked_pixel_equivalence(self, sgam_inputs):
-        pytest.importorskip("dask")
-        eager = _sgam(**sgam_inputs)
-
-        chunked_inputs = dict(sgam_inputs)
-        for key, val in sgam_inputs.items():
-            if isinstance(val, xr.DataArray) and "pixel" in val.dims:
-                chunked_inputs[key] = val.chunk({"pixel": 1})
-        chunked = _sgam(**chunked_inputs)
-
-        for name in _SGAM_OUTPUT_NAMES:
-            out = chunked[name].compute().transpose("time", "pixel").values
-            np.testing.assert_allclose(
-                out, eager[name].transpose("time", "pixel").values
-            )
-
-
-class TestCachingIntact:
-    """The cached sgam node matches the uncached one (seam is internal to the node)."""
-
-    def test_cached_run_matches_uncached(self, tmp_path):
-        from catena import CacheSpec, build_driver
-
-        def _mda(base: np.ndarray) -> xr.DataArray:
-            return xr.DataArray(
-                base,
-                dims=["time", "pixel"],
-                coords={"time": WEEKLY_DATES, "pixel": PIXELS},
-            )
-
-        def _sda(values: np.ndarray) -> xr.DataArray:
-            return xr.DataArray(values, dims=["pixel"], coords={"pixel": PIXELS})
-
+    @pytest.fixture
+    def node_inputs(self):
         ones = np.ones((N_WEEKS, N_PIXELS))
-        inputs = {
-            "plant_type": _sda(PLANT_TYPE.astype(float)),  # drives the pft_params node
-            "temperature_weekly": _mda(ones * 15.0),
-            "gpp_weekly": _mda(ones * 5.0),
-            "volumetric_water_content_weekly": _mda(ones * 0.3),
-            "vpd_weekly": _mda(ones * 1000.0),
-            "lue_weekly": _mda(ones * 2.0),
-            "iwue_weekly": _mda(ones * 100.0),
-            "disturbances_weekly": _mda(ones * 0.0),
-            "dates_weekly": WEEKLY_DATES,
-            "leaf_pool_init": _sda(LEAF_INIT),
-            "stem_pool_init": _sda(STEM_INIT),
-            "root_pool_init": _sda(ROOT_INIT),
-            "latitude": _sda(LATITUDE),
+        return {
+            "plant_type": _static(PLANT_TYPE.astype(float)),  # drives pft_params
+            "temperature_weekly": _temporal(ones * 15.0),
+            "gpp_weekly": _temporal(ones * 5.0),
+            "volumetric_water_content_weekly": _temporal(ones * 0.3),
+            "vpd_weekly": _temporal(ones * 1000.0),
+            "lue_weekly": _temporal(ones * 2.0),
+            "iwue_weekly": _temporal(ones * 100.0),
+            "disturbances_weekly": _temporal(ones * 0.0),
+            "leaf_pool_init": _static(LEAF_INIT),
+            "stem_pool_init": _static(STEM_INIT),
+            "root_pool_init": _static(ROOT_INIT),
+            "latitude": _static(LATITUDE),
         }
-        spec = CacheSpec(path=str(tmp_path / "cache"))
-
-        def run(cache):
-            dr = build_driver(["viresco.models.sgam"], {}, cache=cache)
-            return dr.execute(["leaf_pool_weekly"], inputs=inputs)  # type: ignore[reportArgumentType]
-
-        uncached = run(None)
-        run(spec)  # cold cache
-        cached = run(spec)  # warm cache
-
-        np.testing.assert_allclose(
-            cached["leaf_pool_weekly"].values,
-            uncached["leaf_pool_weekly"].values,
-        )
-        assert (tmp_path / "cache").exists()

@@ -8,7 +8,6 @@ import typer
 from catena.config import Config
 
 from ..scaffold import (
-    BuiltinModels,
     generate_config,
     get_builtin_models,
     get_model_config,
@@ -109,16 +108,15 @@ def _resolve_models(models: list[str]) -> list[str]:
             "omit --models to choose interactively."
         )
 
+    available = get_builtin_models()
     resolved: list[str] = []
     for name in names:
-        try:
-            value = BuiltinModels(name).value
-        except ValueError as err:
+        if name not in available:
             raise typer.BadParameter(
-                f"Unknown model {name!r}. Available: {', '.join(get_builtin_models())}."
-            ) from err
-        if value not in resolved:  # order preserved; a repeat is not an error
-            resolved.append(value)
+                f"Unknown model {name!r}. Available: {', '.join(available)}."
+            )
+        if name not in resolved:  # order preserved; a repeat is not an error
+            resolved.append(name)
     return resolved
 
 

@@ -6,8 +6,6 @@ data, behind ``viresco data-gen``. Neither is needed once a pipeline has real
 inputs — they exist so that it can be run, and tested, before it does.
 """
 
-from enum import StrEnum
-
 from .config_gen import (
     generate_config,
     get_builtin_models,
@@ -15,17 +13,7 @@ from .config_gen import (
 )
 
 __all__ = [
-    "BuiltinModels",
     "generate_config",
     "get_builtin_models",
     "get_model_config",
 ]
-
-
-class BuiltinModels(StrEnum):
-    """Enumeration of built-in model names."""
-
-    SPLASH = "splash"
-    PMODEL = "pmodel"
-    SGAM = "sgam"
-    ROTHC = "rothc"

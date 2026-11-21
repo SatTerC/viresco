@@ -1,11 +1,12 @@
 """Tests for scaffold/config_gen.py."""
 
 import pytest
+import toy_subpackage
 import xarray_annotated as xra
 from catena import build_driver
 from catena.errors import CatenaValueError
 from hamilton.settings import ENABLE_POWER_USER_MODE
-from xarray_annotated import Declared, Freq
+from xarray_annotated import Declared, Freq, Unit, declaration_from_hint
 
 from viresco import models, temporal
 from viresco.scaffold import generate_config, get_model_config
@@ -15,6 +16,7 @@ from viresco.scaffold.config_gen import (
     _infer_required_data,
     _label_of,
     _node_name,
+    _output_hints,
 )
 
 PATH_DEFAULTS = {
@@ -33,6 +35,9 @@ class TestGetModelConfig:
         params = get_model_config("rothc")
         assert "n_years_spinup" in params
         assert isinstance(params["n_years_spinup"], int)
+
+    def test_subpackage_settings_are_read_from_its_submodules(self):
+        assert get_model_config("toy_subpackage") == {"toy_factor": 2.0}
 
     def test_unknown_module_returns_empty(self):
         assert get_model_config("nonexistent.module") == {}
@@ -439,3 +444,11 @@ class TestUnitDiscovery:
         assert declaration is not None
         assert declaration.unit is not None
         assert declaration.unit.unit == unit
+
+
+def test_subpackage_output_units_are_read_from_its_submodules():
+    declared = declaration_from_hint(
+        _output_hints(toy_subpackage)["scaled_precipitation"]
+    )
+    assert declared is not None
+    assert declared.unit == Unit("mm d-1")

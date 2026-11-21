@@ -5,26 +5,20 @@ spatial axis internally, so there was never a per-pixel Python loop. The seam re
 bespoke ``xarray_io`` ``.data`` pull/repack with ``xr.apply_ufunc`` (no core dims, since
 the model is element-wise), which keeps a future dask backend reachable.
 
-1. Regression — because the P-Model is element-wise, running the whole ``(time, pixel)``
-   block must equal running each pixel column independently and stacking. That per-pixel
-   anchor is an independent calling pattern, so it catches any axis/coord mangling in the
-   seam.
-2. Strategy C stays open — ``.chunk({"pixel": k})`` (dask-backed) inputs give identical
-   results. Skipped when dask is absent.
-3. Caching intact — the seam is internal to the node, so the cached pipeline still
-   matches the uncached one.
+The contract is `seam.SeamContract`'s. Because the P-Model is element-wise, the
+reference runs pyrealm on each pixel column independently and stacks the results,
+an independent calling pattern that catches any axis or coordinate mangling.
 
-The first two run over method variants that between them pass every
+The contract runs over method variants that between them pass every
 method-dependent input, climatological ones included, through the seam.
 """
-
-from typing import Any
 
 import numpy as np
 import pandas as pd
 import pyrealm.pmodel
 import pytest
 import xarray as xr
+from seam import SeamContract
 
 from viresco.models.pmodel import _OUTPUT_ATTRIBUTES, _pmodel
 
@@ -151,111 +145,51 @@ def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
     return {name: np.column_stack(cols) for name, cols in per_pixel.items()}
 
 
-class TestRegression:
-    """The block seam reproduces the per-pixel reference, for every output."""
+def _constant(v: float) -> xr.DataArray:
+    return xr.DataArray(
+        np.full((N_DAYS, N_PIXELS), float(v)),
+        dims=["time", "pixel"],
+        coords={"time": DATES, "pixel": PIXELS},
+    )
+
+
+def _drivers() -> dict[str, xr.DataArray]:
+    return {
+        "temperature": _constant(15.0),
+        "vpd": _constant(1000.0),
+        "co2": _constant(400.0),
+        "pressure": _constant(101325.0),
+        "fapar": _constant(0.5),
+        "ppfd": _constant(500.0),
+    }
+
+
+class TestPModelSeam(SeamContract):
+    seam = staticmethod(_pmodel)
+    outputs = tuple(_OUTPUT_ATTRIBUTES)
+    dates = DATES
+    # Distinct climate columns must give distinct GPP.
+    differs = "gpp_flux"
+    module = "viresco.models.pmodel"
+    cached_output = "gpp_flux"
 
     @pytest.fixture(scope="class")
-    def seam_result(self, pmodel_inputs):
-        return _pmodel(**pmodel_inputs)
+    def seam_inputs(self, pmodel_inputs):
+        return pmodel_inputs
 
     @pytest.fixture(scope="class")
-    def reference(self, pmodel_inputs) -> dict:
+    def reference(self, pmodel_inputs):
         return _reference_loop(pmodel_inputs)
 
-    @pytest.mark.parametrize("name", _OUTPUT_ATTRIBUTES)
-    def test_matches_reference_loop(self, seam_result, reference, name):
-        np.testing.assert_allclose(
-            seam_result[name].transpose("time", "pixel").values, reference[name]
-        )
-
-    def test_canonical_dims_and_coords(self, seam_result):
-        for da in seam_result.values():
-            assert da.dims == ("time", "pixel")
-            assert da.sizes == {"time": N_DAYS, "pixel": N_PIXELS}
-            assert "time" in da.coords
-            assert "pixel" in da.coords
-            np.testing.assert_array_equal(da.coords["time"].values, DATES.values)
-
-    def test_per_pixel_inputs_actually_differ(self, seam_result):
-        # Distinct climate columns must produce distinct GPP columns; identical columns
-        # would mean the block was collapsed or broadcast incorrectly.
-        gpp = seam_result["gpp_flux"].transpose("time", "pixel").values
-        assert not np.allclose(gpp[:, 0], gpp[:, 1])
-        assert not np.allclose(gpp[:, 1], gpp[:, 2])
+    @pytest.fixture
+    def node_inputs(self):
+        return _drivers()
 
 
-class TestStrategyCStaysOpen:
-    """Chunked (dask-backed) ``pixel`` inputs give identical results to eager numpy."""
-
-    def test_chunked_pixel_equivalence(self, pmodel_inputs):
-        pytest.importorskip("dask")
-        eager = _pmodel(**pmodel_inputs)
-
-        def chunk(val: Any) -> Any:
-            if isinstance(val, dict):
-                return {key: chunk(v) for key, v in val.items()}
-            if isinstance(val, xr.DataArray) and "pixel" in val.dims:
-                return val.chunk({"pixel": 1})
-            return val
-
-        chunked_inputs = {key: chunk(val) for key, val in pmodel_inputs.items()}
-        chunked = _pmodel(**chunked_inputs)
-
-        for name in _OUTPUT_ATTRIBUTES:
-            out = chunked[name].compute().transpose("time", "pixel").values
-            np.testing.assert_allclose(
-                out, eager[name].transpose("time", "pixel").values
-            )
-
-
-class TestCachingIntact:
-    """The cached pmodel node matches the uncached one (seam is internal to the node)."""
-
-    def test_cached_run_matches_uncached(self, tmp_path):
-        from catena import CacheSpec, build_driver
-
-        def _mda(v: float) -> xr.DataArray:
-            return xr.DataArray(
-                np.full((N_DAYS, N_PIXELS), float(v)),
-                dims=["time", "pixel"],
-                coords={"time": DATES, "pixel": PIXELS},
-            )
-
-        inputs = {
-            "temperature": _mda(15.0),
-            "vpd": _mda(1000.0),
-            "co2": _mda(400.0),
-            "pressure": _mda(101325.0),
-            "fapar": _mda(0.5),
-            "ppfd": _mda(500.0),
-        }
-        spec = CacheSpec(path=str(tmp_path / "cache"))
-
-        def run(cache):
-            dr = build_driver(["viresco.models.pmodel"], {}, cache=cache)
-            return dr.execute(  # type: ignore[reportArgumentType]
-                ["gpp_flux"], inputs=inputs
-            )
-
-        uncached = run(None)
-        run(spec)  # cold cache
-        cached = run(spec)  # warm cache
-
-        np.testing.assert_allclose(
-            cached["gpp_flux"].values, uncached["gpp_flux"].values
-        )
-        assert (tmp_path / "cache").exists()
-
+class TestExtraInputsReachTheCacheKey:
     def test_changing_an_extra_input_invalidates_the_cache(self, tmp_path):
         """An extra input reaches `pmodel`'s cache key through its `<axis>_inputs` node."""
         from catena import CacheSpec, build_driver
-
-        def _mda(v: float) -> xr.DataArray:
-            return xr.DataArray(
-                np.full((N_DAYS, N_PIXELS), float(v)),
-                dims=["time", "pixel"],
-                coords={"time": DATES, "pixel": PIXELS},
-            )
 
         spec = CacheSpec(path=str(tmp_path / "cache"))
 
@@ -267,15 +201,7 @@ class TestCachingIntact:
             )
             result = dr.execute(  # type: ignore[reportArgumentType]
                 ["gpp_flux"],
-                inputs={
-                    "temperature": _mda(15.0),
-                    "vpd": _mda(1000.0),
-                    "co2": _mda(400.0),
-                    "pressure": _mda(101325.0),
-                    "fapar": _mda(0.5),
-                    "ppfd": _mda(500.0),
-                    "volumetric_water_content": _mda(theta),
-                },
+                inputs={**_drivers(), "volumetric_water_content": _constant(theta)},
             )
             return result["gpp_flux"].values
 
