@@ -23,6 +23,10 @@ checkout, if present) rather than guessing at its API.
 - A recipe is a directory, `recipes/<name>/`, holding a `config.toml`, any node module it needs, its data (with the notebook giving the xharvest commands that fetched it) or a `make_data.py` that writes it, and the marimo notebook as `demo.py`, as catena's recipes do. Put conversions in the node module as real functions rather than `[[node]]` expressions, and prefer real data to synthetic. `just export <name>` renders the notebook into `docs/recipes/`; only the recipes in `documented_recipes` in the `justfile`, which must match the Recipes nav in `zensical.toml`, are published, while `tests/test_recipes.py` dry-runs and runs every recipe's config. The exception is `recipes/quickstart/`, the quickstart guide: it has no committed config, because it runs `viresco setup` and the other CLI commands itself in a scratch `my_pipeline/`, and `just export-quickstart` publishes it as `docs/guides/quickstart.md`; `tests/test_quickstart.py` runs it. Notebooks pin `ukceh-viresco==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
 - Plain config files under `recipes/` are **not** loaded by any code or tooling — they are user-facing references only, so nothing will catch a mistake in them. Check `recipes/config.toml` with `viresco data-gen` then `viresco run --dry-run`.
 - Documentation uses **zensical** (markdown, mkdocstrings-material-like), **not** Sphinx/rst.
+  Two rendering traps: `pymdownx.snippets` acts on a `--8<--` line even inside a
+  fenced code block (escape it as `;--8<--`, or describe it instead), and inline
+  code starting with `::: ` renders without that prefix. List continuations and
+  nested blocks need four spaces; three ends the list.
 - Synthetic data is table-driven: a variable is one `Var` row (units, long name,
   one generator lambda) in `scaffold/data_gen/daily.py` or `static.py`. Adding
   a model's inputs means adding rows, not writing generator functions. A variable
