@@ -63,6 +63,10 @@ checkout, if present) rather than guessing at its API.
   nav against it, and `tests/test_model_conformance.py` checks every registered
   module's signatures and docstrings, and runs each model alone on synthetic data
   with contracts enforced.
+- A model's `apply_ufunc` seam is tested by subclassing `SeamContract` in
+  `tests/seam.py`, which needs the seam, an independent reference (usually a
+  per-cell loop over the upstream package) and inputs for a cached node run.
+  Tests particular to one model go beside the subclass, in its own file.
 - A new node goes in its model's module if only that model uses it, even at
   another frequency (then add it to `OFF_FREQUENCY` in
   `tests/test_module_frequency.py`). A node no single model owns goes in

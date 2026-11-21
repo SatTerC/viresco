@@ -1,24 +1,18 @@
 """Tests for the RothC ``apply_ufunc`` pixel seam (``viresco.models.rothc._rothc``).
 
-These cover the inner block-level parallelisation seam that replaced the explicit
-``for i in range(n_pixels)`` loop:
-
-1. Regression — the seam reproduces, bit-for-bit, an independent per-pixel reference
-   loop across *multiple, heterogeneous* pixels (varying per-pixel soil params and
-   per-pixel climate). A single-pixel smoke test cannot catch a pixel-misalignment bug,
-   so the heterogeneity here is the point.
-2. Strategy C stays open — feeding ``.chunk({"pixel": k})`` (dask-backed) inputs yields
-   identical results, proving the seam is ready for a future dask execution backend
-   without building it. Skipped when dask is absent.
-3. Caching intact — the seam is internal to the node, so the cached pipeline still
-   matches the uncached one.
+The contract is `seam.SeamContract`'s. The reference is an independent per-pixel
+loop over rothc_py, on pixels with distinct soil parameters and climate, since a
+single pixel cannot catch a misalignment.
 """
+
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
 from rothc_py import RothC, RothCParams, percent_modern_c
+from seam import SeamContract
 
 from viresco.models.rothc import (
     _ROTHC_OUTPUT_KEYS,
@@ -119,70 +113,26 @@ def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
     }
 
 
-class TestRegression:
-    """The seam reproduces the per-pixel reference loop, for every output."""
+class TestRothCSeam(SeamContract):
+    seam = staticmethod(_rothc)
+    outputs = _ROTHC_OUTPUT_NAMES
+    dates = MONTHLY_DATES
+    # Distinct clay, depth and IOM must give distinct SOC.
+    differs = "soil_organic_carbon_monthly"
+    module = "viresco.models.rothc"
+    node_config: ClassVar = {"n_years_spinup": 1}
+    cached_output = "soil_organic_carbon_monthly"
 
     @pytest.fixture(scope="class")
-    def seam_result(self, rothc_inputs):
-        return _rothc(**rothc_inputs)
+    def seam_inputs(self, rothc_inputs):
+        return rothc_inputs
 
     @pytest.fixture(scope="class")
-    def reference(self, rothc_inputs) -> dict:
+    def reference(self, rothc_inputs):
         return _reference_loop(rothc_inputs)
 
-    @pytest.mark.parametrize("name", _ROTHC_OUTPUT_NAMES)
-    def test_matches_reference_loop(self, seam_result, reference, name):
-        np.testing.assert_allclose(
-            seam_result[name].transpose("time", "pixel").values, reference[name]
-        )
-
-    def test_canonical_dims_and_coords(self, seam_result):
-        for da in seam_result.values():
-            assert da.dims == ("time", "pixel")
-            assert da.sizes == {"time": N_MONTHS, "pixel": N_PIXELS}
-            # apply_ufunc drops the time coord; the seam must reattach it.
-            assert "time" in da.coords
-            assert "pixel" in da.coords
-            np.testing.assert_array_equal(
-                da.coords["time"].values, MONTHLY_DATES.values
-            )
-
-    def test_per_pixel_params_actually_differ(self, seam_result):
-        # Distinct clay/depth/iom must produce distinct SOC columns; identical columns
-        # would mean per-pixel params were not threaded through the seam.
-        soc = (
-            seam_result["soil_organic_carbon_monthly"].transpose("time", "pixel").values
-        )
-        assert not np.allclose(soc[:, 0], soc[:, 1])
-        assert not np.allclose(soc[:, 1], soc[:, 2])
-
-
-class TestStrategyCStaysOpen:
-    """Chunked (dask-backed) ``pixel`` inputs give identical results to eager numpy."""
-
-    def test_chunked_pixel_equivalence(self, rothc_inputs):
-        pytest.importorskip("dask")
-        eager = _rothc(**rothc_inputs)
-
-        chunked_inputs = dict(rothc_inputs)
-        for key, val in rothc_inputs.items():
-            if isinstance(val, xr.DataArray) and "pixel" in val.dims:
-                chunked_inputs[key] = val.chunk({"pixel": 1})
-        chunked = _rothc(**chunked_inputs)
-
-        for name in _ROTHC_OUTPUT_NAMES:
-            out = chunked[name].compute().transpose("time", "pixel").values
-            np.testing.assert_allclose(
-                out, eager[name].transpose("time", "pixel").values
-            )
-
-
-class TestCachingIntact:
-    """The cached rothc node matches the uncached one (seam is internal to the node)."""
-
-    def test_cached_run_matches_uncached(self, tmp_path):
-        from catena import CacheSpec, build_driver
-
+    @pytest.fixture
+    def node_inputs(self):
         def _mda(v: float) -> xr.DataArray:
             return xr.DataArray(
                 np.full((N_MONTHS, N_PIXELS), float(v)),
@@ -190,35 +140,14 @@ class TestCachingIntact:
                 coords={"time": MONTHLY_DATES, "pixel": PIXELS},
             )
 
-        def _sda(values: np.ndarray) -> xr.DataArray:
-            return xr.DataArray(values, dims=["pixel"], coords={"pixel": PIXELS})
-
-        inputs = {
+        return {
             "temperature_monthly": _mda(10.0),
             "precipitation_monthly": _mda(50.0),
             "potential_evapotranspiration_monthly": _mda(30.0),
             "soil_carbon_input_monthly": _mda(0.2),
-            "clay_content": _sda(CLAY),
-            "soil_depth": _sda(DEPTH),
-            "inert_organic_matter": _sda(IOM),
-            "plant_type": _sda(np.ones(N_PIXELS)),  # for the bridge helper nodes
-            "latitude": _sda(np.full(N_PIXELS, 51.5)),
-            "dates_monthly": MONTHLY_DATES,
+            "clay_content": _static(CLAY),
+            "soil_depth": _static(DEPTH),
+            "inert_organic_matter": _static(IOM),
+            "plant_type": _static(np.ones(N_PIXELS)),  # for the bridge helper nodes
+            "latitude": _static(np.full(N_PIXELS, 51.5)),
         }
-        spec = CacheSpec(path=str(tmp_path / "cache"))
-
-        def run(cache):
-            dr = build_driver(
-                ["viresco.models.rothc"], {"n_years_spinup": 1}, cache=cache
-            )
-            return dr.execute(["soil_organic_carbon_monthly"], inputs=inputs)  # type: ignore[reportArgumentType]
-
-        uncached = run(None)
-        run(spec)  # cold cache
-        cached = run(spec)  # warm cache
-
-        np.testing.assert_allclose(
-            cached["soil_organic_carbon_monthly"].values,
-            uncached["soil_organic_carbon_monthly"].values,
-        )
-        assert (tmp_path / "cache").exists()

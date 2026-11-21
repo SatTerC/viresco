@@ -128,3 +128,10 @@ def to_sites(da: xr.DataArray) -> xr.DataArray:
     return stacked.drop_vars(["site", "y", "x"]).assign_coords(
         site=np.arange(stacked.sizes["site"])
     )
+
+
+def pytest_generate_tests(metafunc):
+    """Parametrize a `seam.SeamContract` subclass's ``output`` over its outputs."""
+    outputs = getattr(metafunc.cls, "outputs", None)
+    if outputs is not None and "output" in metafunc.fixturenames:
+        metafunc.parametrize("output", outputs)
