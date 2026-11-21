@@ -25,6 +25,7 @@ nav = [
       "models/index.md",
       "models/splash.md",
       "models/pmodel.md",
+      "models/acm.md",
       "models/sgam.md",
       "models/rothc.md",
   ]},
@@ -45,6 +46,7 @@ nav = [
       { "Modules" = [
           "reference/modules/viresco.models/splash.md",
           "reference/modules/viresco.models/pmodel.md",
+          "reference/modules/viresco.models/acm.md",
           "reference/modules/viresco.models/sgam.md",
           "reference/modules/viresco.models/rothc.md",
           "reference/modules/viresco.nodes/humidity.md",
