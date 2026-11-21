@@ -1,0 +1,108 @@
+name: Propose a model or node
+description: A new scientific model, parametrisation or input node for viresco.
+title: "<Process>: <what it computes>"
+labels: ["new science"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Settle these questions before writing code, while they are cheap to change.
+        [Contributing a model](https://github.com/SatTerC/viresco/blob/main/docs/contributing/models.md) explains each of them.
+        Leave a field blank if you do not know yet.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What the model computes, and what in a viresco pipeline needs it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: The papers that describe the model, and any that evaluate it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Upstream implementation
+      description: |
+        The maintained package viresco would wrap, with its repository and licence.
+        If there is none, say so, and how large the model is to write here.
+      placeholder: "pyrealm (https://github.com/ImperialCollegeLondon/pyrealm), MIT"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Model or node
+      description: A model runs at one frequency in `viresco.models`; a node no single model owns goes in `viresco.nodes`.
+      options:
+        - Model, one module
+        - Model, a subpackage
+        - Stand-alone node module
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Timestep
+      options:
+        - Daily
+        - Weekly
+        - Monthly
+        - Static
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: state
+    attributes:
+      label: State and feedbacks
+      description: |
+        What state the model carries through time, and whether any of it would have to feed another node, or be fed by one, every timestep.
+        A viresco pipeline keeps state inside one node and closes feedbacks between nodes with observations (ADR 0002).
+      placeholder: "Soil carbon pools, integrated inside the node. No feedback: litter input is read from upstream."
+    validations:
+      required: true
+
+  - type: textarea
+    id: inputs
+    attributes:
+      label: Inputs
+      description: Name, units, frequency, and where each comes from (another node, or a dataset).
+      value: |
+        | Name | Units | Frequency | Source |
+        |---|---|---|---|
+        |  |  |  |  |
+
+  - type: textarea
+    id: outputs
+    attributes:
+      label: Outputs
+      value: |
+        | Name | Units | Frequency |
+        |---|---|---|
+        |  |  |  |
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings
+      description: The parameters a config would set, with defaults, and any choice between variants.
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: |
+        How the wrapper would be shown to reproduce the model: the upstream package's own examples, published values, or observations.
+        Data that are also among the pipeline's inputs do not give an independent test.

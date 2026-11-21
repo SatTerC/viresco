@@ -12,7 +12,8 @@ The page follows [RothC](../models/rothc.md) throughout, as the smallest complet
 
 ## Before you start
 
-Open an issue describing the model before writing code, so that the questions below are settled while they are cheap to change.
+Open a [model proposal][proposal] before writing code, so that the questions below are settled while they are cheap to change.
+The form asks each of them, along with the inputs, outputs and settings.
 
 ### Is it in scope?
 
@@ -255,5 +256,6 @@ A recipe is welcome, though not required: a pipeline in `recipes/<name>/` with i
 - The wrapper is shown to reproduce upstream values.
 - `just` passes: lint, type checks and the full test suite.
 
+[proposal]: https://github.com/SatTerC/viresco/issues/new?template=model-proposal.yml
 [adr-0001]: https://github.com/SatTerC/viresco/blob/main/docs/adr/0001-node-names-and-module-frequency.md
 [adr-0002]: https://github.com/SatTerC/viresco/blob/main/docs/adr/0002-driven-pipelines.md

@@ -40,7 +40,7 @@ just export-all   # render the quickstart and every documented recipe
 ## Adding a model or node
 
 Read [Contributing a model](docs/contributing/models.md).
-Open an issue describing the model before writing code.
+Open a [model proposal](https://github.com/SatTerC/viresco/issues/new?template=model-proposal.yml) before writing code.
 
 ## Documentation
 
