@@ -38,15 +38,21 @@ graph model:
 graph-all:
   @for m in $(uv run python -c 'from viresco.registry import MODELS, registered; print(*registered(MODELS))'); do just graph "$m"; done
 
+# Render the generated docs snippets (models table, variable catalogue and the
+# graph of models and drivers) into docs_tools/_generated/, not committed.
+catalogue:
+  uv run python scripts/render_catalogue.py docs_tools/_generated
+
 # Build the documentation using Zensical.
-# Depends on `graph-all` because the model graphs are generated, not committed:
+# Depends on `graph-all` and `catalogue` because the model graphs and tables are
+# generated, not committed:
 # rendering one takes well under a second, so there is nothing to gain by
 # checking in an SVG that a signature change would silently invalidate.
 # `--clean` because zensical's incremental cache does not track the files pulled
 # in by `pymdownx.snippets`, so a freshly rendered graph is otherwise ignored.
 # Does not depend on `export-all`, which takes minutes, but refuses to build
 # while any recipe notebook lacks an export, since every link to it would break.
-docs: graph-all
+docs: graph-all catalogue
   @for md in docs/guides/quickstart.md $(for r in {{documented_recipes}}; do echo "docs/recipes/$r.md"; done); do [ -f "$md" ] || { echo "error: $md is missing; run \`just export-all\` first" >&2; exit 1; }; done
   zensical build --clean
 

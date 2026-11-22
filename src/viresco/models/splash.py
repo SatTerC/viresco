@@ -26,6 +26,9 @@ from xarray_annotated import Unit, check_annotations, stamp_output_units
 from .._chunks import chunk_like
 from ..temporal import DAILY, time_behaviour, time_index
 
+#: The process this model represents; see `viresco.registry.DOMAINS`.
+DOMAIN = "water"
+
 
 class SplashOut(TypedDict):
     """Outputs of the `splash` node, at daily resolution."""

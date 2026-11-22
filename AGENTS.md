@@ -70,9 +70,12 @@ checkout, if present) rather than guessing at its API.
 - Model DAG graphs are generated, not committed: `just graph <model>` writes
   `docs/models/_graphs/<model>.svg`, and `just docs` depends on `graph-all` so a
   docs build always renders them fresh. `graph-all` loops over the registered
-  models.
+  models. Likewise `just catalogue` (`scripts/render_catalogue.py`) writes the
+  models overview table, the variable catalogue, the couplings table and the
+  graph of models and drivers into `docs_tools/_generated/`, which the pages
+  include as snippets; edit the script, not the pages, to change them.
 - The `catena.modules` entry points in `pyproject.toml` are the one list of
-  model and node modules, read through `viresco.registry`; run `uv sync` after
+  model, driver and coupling modules, read through `viresco.registry`; run `uv sync` after
   adding one. `tests/test_registry.py` checks the `__all__` lists, docs pages,
   nav and the lists of modules in `docs/index.md` and `python-api.md` against it, and `tests/test_model_conformance.py` checks every registered
   module's signatures and docstrings, and runs each model alone on synthetic data

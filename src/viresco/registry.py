@@ -14,6 +14,7 @@ from types import ModuleType
 
 __all__ = [
     "COUPLINGS",
+    "DOMAINS",
     "DRIVERS",
     "KINDS",
     "MODELS",
@@ -28,6 +29,18 @@ MODELS = "viresco.models"
 DRIVERS = "viresco.drivers"
 #: The one coupling module: model outputs into other models' inputs.
 COUPLINGS = "viresco.couplings"
+#: The processes a model may represent, as each model module's ``DOMAIN`` names
+#: one. The documentation groups models by domain, so that alternatives sit side
+#: by side.
+DOMAINS = (
+    "water",
+    "soil heat",
+    "photosynthesis",
+    "plant respiration",
+    "vegetation",
+    "soil carbon",
+    "soil properties",
+)
 #: Where each kind of registered module lives: a package of modules, or, for
 #: `COUPLINGS`, the module itself.
 KINDS = (MODELS, DRIVERS, COUPLINGS)

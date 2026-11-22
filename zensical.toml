@@ -23,14 +23,16 @@ nav = [
   ]},
   { "Models" = [
       "models/index.md",
-      "models/splash.md",
-      "models/pmodel.md",
-      "models/acm.md",
-      "models/sgam.md",
-      "models/rothc.md",
+      { "Water" = ["models/splash.md"] },
+      { "Photosynthesis" = ["models/pmodel.md", "models/acm.md"] },
+      { "Vegetation" = ["models/sgam.md"] },
+      { "Soil carbon" = ["models/rothc.md"] },
   ]},
   { "Drivers" = [
       "drivers/index.md",
+  ]},
+  { "Couplings" = [
+      "couplings.md",
   ]},
   { "Recipes" = [
       "recipes/my_first_pipeline.md",
@@ -43,6 +45,7 @@ nav = [
       "reference/index.md",
       "reference/cli.md",
       "reference/python-api.md",
+      "reference/variables.md",
       { "Modules" = [
           "reference/modules/viresco.models/splash.md",
           "reference/modules/viresco.models/pmodel.md",

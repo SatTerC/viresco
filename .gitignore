@@ -32,3 +32,4 @@ recipes/*/data/
 .claude/
 
 docs/recipes
+docs_tools/_generated/

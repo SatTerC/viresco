@@ -29,6 +29,9 @@ from xarray_annotated import Unit, check_annotations, stamp_output_units
 
 from ..temporal import DAILY, time_index
 
+#: The process this model represents; see `viresco.registry.DOMAINS`.
+DOMAIN = "photosynthesis"
+
 #: Day of year of the June solstice, the paper's midsummer (22 June).
 _MIDSUMMER_NORTH = 173
 #: Day of year of the December solstice, midsummer in the southern hemisphere.

@@ -322,8 +322,11 @@ Test anything the wrapper adds: spin-up, masked cells, a method choice, a conver
     Give the settings blocks `show_root_heading: false` under a markdown heading of their own, since two `:::` headings for one node give it two anchors with the same id.
 
 2. **A reference page**, `docs/reference/modules/viresco.models/<name>.md`, whose body is a `:::` block for `viresco.models.<name>`, like `rothc.md` beside it.
-3. **Nav entries** for both, in `zensical.toml`.
-4. **The lists of models**: a row in the table in `docs/models/index.md`, a row in the table of model modules in `docs/reference/python-api.md`, and a link in the Models entry of `docs/index.md`.
+3. **Nav entries** for both, in `zensical.toml`: the model page under the Models section named for its `DOMAIN`, adding the section if it is the first model in that domain.
+4. **The lists of models**: a row in the table of model modules in `docs/reference/python-api.md`, and a link in the Models entry of `docs/index.md`.
+   The models overview table, the variable catalogue, the couplings table and the graph of how models connect are generated from the code by `just catalogue`, so they need nothing.
+
+A driver needs a section on `docs/drivers/index.md` with the anchor `{ #<module> }`, and a coupling a `:::` block on `docs/couplings.md`.
 
 `tests/test_registry.py` checks all of these.
 Build the site with `uv run just docs`, or `just docs` in an activated environment, to check it renders.

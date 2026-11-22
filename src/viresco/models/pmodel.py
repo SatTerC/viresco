@@ -30,6 +30,9 @@ from xarray_annotated import Unit, check_annotations, stamp_output_units
 
 from ..temporal import DAILY, time_behaviour
 
+#: The process this model represents; see `viresco.registry.DOMAINS`.
+DOMAIN = "photosynthesis"
+
 
 class PModelOut(TypedDict):
     """Outputs of the `pmodel` node, at daily resolution."""
