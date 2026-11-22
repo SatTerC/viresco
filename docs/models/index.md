@@ -5,10 +5,11 @@ icon: lucide/package
 
 # Built-in models
 
-`viresco` currently comes with four models, which can be composed into a pipeline.
-Each model is called through a single Python function, which becomes a node in the DAG.
+`viresco` comes with the models below, which can be composed into a pipeline.
+A model that carries state through time, or wraps an upstream package, is one node in the DAG, with helper nodes where its inputs need building.
+A model without state whose science is written here, such as ACM, is a few nodes, each of which can be written out or replaced.
 
-Viresco registers all four with catena, so a config names one by its section alone.
+Viresco registers every model with catena, so a config names one by its section alone.
 
 ```toml
 [splash]
@@ -20,6 +21,7 @@ soil_moisture_init_max_iter = 10
 |-------|-------------|---------------------|
 | [SPLASH](splash.md) | Semi-empirical water-balance model that computes actual evapotranspiration, soil moisture, and runoff from daily climate data | Daily |
 | [P-model](pmodel.md) | Optimality-based photosynthesis model that computes gross primary production (GPP), light-use efficiency, intrinsic water-use efficiency, photosynthetic capacity (Vcmax, Jmax) and stomatal conductance from environmental drivers | Daily |
+| [ACM](acm.md) | Aggregated Canopy Model: computes daily gross primary productivity from observed LAI, foliar nitrogen, temperature extremes, irradiance and CO2 | Daily |
 | [SGAM](sgam.md) | Simplified Growth and Allocation Model: tracks carbon pools (leaf, stem, root, litter) over time | Weekly |
 | [RothC](rothc.md) | Soil carbon decomposition model that simulates the turnover of organic matter in soil, producing soil organic carbon stocks | Monthly |
 

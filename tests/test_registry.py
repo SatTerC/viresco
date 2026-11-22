@@ -87,3 +87,18 @@ def test_module_has_a_docs_page_in_the_nav(package, name):
     assert entry.format(name=name) in (DOCS / index).read_text(), (
         f"docs/{index} has no entry for {name}"
     )
+
+
+@pytest.mark.parametrize(("package", "name"), _cases())
+def test_module_is_listed_in_the_python_api_page(package, name):
+    link = f"(modules/{package}/{name}.md)"
+    assert link in (DOCS / "reference/python-api.md").read_text(), (
+        f"docs/reference/python-api.md has no row for {package}.{name}"
+    )
+
+
+@pytest.mark.parametrize("name", registered(MODELS))
+def test_model_is_listed_on_the_home_page(name):
+    assert f"(models/{name}.md)" in (DOCS / "index.md").read_text(), (
+        f"docs/index.md does not link the {name} page"
+    )
