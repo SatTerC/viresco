@@ -25,7 +25,7 @@ from numpy.typing import NDArray
 from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
-from ..temporal import DAILY
+from ..temporal import DAILY, time_behaviour
 
 
 def _interp_series(
@@ -64,6 +64,7 @@ def _to_daily(coarse: DataArray, template: DataArray, what: str) -> DataArray:
     return daily.broadcast_like(template).transpose(*template.dims)
 
 
+@time_behaviour("record")
 @check_annotations
 @stamp_output_units(overwrite=True)
 def fapar(
@@ -89,6 +90,7 @@ def fapar(
     return _to_daily(fapar_coarse, temperature, "fapar_coarse").clip(0.0, 1.0)
 
 
+@time_behaviour("record")
 @check_annotations
 @stamp_output_units(overwrite=True)
 def co2(

@@ -28,7 +28,7 @@ from pyrealm.pmodel.quantum_yield import QUANTUM_YIELD_CLASS_REGISTRY
 from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
-from ..temporal import DAILY
+from ..temporal import DAILY, time_behaviour
 
 
 class PModelOut(TypedDict):
@@ -454,6 +454,7 @@ def arrhenius_inputs__kattge_knorr(
     ),
     config_used=["method_kphio", "method_arrhenius"],
 )
+@time_behaviour("record")
 @check_annotations
 def mean_growth_temperature(
     temperature: Annotated[DataArray, Unit("degC"), DAILY],

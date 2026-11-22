@@ -13,7 +13,7 @@ from sgam.pft import PftParams, PlantFunctionalType, get_default_pft_params
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
 from .._chunks import chunk_like
-from ..temporal import DAILY, WEEKLY, time_index
+from ..temporal import DAILY, WEEKLY, time_behaviour, time_index
 
 #: `SgamOut` fields, in the order `_sgam_1px` returns them. The units are
 #: declared on `SgamOut` and stamped by `sgam`.
@@ -397,6 +397,7 @@ def _disturbances(
     return out.assign_coords({time: temperature.coords[time]}).transpose(time, ...)
 
 
+@time_behaviour("record")
 @check_annotations
 @stamp_output_units
 def disturbances(
@@ -559,6 +560,7 @@ def _sgam(
 
 
 @extract_fields()
+@time_behaviour("stateful")
 @check_annotations
 @stamp_output_units
 def sgam(

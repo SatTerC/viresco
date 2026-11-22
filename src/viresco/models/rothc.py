@@ -13,7 +13,7 @@ from rothc_py.containers import InputData
 from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
-from ..temporal import MONTHLY, time_index
+from ..temporal import MONTHLY, time_behaviour, time_index
 
 
 class RothCOut(TypedDict):
@@ -223,6 +223,7 @@ def _rothc(
 
 
 @extract_fields()
+@time_behaviour("stateful")
 @check_annotations
 @stamp_output_units
 def rothc(

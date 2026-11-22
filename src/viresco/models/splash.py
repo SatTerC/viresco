@@ -24,7 +24,7 @@ from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
 from .._chunks import chunk_like
-from ..temporal import DAILY, time_index
+from ..temporal import DAILY, time_behaviour, time_index
 
 
 class SplashOut(TypedDict):
@@ -528,6 +528,7 @@ def sunshine_fraction__shortwave(
 
 
 @extract_fields()
+@time_behaviour("stateful")
 @check_annotations
 @stamp_output_units
 def splash(
