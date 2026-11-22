@@ -35,10 +35,10 @@ def temperature(
 @xra.check_annotations
 def shortwave_radiation(
     swin: Annotated[xr.DataArray, Unit("MJ m-2 d-1")],
-) -> Annotated[xr.DataArray, Unit("J m-2 d-1")]:
-    """Incoming shortwave radiation in joules, filling gaps by linear interpolation."""
+) -> Annotated[xr.DataArray, Unit("W m-2")]:
+    """Incoming shortwave radiation in watts, filling gaps by linear interpolation."""
     filled = swin.interpolate_na(sole_time_dim(swin, "swin"))
-    return xra.units.convert(filled, "J m-2 d-1")
+    return xra.units.convert(filled, "W m-2")
 
 
 @xra.check_annotations

@@ -3,7 +3,7 @@
 COSMOS-UK measures most of what SPLASH needs, under its own names and units. These
 nodes fill the gaps: precipitation becomes a gap-free rate, temperature and
 shortwave radiation are interpolated across missing days, and shortwave radiation
-is restated in joules, from which SPLASH recovers the sunshine fraction COSMOS-UK
+is restated as a mean flux in W m-2, from which SPLASH recovers the sunshine fraction COSMOS-UK
 does not measure.
 ``max_soil_moisture`` is a starting value for the calibration in ``demo.py``, which
 overrides it on every run.
@@ -41,14 +41,14 @@ def temperature(
 @xra.check_annotations
 def shortwave_radiation(
     swin: Annotated[xr.DataArray, Unit("MJ m-2 d-1")],
-) -> Annotated[xr.DataArray, Unit("J m-2 d-1")]:
-    """Incoming shortwave radiation in joules, filling gaps by linear interpolation.
+) -> Annotated[xr.DataArray, Unit("W m-2")]:
+    """Incoming shortwave radiation in watts, filling gaps by linear interpolation.
 
     SPLASH recovers its sunshine fraction from this, with
     ``sunshine_fraction_method = "shortwave"``.
     """
     filled = swin.interpolate_na(sole_time_dim(swin, "swin"))
-    return xra.units.convert(filled, "J m-2 d-1")
+    return xra.units.convert(filled, "W m-2")
 
 
 @xra.check_annotations

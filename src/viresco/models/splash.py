@@ -437,6 +437,9 @@ def soil_moisture_init_inputs__prescribed(
 
 _SUNSHINE_FRACTION_METHODS = ("input", "shortwave")
 
+#: A daily mean irradiance in W m-2 to a daily total in J m-2 d-1.
+_SECONDS_PER_DAY = 86400.0
+
 
 def _extraterrestrial_radiation(
     latitude: DataArray, dates: DatetimeIndex, time: str
@@ -484,7 +487,7 @@ def _extraterrestrial_radiation(
 @check_annotations
 @stamp_output_units(overwrite=True)
 def sunshine_fraction__shortwave(
-    shortwave_radiation: Annotated[DataArray, Unit("J m-2 d-1"), DAILY],
+    shortwave_radiation: Annotated[DataArray, Unit("W m-2"), DAILY],
     elevation: Annotated[DataArray, Unit("m")],
     latitude: Annotated[DataArray, Unit("degrees")],
 ) -> Annotated[DataArray, Unit("1"), DAILY]:
@@ -506,8 +509,8 @@ def sunshine_fraction__shortwave(
     Parameters
     ----------
     shortwave_radiation
-        Incoming shortwave radiation at the surface over the day (joules per
-        square metre per day), with no gaps.
+        Incoming shortwave radiation at the surface, as a mean over the day
+        (watts per square metre), with no gaps.
     elevation
         Elevation of the site (metres).
     latitude
@@ -520,7 +523,7 @@ def sunshine_fraction__shortwave(
         time_index(shortwave_radiation, "shortwave_radiation"),
         time,
     )
-    transmissivity = shortwave_radiation / extraterrestrial
+    transmissivity = shortwave_radiation * _SECONDS_PER_DAY / extraterrestrial
     return ((transmissivity / (1 + f * elevation) - c) / d).clip(0, 1)
 
 
