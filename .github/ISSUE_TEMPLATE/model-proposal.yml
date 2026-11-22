@@ -1,5 +1,5 @@
-name: Propose a model or node
-description: A new scientific model, parametrisation or input node for viresco.
+name: Propose a model, driver or coupling
+description: A new scientific model, parametrisation, driver or coupling for viresco.
 title: "<Process>: <what it computes>"
 labels: ["new science"]
 body:
@@ -40,12 +40,48 @@ body:
   - type: dropdown
     id: kind
     attributes:
-      label: Model or node
-      description: A model runs at one frequency in `viresco.models`; a node no single model owns goes in `viresco.nodes`.
+      label: Kind
+      description: |
+        Do the variants disagree about the science (a model), or only about the data available (a driver)?
+        A coupling turns one model's output into another's input. See ADR 0003.
       options:
         - Model, one module
         - Model, a subpackage
-        - Stand-alone node module
+        - Driver
+        - Coupling
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: domain
+    attributes:
+      label: Domain
+      description: For a model, the process it represents.
+      options:
+        - Water
+        - Soil heat
+        - Photosynthesis
+        - Plant respiration
+        - Vegetation
+        - Soil carbon
+        - Soil properties
+        - Not a model
+        - Not sure
+
+  - type: dropdown
+    id: time-behaviour
+    attributes:
+      label: Time behaviour
+      description: |
+        Pointwise: each step from that step's inputs.
+        Record: reads a window or the whole record, carries no state.
+        Stateful: integrates a state from an initial condition.
+      options:
+        - Pointwise
+        - Record
+        - Stateful
+        - Static
         - Not sure
     validations:
       required: true
@@ -68,7 +104,7 @@ body:
     attributes:
       label: State and feedbacks
       description: |
-        What state the model carries through time, and whether any of it would have to feed another node, or be fed by one, every timestep.
+        What state the model carries through time, how it is initialised (a `<model>_spinup_years` setting or `initial_<state>` inputs), and whether any of it would have to feed another node, or be fed by one, every timestep.
         A viresco pipeline keeps state inside one node and closes feedbacks between nodes with observations (ADR 0002).
       placeholder: "Soil carbon pools, integrated inside the node. No feedback: litter input is read from upstream."
     validations:

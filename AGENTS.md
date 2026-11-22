@@ -96,11 +96,28 @@ checkout, if present) rather than guessing at its API.
   subpackage's submodules; `config_gen` and the tests use it, and must not
   filter on `func.__module__ == module.__name__`. `tests/toy_subpackage/` is the
   test-only example that fails a check which misses submodule nodes.
-- A new node goes in its model's module if only that model uses it, even at
-  another frequency (then add it to `OFF_FREQUENCY` in
-  `tests/test_module_frequency.py`). A node no single model owns goes in
-  `viresco.nodes`, one module per purpose. The reasoning is in
-  `docs/adr/0001-node-names-and-module-frequency.md`.
+- A node is placed by what it is, not by who uses it
+  (`docs/adr/0003-component-kinds.md`). A **model** (variants that differ by
+  scientific hypothesis or fitted data; stateful, stateless or static) is
+  `viresco.models.<name>`. A **model-internal node** (the model's own
+  definitions or parameters) stays in its model's module, prefixed with the
+  model's name where the name is otherwise generic; one at another frequency
+  goes in `OFF_FREQUENCY` in `tests/test_module_frequency.py`. A **driver**
+  (derives a forcing variable from data, variants differ only by the data
+  available, consumes no model output) goes in `viresco.drivers`, one module
+  per variable family. A **coupling** (one model's output to another's input)
+  goes in `viresco.couplings`, named `<target>__<source>` and selected by
+  `@config.when(<target>_from="<source>")` with no default. Never copy a
+  conversion into a recipe's `nodes.py`.
+- Every node that is not `pointwise` declares its time behaviour with
+  `@time_behaviour("record")` or `@time_behaviour("stateful")` from
+  `viresco.temporal`; `tests/test_time_behaviour.py` checks the declarations. A
+  stateful node takes a `<model>_spinup_years` setting or an `initial_<state>`
+  input.
+- A node name has one unit and one frequency across every registered module
+  (`tests/test_variables.py`). Structure several models must agree on (soil
+  layer thicknesses) is a node they consume, not a setting each declares.
+- Every model module sets `DOMAIN` to one of `viresco.registry.DOMAINS`.
 - Module settings share one flat namespace: catena merges every section's keys
   into a single Hamilton config, and raises if two sections set the same key. A
   keyword-only default is not a setting until a config sets it, so two nodes may

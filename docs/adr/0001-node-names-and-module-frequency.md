@@ -1,6 +1,7 @@
 # 1. Node names and module frequency
 
 Status: accepted, November 2026; amended the same month to return off-frequency nodes to their models, and to run the P-model daily (see the end).
+The rule placing a node no single model owns in `viresco.nodes` is superseded by [ADR 0003](0003-component-kinds.md), which places nodes by kind; the naming and one-frequency rules stand.
 
 ## Context
 
