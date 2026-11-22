@@ -470,3 +470,15 @@ def test_subpackage_output_units_are_read_from_its_submodules():
     )
     assert declared is not None
     assert declared.unit == Unit("mm d-1")
+
+
+def test_every_driver_is_offered_or_says_why_not():
+    """A driver setup leaves out is named, with a reason, so none is dropped by
+    accident."""
+    from viresco.registry import DRIVERS, registered
+    from viresco.scaffold.config_gen import NOT_OFFERED, get_builtin_models
+
+    offered = set(get_builtin_models())
+    for name in registered(DRIVERS):
+        assert name in offered or NOT_OFFERED.get(name), name
+    assert set(NOT_OFFERED) <= set(registered(DRIVERS))

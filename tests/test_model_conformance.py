@@ -33,8 +33,8 @@ from conftest import RENAMED, driver_from_config, rename_dims, to_sites
 from hamilton.graph_utils import find_functions
 from xarray_annotated import declaration_from_hint, declarations_from_signature
 
-from viresco.registry import MODELS, import_all, import_registered
-from viresco.scaffold.config_gen import generate_config
+from viresco.registry import import_all
+from viresco.scaffold.config_gen import generate_config, get_builtin_models
 from viresco.scaffold.data_gen import generate_synthetic_data
 
 #: The registered modules, and a test-only model written as a subpackage, whose
@@ -278,9 +278,9 @@ def _run(config, reshape=lambda da: da) -> dict[str, xr.DataArray]:
         return driver_from_config(config).execute(final_vars, inputs=inputs)
 
 
-@pytest.fixture(scope="module", params=sorted(import_registered(MODELS)))
+@pytest.fixture(scope="module", params=get_builtin_models())
 def alone(request, tmp_path_factory):
-    """One model's generated config and synthetic data, and its run on a grid."""
+    """One model's or driver's generated config and synthetic data, and its run."""
     model = request.param
     data_dir = tmp_path_factory.mktemp(f"alone_{model}")
     paths = {section: str(data_dir / f"{section}.nc") for section in SECTIONS}

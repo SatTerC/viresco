@@ -20,7 +20,7 @@ from hamilton.settings import ENABLE_POWER_USER_MODE
 from xarray_annotated import Declared, Freq, declaration_from_hint
 
 from .. import temporal
-from ..registry import COUPLINGS, KINDS, MODELS, registered
+from ..registry import COUPLINGS, DRIVERS, KINDS, MODELS, registered
 from ..temporal import resample_offset
 from .aggregations import aggfunc_for
 
@@ -154,8 +154,25 @@ def _base_name(name: str, label: str | None) -> str:
 
 
 def get_builtin_models() -> list[str]:
-    """Return the name of every model viresco registers, sorted."""
-    return list(registered(MODELS))
+    """Return every module `viresco setup` offers: the models, then the drivers.
+
+    Each list is sorted. Couplings are not offered: the generator selects them
+    itself, wherever a chosen model supplies another's input under another name
+    or in other units.
+    """
+    drivers = [name for name in registered(DRIVERS) if name not in NOT_OFFERED]
+    return [*registered(MODELS), *drivers]
+
+
+#: Registered modules `viresco setup` cannot write a working config for, each
+#: with the reason. A config still enables one by naming its section.
+NOT_OFFERED: dict[str, str] = {
+    "interpolate": (
+        "its coarse inputs take a series at any step coarser than daily, so they "
+        "declare no frequency, and the generator cannot tell which input section "
+        "they belong in"
+    ),
+}
 
 
 def get_model_config(model_name: str) -> dict[str, Any]:

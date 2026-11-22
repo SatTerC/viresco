@@ -55,7 +55,7 @@ def _parse_selections(selection_str: str) -> list[str]:
 
 def _display_models(models: list[str], selected: set[str], n_cols: int = 4) -> None:
     """Display available models with [x] next to selected ones in columns."""
-    typer.echo("\nAvailable models:")
+    typer.echo("\nAvailable models and drivers:")
     for i in range(0, len(models), n_cols):
         row = models[i : i + n_cols]
         parts = []
@@ -240,7 +240,8 @@ def setup(
         "-m",
         "--models",
         help=(
-            "Built-in models to include. Repeat the flag or separate names with "
+            "Built-in models and drivers to include. Repeat the flag or separate "
+            "names with "
             "commas: '-m splash -m pmodel' and '-m splash,pmodel' are equivalent. "
             "Omit to choose interactively."
         ),
