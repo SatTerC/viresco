@@ -73,7 +73,7 @@ def days_from_midsummer(
     """
     time = sole_time_dim(lai_obs, "lai_obs")
     dates = time_index(lai_obs, "lai_obs")
-    day_of_year = xr.DataArray(dates.dayofyear, coords={time: dates}, dims=time)
+    day_of_year = xr.DataArray(dates.day_of_year, coords={time: dates}, dims=time)
     midsummer = xr.where(latitude >= 0, _MIDSUMMER_NORTH, _MIDSUMMER_SOUTH)
     distance = abs(day_of_year - midsummer)
     distance = np.minimum(distance, 365 - distance)
