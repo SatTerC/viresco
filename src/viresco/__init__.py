@@ -10,7 +10,7 @@ viresco registers its four model modules with catena, so a config addresses one
 by section name alone::
 
     [rothc]
-    n_years_spinup = 1
+    rothc_spinup_years = 1
 
 Import the models from `viresco.models` to call their functions directly.
 """

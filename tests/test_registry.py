@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from viresco.registry import MODELS, NODES, registered
+from viresco.registry import DRIVERS, MODELS, registered
 
 ROOT = Path(__file__).parent.parent
 DOCS = ROOT / "docs"
@@ -22,7 +22,7 @@ DOCS = ROOT / "docs"
 #: the text that index carries for each module.
 PAGES = {
     MODELS: ("models/{name}.md", "models/index.md", "({name}.md)"),
-    NODES: (None, "nodes/index.md", "{{ #{name} }}"),
+    DRIVERS: (None, "drivers/index.md", "{{ #{name} }}"),
 }
 
 

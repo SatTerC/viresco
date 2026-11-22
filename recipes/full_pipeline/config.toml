@@ -10,7 +10,7 @@ method_optchi = "lavergne20_c3"
 [sgam]
 
 [rothc]
-n_years_spinup = 1
+rothc_spinup_years = 1
 equilibrium_threshold = 0.0001
 
 [bridges]

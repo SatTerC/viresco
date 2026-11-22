@@ -101,7 +101,7 @@ def vpd__specific_humidity(
         Daily mean specific humidity: mass of water vapour per mass of moist air
         (kilograms per kilogram).
     pressure
-        Daily mean atmospheric pressure (pascals). `viresco.nodes.pressure`
+        Daily mean atmospheric pressure (pascals). `viresco.drivers.pressure`
         derives one from elevation where no pressure product is to hand.
     """
     return _deficit(

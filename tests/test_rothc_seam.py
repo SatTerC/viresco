@@ -71,7 +71,7 @@ def rothc_inputs() -> dict:
         soil_depth=_static(DEPTH),
         inert_organic_matter=_static(IOM),
         dates_monthly=MONTHLY_DATES,
-        n_years_spinup=1,
+        rothc_spinup_years=1,
     )
 
 
@@ -80,7 +80,7 @@ def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
 
     Returns a dict of (time, pixel) numpy arrays, the anchor for the regression check.
     """
-    n_spinup_months = inputs["n_years_spinup"] * 12
+    n_spinup_months = inputs["rothc_spinup_years"] * 12
     start_date = inputs["dates_monthly"].to_pydatetime()[0]
     t_mod = percent_modern_c(start_date=start_date, n_months=N_MONTHS)
 
@@ -120,7 +120,7 @@ class TestRothCSeam(SeamContract):
     # Distinct clay, depth and IOM must give distinct SOC.
     differs = "soil_organic_carbon_monthly"
     module = "viresco.models.rothc"
-    node_config: ClassVar = {"n_years_spinup": 1}
+    node_config: ClassVar = {"rothc_spinup_years": 1}
     cached_output = "soil_organic_carbon_monthly"
 
     @pytest.fixture(scope="class")
@@ -148,6 +148,6 @@ class TestRothCSeam(SeamContract):
             "clay_content": _static(CLAY),
             "soil_depth": _static(DEPTH),
             "inert_organic_matter": _static(IOM),
-            "plant_type": _static(np.ones(N_PIXELS)),  # for the bridge helper nodes
+            "plant_type": _static(np.ones(N_PIXELS)),  # for the input-building nodes
             "latitude": _static(np.full(N_PIXELS, 51.5)),
         }

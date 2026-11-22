@@ -3,7 +3,7 @@ method_kphio = "sandoval"
 method_optchi = "lavergne20_c3"
 
 [rothc]
-n_years_spinup = 1
+rothc_spinup_years = 1
 
 # Daily variables are consumed under bare names too, so both opt out of
 # catena's default `_<label>` node-name suffix.

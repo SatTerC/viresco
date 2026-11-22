@@ -1,4 +1,4 @@
-"""The `viresco.nodes` modules drive the daily P-model through a real config.
+"""The `viresco.drivers` modules drive the daily P-model through a real config.
 
 The unit tests check each node on its own. This runs them as catena sections, on
 data from `viresco data-gen`, so a wiring mistake shows: a variant that asks for
@@ -67,7 +67,7 @@ RADIATION_INPUT = {"shortwave": ["shortwave_radiation"], "splash": []}
         ("relative_humidity", "shortwave"),
     ],
 )
-def test_nodes_drive_the_pmodel(tmp_path, monkeypatch, vpd_from, ppfd_from):
+def test_drivers_drive_the_pmodel(tmp_path, monkeypatch, vpd_from, ppfd_from):
     daily = [
         "precipitation",
         "sunshine_fraction",

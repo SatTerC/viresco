@@ -66,7 +66,7 @@ class SplashOut(TypedDict):
     pyrealm's docstrings say micromoles per square metre per second, but its
     values are moles per square metre per day. This is a daily total, unlike the
     mean rate `viresco.models.pmodel` takes as ``ppfd``;
-    `viresco.nodes.radiation` converts one to the other."""
+    `viresco.drivers.radiation` converts one to the other."""
     net_longwave_radiation: Annotated[DataArray, Unit("W m-2"), DAILY]
     """Net longwave radiation, as a rate that is constant over the day."""
     daytime_net_radiation: Annotated[DataArray, Unit("J m-2 d-1"), DAILY]

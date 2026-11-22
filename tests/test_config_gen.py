@@ -33,8 +33,8 @@ PATH_DEFAULTS = {
 class TestGetModelConfig:
     def test_builtin_returns_defaults(self):
         params = get_model_config("rothc")
-        assert "n_years_spinup" in params
-        assert isinstance(params["n_years_spinup"], int)
+        assert "rothc_spinup_years" in params
+        assert isinstance(params["rothc_spinup_years"], int)
 
     def test_subpackage_settings_are_read_from_its_submodules(self):
         assert get_model_config("toy_subpackage") == {"toy_factor": 2.0}
@@ -68,7 +68,7 @@ class TestGenerateConfigCustomModules:
         # `_import_path`, even one viresco happens to register: `generate_config`
         # has been told to treat it as the user's own.
         assert section["_import_path"] == "viresco.models.rothc"
-        assert "n_years_spinup" in section
+        assert "rothc_spinup_years" in section
 
     def test_custom_module_without_params_written_as_import_path_only(self):
         config = generate_config(
@@ -87,7 +87,7 @@ class TestGenerateConfigCustomModules:
         toml_str = str(config)
         assert "[rothc]" in toml_str
         assert '_import_path = "viresco.models.rothc"' in toml_str
-        assert "n_years_spinup" in toml_str
+        assert "rothc_spinup_years" in toml_str
 
 
 class TestFrequencyLabels:
@@ -181,7 +181,7 @@ class TestGenerateConfigBuiltinModels:
         # viresco registers rothc with catena, so the section resolves by name
         # alone and must carry no `_import_path`.
         assert "_import_path" not in section
-        assert "n_years_spinup" in section
+        assert "rothc_spinup_years" in section
 
     def test_pmodel_generates_model_section(self):
         config = generate_config(

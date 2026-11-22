@@ -25,7 +25,7 @@ method_kphio = "temperature"
 method_arrhenius = "simple"
 
 [rothc]
-n_years_spinup = 1
+rothc_spinup_years = 1
 dpm_rate = 10.0
 rpm_rate = 0.3
 bio_rate = 0.66

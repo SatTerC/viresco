@@ -246,7 +246,7 @@ def pmodel(
     ppfd
         Photosynthetic photon flux density (micromoles per square metre per
         second), as the mean rate over the 24-hour day, not a daily total. See
-        `viresco.nodes.radiation` for deriving it from shortwave radiation or
+        `viresco.drivers.radiation` for deriving it from shortwave radiation or
         from SPLASH.
     optchi_inputs
         Extra inputs for the configured ``method_optchi``.

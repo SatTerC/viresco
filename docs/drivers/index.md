@@ -1,13 +1,13 @@
 ---
-title: Input nodes
+title: Drivers
 icon: lucide/git-merge
 ---
 
-# Input nodes
+# Drivers
 
 The P-model runs daily, but few datasets distribute its drivers daily in the units it takes.
 fAPAR comes as 8- or 10-day composites, CO₂ as a monthly or annual record, humidity as dewpoint or specific humidity rather than VPD, and light as shortwave energy rather than a photon flux.
-The modules of `viresco.nodes` build each driver from what datasets do distribute.
+The modules of `viresco.drivers` build each driver from what datasets do distribute.
 
 Each module is a catena module of its own, registered under its name, so a pipeline enables one with a section of that name.
 A module produces the node the P-model consumes (`vpd`, `ppfd`, `pressure`, `fapar`, `co2`), so a pipeline either enables the module or loads that variable, not both.
@@ -45,21 +45,21 @@ ERA5 gives temperatures in kelvin and `ssrd` as accumulated joules, so convert t
 
 ## Humidity { #humidity }
 
-::: viresco.nodes.humidity.vpd__dewpoint
+::: viresco.drivers.humidity.vpd__dewpoint
     options:
       show_root_full_path: false
       separate_signature: false
       heading_level: 4
       docstring_section_style: spacy
 
-::: viresco.nodes.humidity.vpd__specific_humidity
+::: viresco.drivers.humidity.vpd__specific_humidity
     options:
       show_root_full_path: false
       separate_signature: false
       heading_level: 4
       docstring_section_style: spacy
 
-::: viresco.nodes.humidity.vpd__relative_humidity
+::: viresco.drivers.humidity.vpd__relative_humidity
     options:
       show_root_full_path: false
       separate_signature: false
@@ -68,14 +68,14 @@ ERA5 gives temperatures in kelvin and `ssrd` as accumulated joules, so convert t
 
 ## Radiation { #radiation }
 
-::: viresco.nodes.radiation.ppfd__shortwave
+::: viresco.drivers.radiation.ppfd__shortwave
     options:
       show_root_full_path: false
       separate_signature: false
       heading_level: 4
       docstring_section_style: spacy
 
-::: viresco.nodes.radiation.ppfd__splash
+::: viresco.drivers.radiation.ppfd__splash
     options:
       show_root_full_path: false
       separate_signature: false
@@ -84,7 +84,7 @@ ERA5 gives temperatures in kelvin and `ssrd` as accumulated joules, so convert t
 
 ## Pressure { #pressure }
 
-::: viresco.nodes.pressure.pressure
+::: viresco.drivers.pressure.pressure
     options:
       show_root_full_path: false
       separate_signature: false
@@ -96,14 +96,14 @@ ERA5 gives temperatures in kelvin and `ssrd` as accumulated joules, so convert t
 Each series is interpolated linearly in time through its valid values, so a gap is bridged by the values either side.
 Days outside the record take its first or last value, and a cell with no valid value stays NaN.
 
-::: viresco.nodes.interpolate.fapar
+::: viresco.drivers.interpolate.fapar
     options:
       show_root_full_path: false
       separate_signature: false
       heading_level: 4
       docstring_section_style: spacy
 
-::: viresco.nodes.interpolate.co2
+::: viresco.drivers.interpolate.co2
     options:
       show_root_full_path: false
       separate_signature: false
@@ -112,4 +112,4 @@ Days outside the record take its first or last value, and a cell with no valid v
 
 ## Python API
 
-See the API documentation for [`humidity`](../reference/modules/viresco.nodes/humidity.md), [`radiation`](../reference/modules/viresco.nodes/radiation.md), [`pressure`](../reference/modules/viresco.nodes/pressure.md) and [`interpolate`](../reference/modules/viresco.nodes/interpolate.md).
+See the API documentation for [`humidity`](../reference/modules/viresco.drivers/humidity.md), [`radiation`](../reference/modules/viresco.drivers/radiation.md), [`pressure`](../reference/modules/viresco.drivers/pressure.md) and [`interpolate`](../reference/modules/viresco.drivers/interpolate.md).

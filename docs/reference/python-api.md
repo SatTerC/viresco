@@ -32,18 +32,18 @@ Catena imports the module named by a config section, so nothing here is normally
 The [Models](../models/index.md) section covers the theory and the inputs and outputs of each.
 These pages are the signatures.
 
-## Nodes
+## Drivers
 
-Stand-alone nodes that belong to no single model, each module a catena module of its own.
+Forcing variables derived from what datasets distribute, each module a catena module of its own.
 
 | Module | Produces |
 | --- | --- |
-| [`viresco.nodes.humidity`](modules/viresco.nodes/humidity.md) | `vpd`, from dewpoint, specific humidity or relative humidity. |
-| [`viresco.nodes.radiation`](modules/viresco.nodes/radiation.md) | `ppfd`, from shortwave radiation or SPLASH. |
-| [`viresco.nodes.pressure`](modules/viresco.nodes/pressure.md) | `pressure`, from elevation. |
-| [`viresco.nodes.interpolate`](modules/viresco.nodes/interpolate.md) | Daily `fapar` and `co2`, from coarser series. |
+| [`viresco.drivers.humidity`](modules/viresco.drivers/humidity.md) | `vpd`, from dewpoint, specific humidity or relative humidity. |
+| [`viresco.drivers.radiation`](modules/viresco.drivers/radiation.md) | `ppfd`, from shortwave radiation or SPLASH. |
+| [`viresco.drivers.pressure`](modules/viresco.drivers/pressure.md) | `pressure`, from elevation. |
+| [`viresco.drivers.interpolate`](modules/viresco.drivers/interpolate.md) | Daily `fapar` and `co2`, from coarser series. |
 
-The [Input nodes](../nodes/index.md) page shows how a config uses them.
+The [Drivers](../drivers/index.md) page shows how a config uses them.
 
 ## Scaffolding
 

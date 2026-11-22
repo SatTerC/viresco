@@ -149,7 +149,7 @@ def _rothc(
     inert_organic_matter: DataArray,
     dates_monthly: pd.Index,
     *,
-    n_years_spinup: int,
+    rothc_spinup_years: int,
     dpm_rate: float = 10.0,
     rpm_rate: float = 0.3,
     bio_rate: float = 0.66,
@@ -195,7 +195,7 @@ def _rothc(
         output_core_dims=[[time]] * 6,
         kwargs={
             "t_mod": t_mod,
-            "n_spinup_months": n_years_spinup * 12,
+            "n_spinup_months": rothc_spinup_years * 12,
             "dpm_rate": dpm_rate,
             "rpm_rate": rpm_rate,
             "bio_rate": bio_rate,
@@ -237,7 +237,7 @@ def rothc(
     inert_organic_matter: Annotated[DataArray, Unit("t ha-1")],
     soil_depth: Annotated[DataArray, Unit("cm")],
     *,
-    n_years_spinup: int = 1,
+    rothc_spinup_years: int = 1,
     dpm_rate: float = 10.0,
     rpm_rate: float = 0.3,
     bio_rate: float = 0.66,
@@ -277,7 +277,7 @@ def rothc(
 
     Other Parameters
     ----------------
-    n_years_spinup
+    rothc_spinup_years
         Number of years of climate data used for model spin-up.
     dpm_rate
         Decomposition rate constant for decomposable plant material (per year).
@@ -327,7 +327,7 @@ def rothc(
         soil_depth=soil_depth,
         inert_organic_matter=inert_organic_matter,
         dates_monthly=time_index(temperature_monthly, "temperature_monthly"),
-        n_years_spinup=n_years_spinup,
+        rothc_spinup_years=rothc_spinup_years,
         dpm_rate=dpm_rate,
         rpm_rate=rpm_rate,
         bio_rate=bio_rate,
@@ -338,7 +338,7 @@ def rothc(
     )
 
 
-# --- Bridge nodes, needed for RothC --- #
+# --- Input-building nodes, needed for RothC --- #
 # Each of these produces a monthly series out of per-cell static data, so it needs
 # a monthly calendar to build that series against. The time axis lives on the data,
 # so each takes ``temperature_monthly`` purely for its time coordinate.

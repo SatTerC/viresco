@@ -23,7 +23,7 @@ Having no state, ACM is not one node but four, split where the later variants of
 |------|----------|-------|
 | `acm_nitrogen_limited_capacity` | photosynthetic capacity limited by canopy nitrogen and temperature | eq. 2 |
 | `acm_canopy_conductance` | canopy conductance to CO2 | eq. 5 |
-| `acm_seasonal_factor` | the seasonal correction, from `days_from_midsummer` | eq. 9 |
+| `acm_seasonal_factor` | the seasonal correction, from `acm_days_from_midsummer` | eq. 9 |
 | `acm` | internal CO2, co-limitation by light, and GPP | eqs. 3, 4 and 6–9 |
 
 A variant that changes one of the first three, as the ACM used in DALEC does all three, replaces that node and keeps the rest.
@@ -76,7 +76,7 @@ $$
 
 ### Where viresco departs from the paper
 
-- **Days from midsummer** is computed by the `days_from_midsummer` node, around the calendar, from the solstice of the cell's hemisphere: day 173 in the north, as in the paper, and day 355 in the south, which the paper does not cover.
+- **Days from midsummer** is computed by the `acm_days_from_midsummer` node, around the calendar, from the solstice of the cell's hemisphere: day 173 in the north, as in the paper, and day 355 in the south, which the paper does not cover.
   Because the distance wraps around the year, 31 December is 173 days from the northern midsummer rather than the 192 the paper's $|173 - \text{day}|$ gives; the two agree up to day 355.
 - **The tropics.** The paper sets $D_{ms} = 80$ "within the tropics"; viresco does so for $|\text{latitude}| < 23.44°$.
 - **Irradiance** is read as daily mean shortwave radiation in W m-2, the unit viresco's other nodes use, and converted to a daily total in MJ m-2 inside the node.
@@ -185,9 +185,9 @@ acm_water_potential_difference = -2.5
 ### Inputs
 
 `latitude` is read from a file, as a variable or a coordinate; see [Inputs on a grid](index.md#inputs-on-a-grid).
-`days_from_midsummer` takes `lai_obs` only for its daily calendar.
+`acm_days_from_midsummer` takes `lai_obs` only for its daily calendar.
 
-::: viresco.models.acm.days_from_midsummer
+::: viresco.models.acm.acm_days_from_midsummer
     options:
       show_root_heading: true
       show_root_full_path: false

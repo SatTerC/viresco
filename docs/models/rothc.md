@@ -79,7 +79,7 @@ The [quickstart](../guides/quickstart.md) walks through what each of those does,
 
 ```toml
 [rothc]
-n_years_spinup = 1
+rothc_spinup_years = 1
 ```
 
 ::: viresco.models.rothc.rothc
@@ -93,7 +93,7 @@ n_years_spinup = 1
       show_docstring_raises: false
       docstring_section_style: spacy
 
-The per-PFT DPM/RPM ratios are settings of the `dpm_rpm_ratio_monthly` bridge node below, and are configured as keys of the same `[rothc]` section:
+The per-PFT DPM/RPM ratios are settings of the `dpm_rpm_ratio_monthly` input-building node below, and are configured as keys of the same `[rothc]` section:
 
 ::: viresco.models.rothc.dpm_rpm_ratio_monthly
     options:
@@ -121,7 +121,7 @@ The per-PFT DPM/RPM ratios are settings of the `dpm_rpm_ratio_monthly` bridge no
       show_docstring_raises: false
       docstring_section_style: spacy
 
-### Bridge nodes
+### Input-building nodes
 
 Three of those monthly inputs are produced by this module rather than loaded.
 Each builds a monthly series out of per-cell static data, which leaves it nothing to get a calendar from — so each also takes `temperature_monthly`, read purely for its time coordinate.

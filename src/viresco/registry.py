@@ -1,7 +1,7 @@
 """The modules viresco registers with catena.
 
 The ``catena.modules`` entry points in ``pyproject.toml`` are the one list of
-viresco's model modules and stand-alone node modules. Everything else that
+viresco's model, driver and coupling modules. Everything else that
 enumerates them reads it from here, or is checked against it by
 ``tests/test_registry.py``, so registering a module is one line in
 ``pyproject.toml`` (and a ``uv sync``, which is what refreshes the installed
@@ -12,14 +12,21 @@ from importlib import import_module
 from importlib.metadata import entry_points
 from types import ModuleType
 
-__all__ = ["KINDS", "MODELS", "NODES", "import_all", "import_registered", "registered"]
+__all__ = [
+    "DRIVERS",
+    "KINDS",
+    "MODELS",
+    "import_all",
+    "import_registered",
+    "registered",
+]
 
 #: Package holding the model modules: one per process model.
 MODELS = "viresco.models"
-#: Package holding the stand-alone node modules no single model owns.
-NODES = "viresco.nodes"
+#: Package holding the driver modules: forcing variables derived from data.
+DRIVERS = "viresco.drivers"
 #: Every package holding registered modules.
-KINDS = (MODELS, NODES)
+KINDS = (MODELS, DRIVERS)
 
 
 def registered(package: str) -> dict[str, str]:
@@ -28,7 +35,7 @@ def registered(package: str) -> dict[str, str]:
     Parameters
     ----------
     package
-        `MODELS` or `NODES`.
+        `MODELS` or `DRIVERS`.
 
     Returns
     -------

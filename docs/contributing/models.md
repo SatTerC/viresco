@@ -153,7 +153,7 @@ def rothc(
     clay_content: Annotated[DataArray, Unit("percent")],
     ...,
     *,
-    n_years_spinup: int = 1,
+    rothc_spinup_years: int = 1,
     dpm_rate: float = 10.0,
 ) -> RothCOut:
     """
@@ -166,7 +166,7 @@ def rothc(
 
     Other Parameters
     ----------------
-    n_years_spinup
+    rothc_spinup_years
         Number of years of climate data used for model spin-up.
     """
 ```
@@ -279,7 +279,7 @@ class TestRothCSeam(SeamContract):
     dates = MONTHLY_DATES
     differs = "soil_organic_carbon_monthly"
     module = "viresco.models.rothc"
-    node_config: ClassVar = {"n_years_spinup": 1}
+    node_config: ClassVar = {"rothc_spinup_years": 1}
     cached_output = "soil_organic_carbon_monthly"
 
     @pytest.fixture(scope="class")

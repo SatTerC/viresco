@@ -1,4 +1,4 @@
-"""`viresco.nodes.radiation`: both routes to PPFD, and the key that picks one."""
+"""`viresco.drivers.radiation`: both routes to PPFD, and the key that picks one."""
 
 import numpy as np
 import pandas as pd
@@ -7,7 +7,7 @@ import xarray as xr
 import xarray_annotated as xra
 from catena import build_driver
 
-from viresco.nodes import radiation
+from viresco.drivers import radiation
 
 DATES = pd.date_range("2020-01-01", periods=4, freq="D")
 
@@ -57,7 +57,7 @@ def test_outputs_are_stamped_in_the_pmodel_units():
     ],
 )
 def test_ppfd_from_selects_one_variant(config, needs):
-    dr = build_driver(["viresco.nodes.radiation"], config)
+    dr = build_driver(["viresco.drivers.radiation"], config)
     upstream = {
         v.name
         for v in dr.what_is_upstream_of("ppfd")
