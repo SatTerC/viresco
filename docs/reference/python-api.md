@@ -45,6 +45,12 @@ Forcing variables derived from what datasets distribute, each module a catena mo
 
 The [Drivers](../drivers/index.md) page shows how a config uses them.
 
+## Couplings
+
+| Module | Produces |
+| --- | --- |
+| [`viresco.couplings`](modules/viresco.couplings.md) | One model's outputs as another's inputs, each selected by `<target>_from = "<source>"`. |
+
 ## Scaffolding
 
 `viresco setup` and `viresco data-gen` are thin wrappers over the functions below, so a config and a set of synthetic inputs can be produced from a script or a notebook as easily as from the terminal.
@@ -61,7 +67,6 @@ The [Drivers](../drivers/index.md) page shows how a config uses them.
 | Module | Contents |
 | --- | --- |
 | [`viresco.scaffold.config_gen`](modules/viresco.scaffold/config_gen.md) | Reading a model's signatures to work out what it needs, and writing the TOML that supplies it. |
-| [`viresco.scaffold.bridges`](modules/viresco.scaffold/bridges.md) | Producer/consumer pairs whose units disagree, and the factor between them. |
 | [`viresco.scaffold.aggregations`](modules/viresco.scaffold/aggregations.md) | Variables coarsened by something other than a mean, and the aggregation they get instead. |
 | [`viresco.scaffold.data_gen.generate`](modules/viresco.scaffold/data_gen/generate.md) | Config in, input files out. |
 | [`viresco.scaffold.data_gen.spec`](modules/viresco.scaffold/data_gen/spec.md) | What a variable's generator is handed: the grid, the calendar, and the values already computed. |

@@ -1,4 +1,4 @@
-"""`viresco.drivers.radiation`: both routes to PPFD, and the key that picks one."""
+"""`viresco.drivers.radiation`: PPFD from shortwave, unless a coupling supplies it."""
 
 import numpy as np
 import pandas as pd
@@ -33,19 +33,16 @@ def test_shortwave_settings_are_used():
     np.testing.assert_allclose(ppfd.values, 200.0 * 0.5 * 4.6)
 
 
-def test_splash_daily_total_becomes_mean_rate():
-    # 1 mol m-2 d-1 is 1e6 umol over 86400 s.
-    ppfd = radiation.ppfd__splash(_daily(43.2, "mol m-2 d-1"))
-    np.testing.assert_allclose(ppfd.values, 500.0)
-
-
-def test_outputs_are_stamped_in_the_pmodel_units():
+def test_output_is_stamped_in_the_pmodel_units():
     with xra.enabled(True):
-        for ppfd in (
-            radiation.ppfd__shortwave(_daily(200.0, "W m-2")),
-            radiation.ppfd__splash(_daily(43.2, "mol m-2 d-1")),
-        ):
-            assert ppfd.attrs["units"] == "umol m-2 s-1"
+        ppfd = radiation.ppfd__shortwave(_daily(200.0, "W m-2"))
+    assert ppfd.attrs["units"] == "umol m-2 s-1"
+
+
+def test_the_splash_coupling_turns_radiation_off():
+    """With ``ppfd_from = "splash"`` the coupling, not this module, makes ppfd."""
+    dr = build_driver(["viresco.drivers.radiation"], {"ppfd_from": "splash"})
+    assert "ppfd" not in {v.name for v in dr.list_available_variables()}
 
 
 @pytest.mark.parametrize(
@@ -57,7 +54,7 @@ def test_outputs_are_stamped_in_the_pmodel_units():
     ],
 )
 def test_ppfd_from_selects_one_variant(config, needs):
-    dr = build_driver(["viresco.drivers.radiation"], config)
+    dr = build_driver(["viresco.drivers.radiation", "viresco.couplings"], config)
     upstream = {
         v.name
         for v in dr.what_is_upstream_of("ppfd")

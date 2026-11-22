@@ -161,6 +161,20 @@ If you supply your own version of one of these nodes, it needs a time-bearing in
       heading_level: 4
       docstring_section_style: spacy
 
+`inert_organic_matter` is read as data unless `inert_organic_matter_from = "falloon"` is set, when it is derived from total soil organic carbon:
+
+::: viresco.models.rothc.inert_organic_matter__falloon
+    options:
+      show_root_heading: true
+      show_root_full_path: false
+      show_root_toc_entry: false
+      show_signature: false
+      separate_signature: false
+      heading_level: 4
+      docstring_section_style: spacy
+
+`soil_carbon_input_monthly` can come from SGAM's litter pool, by the coupling `soil_carbon_input_monthly__sgam`; see [Couplings](../couplings.md).
+
 ### Outputs
 
 ::: viresco.models.rothc.RothCOut

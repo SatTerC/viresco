@@ -219,6 +219,29 @@ def pft_params(plant_type: xr.DataArray) -> xr.Dataset:
     return _build_pft_params_dataset(plant_type)
 
 
+@check_annotations
+@stamp_output_units(overwrite=True)
+def leaf_area_index_weekly(
+    leaf_pool_weekly: Annotated[xr.DataArray, Unit("g m-2"), WEEKLY],
+    pft_params: xr.Dataset,
+) -> Annotated[xr.DataArray, Unit("m2 m-2"), WEEKLY]:
+    """Leaf area index of SGAM's leaf pool.
+
+    Leaf carbon per unit ground area over the plant type's leaf carbon per unit
+    leaf area. Modelled, so distinct from the observed ``lai_obs`` that drives
+    SGAM's disturbance detection.
+
+    Parameters
+    ----------
+    leaf_pool_weekly
+        SGAM's leaf carbon pool (grams of carbon per square metre).
+    pft_params
+        The plant type's parameters, from the `pft_params` node; only
+        ``leaf_carbon_area`` is read.
+    """
+    return leaf_pool_weekly / pft_params["leaf_carbon_area"]
+
+
 def _sgam_1px(
     temperature: NDArray[np.float64],
     gpp: NDArray[np.float64],

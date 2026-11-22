@@ -22,6 +22,9 @@ CONFIG = """\
 vpd_from = "{vpd_from}"
 
 [radiation]
+
+# `ppfd_from = "splash"` selects the coupling and turns radiation's ppfd off.
+[couplings]
 ppfd_from = "{ppfd_from}"
 
 [pressure]

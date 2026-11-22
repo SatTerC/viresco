@@ -6,16 +6,17 @@ did was `test_contracts.py`, which generates two years of data and runs four
 models. That left the cheapest, most load-bearing part of every viresco config
 covered only by the slowest test in the suite.
 
-These tests build the same *shapes* of node that `recipes/config.toml` relies on
-— an expression carrying units and a frequency, a climatological one that reduces
-the time axis away and declares no frequency, and one node consuming another —
-and assert the declared contract survives onto the built function. They need no
-data and no model, so they run in milliseconds.
+Viresco's own configs connect models with `viresco.couplings` rather than
+expressions, but a user's config may still convert a variable in a `[[node]]`.
+These tests build the shapes of node that users write — an expression carrying
+units and a frequency, a climatological one that reduces the time axis away and
+declares no frequency, and one node consuming another — and assert the declared
+contract survives onto the built function. They need no data and no model, so
+they run in milliseconds.
 """
 
 import textwrap
 import typing
-from pathlib import Path
 
 import pytest
 from catena import load_config
@@ -44,8 +45,8 @@ expression = "balance > 0"
 units = "1"
 freq = "D"
 
-# Climatological: reduces the time axis away, so it declares no frequency. This
-# is the shape of `aridity_index` in recipes/config.toml.
+# Climatological: reduces the time axis away, so it declares no frequency, as
+# `viresco.couplings.aridity_index__splash` does.
 [[node]]
 name = "dryness"
 inputs = ["rain", "demand"]
@@ -109,10 +110,3 @@ class TestNodeLowering:
         )
         assert "return" in hints, f"{name} lost its injected return annotation"
         assert declared_unit(hints["return"]) == unit
-
-
-def test_the_example_config_still_uses_nodes():
-    """Guards the premise: if recipes/config.toml ever drops its `[[node]]`
-    entries, the coverage above stops mirroring anything real."""
-    config = Path(__file__).parent.parent / "recipes" / "config.toml"
-    assert "[[node]]" in config.read_text()

@@ -33,15 +33,14 @@ from conftest import RENAMED, driver_from_config, rename_dims, to_sites
 from hamilton.graph_utils import find_functions
 from xarray_annotated import declaration_from_hint, declarations_from_signature
 
-from viresco.registry import DRIVERS, MODELS, import_registered
+from viresco.registry import MODELS, import_all, import_registered
 from viresco.scaffold.config_gen import generate_config
 from viresco.scaffold.data_gen import generate_synthetic_data
 
 #: The registered modules, and a test-only model written as a subpackage, whose
 #: node lives in a submodule (see `toy_subpackage`).
 MODULES: dict[str, ModuleType] = {
-    **import_registered(MODELS),
-    **import_registered(DRIVERS),
+    **import_all(),
     "toy_subpackage": toy_subpackage,
 }
 

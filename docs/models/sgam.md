@@ -224,8 +224,16 @@ Two of those inputs are produced by this module rather than loaded: `pft_params`
       show_bases: false
       members: false
 
-Leaf area index is not one of them.
-`recipes/config.toml` derives `leaf_area_index_weekly` in a `[[node]]`, as `leaf_pool_weekly / pft_params["leaf_carbon_area"]`.
+Leaf area index is not one of them: the `leaf_area_index_weekly` node derives it from the leaf pool.
+
+::: viresco.models.sgam.leaf_area_index_weekly
+    options:
+      show_root_heading: true
+      show_root_full_path: false
+      show_root_toc_entry: false
+      separate_signature: false
+      heading_level: 4
+      docstring_section_style: spacy
 
 ### Python API
 

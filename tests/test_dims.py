@@ -5,13 +5,11 @@ an end-to-end test checks that the models work on whatever non-time dimensions
 the data has. The four-model example pipeline runs on the generated ``(time, y,
 x)`` grid, on the same data stacked into one ``site`` dimension, and with every
 dimension renamed, and is expected to give the same numbers each time. The
-example config's own expressions name ``time``, as a config written for a file
-with another time dimension would not, so the renamed run swaps that name in the
-config too.
+example config connects its models with `viresco.couplings` rather than
+expressions, so the same config serves every run.
 """
 
 import ast
-import re
 from pathlib import Path
 
 import numpy as np
@@ -85,7 +83,7 @@ def _run(config_path: Path, reshape) -> dict[str, xr.DataArray]:
 
 @pytest.fixture(scope="module")
 def data_dir(tmp_path_factory) -> Path:
-    """Two years of example inputs, with the example config and a renamed copy."""
+    """Two years of example inputs, with the example config."""
     data_dir = tmp_path_factory.mktemp("dim_names")
     config = load_config(EXAMPLE_CONFIG)
     for spec in config.input_specs.values():
@@ -94,10 +92,7 @@ def data_dir(tmp_path_factory) -> Path:
         spec.path = str(path)
     generate_synthetic_data(config=config, grid=(2, 2), n_days=730, seed=7)
 
-    text = EXAMPLE_CONFIG.read_text()
-    (data_dir / "config.toml").write_text(text)
-    renamed = re.sub(r"""(["'])time\1""", r"\1date\1", text).replace("time=", "date=")
-    (data_dir / "renamed.toml").write_text(renamed)
+    (data_dir / "config.toml").write_text(EXAMPLE_CONFIG.read_text())
     return data_dir
 
 
@@ -125,7 +120,7 @@ def test_models_run_on_sites(data_dir, reference):
 
 
 def test_models_run_on_any_dimension_names(data_dir, reference):
-    renamed = _run(data_dir / "renamed.toml", lambda da: rename_dims(da, RENAMED))
+    renamed = _run(data_dir / "config.toml", lambda da: rename_dims(da, RENAMED))
 
     assert set(renamed) == set(reference)
     for name, expected in reference.items():

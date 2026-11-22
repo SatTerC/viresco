@@ -232,7 +232,6 @@ class TestGenerateConfigBuiltinModels:
         )._data
         assert data["inputs"]["daily"]["suffix"] == ""
         assert data["outputs"]["daily"]["suffix"] == ""
-        assert "suffix" not in data["inputs"]["weekly"]
         assert "suffix" not in data["outputs"]["weekly"]
         sources = {entry["from"] for entry in data["resample"]}
         assert "daily" not in sources
@@ -333,6 +332,7 @@ class TestGenerateConfigBuiltinModels:
             }
         ]
         assert "node" not in data
+        assert "couplings" not in data
 
     def test_declared_resample_units_are_checked_on_build(self):
         """A resample declaring units its consumer contradicts fails the build."""
@@ -372,29 +372,47 @@ class TestInferRequiredData:
         assert drivers <= set(result["inputs_daily"])
         assert not result["inputs_weekly"]
 
-    def test_bridge_source_finer_than_wanted_is_coarsened_first(self):
-        """SGAM's weekly GPP and LUE come from the daily P-model.
+    def test_coupling_output_finer_than_wanted_is_coarsened(self):
+        """SGAM's weekly GPP and LUE come from the daily P-model, by couplings.
 
-        The source is resampled to weekly by a mean, and the bridge applied to
-        that, rather than the bridge giving up and the input being loaded.
+        The couplings act on the daily outputs, and their results are resampled
+        to weekly by a mean, rather than the inputs being loaded.
         """
         result = _infer_required_data(["pmodel", "sgam"])
+        assert result["couplings"] == {"gpp_from": "pmodel", "lue_from": "pmodel"}
         weekly_means = {
             var
             for entry in result["resamples"]
             if (entry["from"], entry["to"]) == ("", "weekly") and "aggfunc" not in entry
             for var in entry["vars"]
         }
-        assert {"gpp_flux", "lue_photon", "iwue"} <= weekly_means
-        bridges = {node["name"]: node for node in result["bridges"]}
-        assert bridges["gpp_weekly"]["inputs"] == ["gpp_flux_weekly"]
-        assert bridges["lue_weekly"]["inputs"] == ["lue_photon_weekly"]
+        assert {"gpp", "lue", "iwue"} <= weekly_means
         loaded = {
             var
             for key in ("inputs_daily", "inputs_weekly", "inputs_monthly")
             for var in result[key]
         }
-        assert {"gpp", "lue", "iwue"}.isdisjoint(loaded)
+        assert {"gpp", "lue", "iwue", "gpp_flux", "lue_photon"}.isdisjoint(loaded)
+
+    def test_coupling_inputs_are_loaded_where_no_model_makes_them(self):
+        """A coupling's own inputs are wired like a model's: here, from a file."""
+        result = _infer_required_data(["splash", "sgam"])
+        assert result["couplings"]["volumetric_water_content_from"] == "splash"
+        assert "max_soil_moisture" in result["inputs_static"]
+        assert "volumetric_water_content" not in result["inputs_daily"]
+
+    def test_no_coupling_without_its_source_model(self):
+        result = _infer_required_data(["sgam"])
+        assert result["couplings"] == {}
+        assert {"gpp", "lue", "volumetric_water_content"} <= set(
+            result["inputs_weekly"]
+        )
+
+    def test_a_manual_coupling_is_never_selected(self):
+        """SPLASH's PPFD estimate stands in for a forcing better observed."""
+        result = _infer_required_data(["splash", "pmodel"])
+        assert "ppfd_from" not in result["couplings"]
+        assert "ppfd" in result["inputs_daily"]
 
     def test_result_has_all_expected_keys(self):
         result = _infer_required_data(["splash"])
@@ -403,7 +421,7 @@ class TestInferRequiredData:
             "inputs_weekly",
             "inputs_monthly",
             "inputs_static",
-            "bridges",
+            "couplings",
             "resamples",
             "outputs_daily",
             "outputs_weekly",

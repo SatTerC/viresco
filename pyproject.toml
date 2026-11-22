@@ -43,6 +43,7 @@ humidity = "viresco.drivers.humidity"
 interpolate = "viresco.drivers.interpolate"
 pressure = "viresco.drivers.pressure"
 radiation = "viresco.drivers.radiation"
+couplings = "viresco.couplings"
 
 [project.urls]
 Homepage = "https://nerc-ceh.github.io/viresco"

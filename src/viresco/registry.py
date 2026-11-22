@@ -13,6 +13,7 @@ from importlib.metadata import entry_points
 from types import ModuleType
 
 __all__ = [
+    "COUPLINGS",
     "DRIVERS",
     "KINDS",
     "MODELS",
@@ -25,8 +26,11 @@ __all__ = [
 MODELS = "viresco.models"
 #: Package holding the driver modules: forcing variables derived from data.
 DRIVERS = "viresco.drivers"
-#: Every package holding registered modules.
-KINDS = (MODELS, DRIVERS)
+#: The one coupling module: model outputs into other models' inputs.
+COUPLINGS = "viresco.couplings"
+#: Where each kind of registered module lives: a package of modules, or, for
+#: `COUPLINGS`, the module itself.
+KINDS = (MODELS, DRIVERS, COUPLINGS)
 
 
 def registered(package: str) -> dict[str, str]:
@@ -35,7 +39,7 @@ def registered(package: str) -> dict[str, str]:
     Parameters
     ----------
     package
-        `MODELS` or `DRIVERS`.
+        `MODELS`, `DRIVERS` or `COUPLINGS`.
 
     Returns
     -------
@@ -45,7 +49,7 @@ def registered(package: str) -> dict[str, str]:
     found = {
         ep.name: ep.value
         for ep in entry_points(group="catena.modules")
-        if ep.value.startswith(f"{package}.")
+        if ep.value == package or ep.value.startswith(f"{package}.")
     }
     return dict(sorted(found.items()))
 

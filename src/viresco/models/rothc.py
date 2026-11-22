@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from catena.io import sole_time_dim
-from hamilton.function_modifiers import extract_fields
+from hamilton.function_modifiers import config, extract_fields
 from numpy.typing import NDArray
 from rothc_py import RothC, RothCParams, percent_modern_c
 from rothc_py.containers import InputData
@@ -468,3 +468,25 @@ def farmyard_manure_input_monthly(
     zeros = xr.zeros_like(plant_type.expand_dims({time: dates_monthly}), dtype=float)
     zeros.attrs.clear()
     return zeros
+
+
+@config.when(inert_organic_matter_from="falloon")
+@check_annotations
+@stamp_output_units(overwrite=True)
+def inert_organic_matter__falloon(
+    organic_carbon_stocks: Annotated[DataArray, Unit("t ha-1")],
+) -> Annotated[DataArray, Unit("t ha-1")]:
+    """Inert organic matter from total soil organic carbon, after Falloon et al.
+
+    For ``inert_organic_matter_from = "falloon"``; with the key unset,
+    ``inert_organic_matter`` is read as data. RothC's inert pool is rarely
+    measured, and Falloon et al. (1998) fitted it to total soil organic carbon
+    as ``IOM = 0.049 SOC^1.139``, both in tonnes of carbon per hectare.
+
+    Parameters
+    ----------
+    organic_carbon_stocks
+        Total soil organic carbon over RothC's soil depth (tonnes of carbon per
+        hectare).
+    """
+    return 0.049 * organic_carbon_stocks**1.139

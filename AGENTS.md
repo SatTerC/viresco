@@ -20,7 +20,7 @@ checkout, if present) rather than guessing at its API.
 
 - All common tasks run via `just` (see `justfile`) — no need to invoke `pytest`/`uv run` directly.
 - Pre-commit hooks only run `uv-lock`, `pyright`, and `ruff` — not the full test suite.
-- A recipe is a directory, `recipes/<name>/`, holding a `config.toml`, any node module it needs, its data (with the notebook giving the xharvest commands that fetched it) or a `make_data.py` that writes it, and the marimo notebook as `demo.py`, as catena's recipes do. Put conversions in the node module as real functions rather than `[[node]]` expressions, and prefer real data to synthetic. `just export <name>` renders the notebook into `docs/recipes/`; only the recipes in `documented_recipes` in the `justfile`, which must match the Recipes nav in `zensical.toml`, are published, while `tests/test_recipes.py` dry-runs and runs every recipe's config. The exception is `recipes/quickstart/`, the quickstart guide: it has no committed config, because it runs `viresco setup` and the other CLI commands itself in a scratch `my_pipeline/`, and `just export-quickstart` publishes it as `docs/guides/quickstart.md`; `tests/test_quickstart.py` runs it. Notebooks pin `ukceh-viresco==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
+- A recipe is a directory, `recipes/<name>/`, holding a `config.toml`, any node module it needs, its data (with the notebook giving the xharvest commands that fetched it) or a `make_data.py` that writes it, and the marimo notebook as `demo.py`, as catena's recipes do. A conversion between two models is a coupling in `viresco.couplings`, never a function in the recipe; put any other conversion (of a dataset's variables) in the node module as a real function rather than a `[[node]]` expression, and prefer real data to synthetic. `just export <name>` renders the notebook into `docs/recipes/`; only the recipes in `documented_recipes` in the `justfile`, which must match the Recipes nav in `zensical.toml`, are published, while `tests/test_recipes.py` dry-runs and runs every recipe's config. The exception is `recipes/quickstart/`, the quickstart guide: it has no committed config, because it runs `viresco setup` and the other CLI commands itself in a scratch `my_pipeline/`, and `just export-quickstart` publishes it as `docs/guides/quickstart.md`; `tests/test_quickstart.py` runs it. Notebooks pin `ukceh-viresco==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
 - Plain config files under `recipes/` are **not** loaded by any code or tooling — they are user-facing references only, so nothing will catch a mistake in them. Check `recipes/config.toml` with `viresco data-gen` then `viresco run --dry-run`.
 - Documentation uses **zensical** (markdown, mkdocstrings-material-like), **not** Sphinx/rst.
   Two rendering traps: `pymdownx.snippets` acts on a `--8<--` line even inside a
@@ -122,8 +122,9 @@ checkout, if present) rather than guessing at its API.
   into a single Hamilton config, and raises if two sections set the same key. A
   keyword-only default is not a setting until a config sets it, so two nodes may
   share a setting name, and then one value serves both, as
-  `par_photons_per_mj` does for `radiation.ppfd__shortwave` and the recipes'
-  `lue_weekly` bridge. Set it in one section only.
+  `par_photons_per_mj` does for `radiation.ppfd__shortwave` and
+  `couplings.lue__pmodel`. Set it in one section only; `config_gen` writes it in
+  the first section that declares it, and raises if two defaults differ.
 - xarray-annotated checks units, it never converts them: an input whose
   `units` attribute differs from the declared one raises, even where pint could
   convert (kelvin for degC, `%` for `1`). Convert at the point data
