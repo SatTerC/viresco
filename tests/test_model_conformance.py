@@ -7,7 +7,7 @@ check:
 - **Static**, over the public functions of every model and node module: what a
   node's signature and docstring must declare, read without running anything.
 - **A run on synthetic data**, for each model on its own: the config
-  ``viresco setup`` would write, filled by ``viresco data-gen``, executed with
+  `viresco.testing` writes, filled with its synthetic data, executed with
   every contract enforced, on a grid, on the same data stacked to sites, and with
   every dimension renamed. A model that runs only inside the four-model example
   pipeline, or only on ``(time, y, x)``, fails here.
@@ -34,8 +34,8 @@ from hamilton.graph_utils import find_functions
 from xarray_annotated import declaration_from_hint, declarations_from_signature
 
 from viresco.registry import import_all
-from viresco.scaffold.config_gen import generate_config, get_builtin_models
-from viresco.scaffold.data_gen import generate_synthetic_data
+from viresco.testing.config_gen import generate_config, get_builtin_models
+from viresco.testing.data_gen import generate_synthetic_data
 
 #: The registered modules, and a test-only model written as a subpackage, whose
 #: node lives in a submodule (see `toy_subpackage`).

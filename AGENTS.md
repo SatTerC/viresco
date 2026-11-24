@@ -9,7 +9,11 @@ compatibility shims.
 
 Viresco is a thin domain package on top of [**catena**](https://github.com/NERC-CEH/catena), which owns the framework:
 config parsing, the DAG, contract validation, I/O, caching, blocking, subsetting,
-parallel subset I/O, and the `run` / `graph` / `subset` CLI commands.
+parallel subset I/O, and the CLI (`init`, `run`, `graph`, `subset`).
+viresco has no CLI of its own: users run catena's commands, which find
+viresco's modules through the `catena.modules` entry points. `viresco.testing`
+holds the config and synthetic-data generators, for the test suite and for
+developers, not for users.
 catena passes inputs to nodes with the dimensions their files have (its ADR
 0003): it does not stack a grid, add `latitude`/`longitude`, or check that
 gridded inputs share a grid unless a config's `[validation]` asks it to.
@@ -20,15 +24,15 @@ checkout, if present) rather than guessing at its API.
 
 - All common tasks run via `just` (see `justfile`) — no need to invoke `pytest`/`uv run` directly.
 - Pre-commit hooks only run `uv-lock`, `pyright`, and `ruff` — not the full test suite.
-- A recipe is a directory, `recipes/<name>/`, holding a `config.toml`, any node module it needs, its data (with the notebook giving the xharvest commands that fetched it) or a `make_data.py` that writes it, and the marimo notebook as `demo.py`, as catena's recipes do. A conversion between two models is a coupling in `viresco.couplings`, never a function in the recipe; put any other conversion (of a dataset's variables) in the node module as a real function rather than a `[[node]]` expression, and prefer real data to synthetic. `just export <name>` renders the notebook into `docs/recipes/`; only the recipes in `documented_recipes` in the `justfile`, which must match the Recipes nav in `zensical.toml`, are published, while `tests/test_recipes.py` dry-runs and runs every recipe's config. The exception is `recipes/quickstart/`, the quickstart guide: it has no committed config, because it runs `viresco setup` and the other CLI commands itself in a scratch `my_pipeline/`, and `just export-quickstart` publishes it as `docs/guides/quickstart.md`; `tests/test_quickstart.py` runs it. Notebooks pin `ukceh-viresco==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
-- Plain config files under `recipes/` are **not** loaded by any code or tooling — they are user-facing references only, so nothing will catch a mistake in them. Check `recipes/config.toml` with `viresco data-gen` then `viresco run --dry-run`.
+- A recipe is a directory, `recipes/<name>/`, holding a `config.toml`, any node module it needs, its data (with the notebook giving the xharvest commands that fetched it) or a `make_data.py` that writes it, and the marimo notebook as `demo.py`, as catena's recipes do. A conversion between two models is a coupling in `viresco.couplings`, never a function in the recipe; put any other conversion (of a dataset's variables) in the node module as a real function rather than a `[[node]]` expression, and prefer real data to synthetic. `just export <name>` renders the notebook into `docs/recipes/`; only the recipes in `documented_recipes` in the `justfile`, which must match the Recipes nav in `zensical.toml`, are published, while `tests/test_recipes.py` dry-runs and runs every recipe's config. The exception is `recipes/quickstart/`, the quickstart guide: it has no committed config, because it runs `catena init` and the other catena commands itself in a scratch `my_pipeline/`, with synthetic data from `viresco.testing`, and `just export-quickstart` publishes it as `docs/guides/quickstart.md`; `tests/test_quickstart.py` runs it. Notebooks pin `ukceh-viresco==<version>` in inline `# dependencies` — update when bumping the package version, then re-export with `just export-all`.
+- Plain config files under `recipes/` are **not** loaded by any code or tooling — they are user-facing references only, so nothing will catch a mistake in them. Check `recipes/config.toml` by filling its inputs with `viresco.testing.data_gen.generate_synthetic_data`, then `catena run --dry-run`.
 - Documentation uses **zensical** (markdown, mkdocstrings-material-like), **not** Sphinx/rst.
   Two rendering traps: `pymdownx.snippets` acts on a `--8<--` line even inside a
   fenced code block (escape it as `;--8<--`, or describe it instead), and inline
   code starting with `::: ` renders without that prefix. List continuations and
   nested blocks need four spaces; three ends the list.
 - Synthetic data is table-driven: a variable is one `Var` row (units, long name,
-  one generator lambda) in `scaffold/data_gen/daily.py` or `static.py`. Adding
+  one generator lambda) in `testing/data_gen/daily.py` or `static.py`. Adding
   a model's inputs means adding rows, not writing generator functions. A variable
   with no row still generates — `fallback.py` infers plausible noise from the
   name, labelled with the unit the consuming node declares — so only add a row
@@ -141,7 +145,7 @@ checkout, if present) rather than guessing at its API.
   stacked to `site`, and with every dimension renamed, and expects the same
   numbers. A kernel that needs a flat axis of cells (SPLASH, to drop masked
   cells) reshapes in numpy inside its block function.
-- `latitude` is an ordinary input, read from a file: a variable, as data-gen
+- `latitude` is an ordinary input, read from a file: a variable, as `data_gen`
   writes it, or a coordinate bound with the mapping form of `vars` (`{ latitude
   = "y" }` on a latitude-longitude grid, `{ latitude = "lat" }` for a CF
   projected grid's 2-D coordinate or a station file). `config_gen` also writes

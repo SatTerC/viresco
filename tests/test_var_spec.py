@@ -1,4 +1,4 @@
-"""Tests for viresco.scaffold.data_gen.spec — the table-driven machinery."""
+"""Tests for viresco.testing.data_gen.spec — the table-driven machinery."""
 
 import ast
 import inspect
@@ -7,17 +7,17 @@ from itertools import pairwise
 import numpy as np
 import pytest
 
-from viresco.scaffold.data_gen import daily, static
-from viresco.scaffold.data_gen.daily import DAILY_VARS
-from viresco.scaffold.data_gen.fallback import fallback_var
-from viresco.scaffold.data_gen.spec import (
+from viresco.testing.data_gen import daily, static
+from viresco.testing.data_gen.daily import DAILY_VARS
+from viresco.testing.data_gen.fallback import fallback_var
+from viresco.testing.data_gen.spec import (
     Grid,
     Resolver,
     StaticCtx,
     Var,
     collect_vars,
 )
-from viresco.scaffold.data_gen.static import STATIC_VARS
+from viresco.testing.data_gen.static import STATIC_VARS
 
 N_DAYS = 40
 N_LAT, N_LON = 2, 3

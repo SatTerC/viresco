@@ -13,7 +13,7 @@ from pathlib import Path
 
 from catena import load_config
 
-from viresco.scaffold.data_gen import generate_synthetic_data
+from viresco.testing.data_gen import generate_synthetic_data
 
 CONFIG = Path(__file__).parent / "config.toml"
 

@@ -87,7 +87,7 @@ def _(config_path, mo):
     We run the SPLASH → P-model → SGAM chain.
     SPLASH provides soil moisture to the P-model, whose LUE and GPP outputs feed into SGAM.
     `[couplings]` selects the conversions from `viresco.couplings` that turn each model's outputs into the next one's inputs; the [full pipeline](full_pipeline.md) recipe walks through each one.
-    The calibration keeps everything in memory; the `[outputs.weekly]` section is there for `viresco run config.toml`.
+    The calibration keeps everything in memory; the `[outputs.weekly]` section is there for `catena run config.toml`.
 
     ```toml
     {config_path.read_text()}

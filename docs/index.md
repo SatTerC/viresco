@@ -28,7 +28,7 @@ If you're interested in learning more about the underlying framework, go to [cat
 - **[Couplings](couplings.md)** — the conversions that turn one model's outputs into another's inputs, each selected by a key in the config.
 - **[Recipes](recipes/my_first_pipeline.md)** — complete pipelines as executable [marimo](https://marimo.io) notebooks. [My first pipeline](recipes/my_first_pipeline.md) is the step-by-step introduction, and [soil moisture](recipes/soil_moisture.md) calibrates a parameter against COSMOS-UK observations.
 - **[Contributing](contributing/models.md)** — how to add a model, driver or coupling: what fits a driven pipeline, the anatomy of a model module, and what the tests check for you.
-- **[Reference](reference/index.md)** — the [CLI](reference/cli.md) commands that are viresco's own, the [Python API](reference/python-api.md), the [variables](reference/variables.md) every module reads and writes, and every module's signatures. Config schema and data formats are catena's, and the [overview](reference/index.md) says where to find them.
+- **[Reference](reference/index.md)** — the [CLI](reference/cli.md), which is catena's, the [Python API](reference/python-api.md), the [variables](reference/variables.md) every module reads and writes, and every module's signatures. Config schema and data formats are catena's, and the [overview](reference/index.md) says where to find them.
 
 </div>
 

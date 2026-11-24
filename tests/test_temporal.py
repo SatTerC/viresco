@@ -103,7 +103,7 @@ class TestOneSourceOfTruth:
 
     @pytest.mark.parametrize("label", ["daily", "weekly", "monthly"])
     def test_the_declared_contract_matches_the_resample_offset(self, label):
-        """What data-gen resamples onto is what the models' `Freq` demands."""
+        """What the data generator resamples onto is what the models' `Freq` demands."""
         assert offset(label) == str(BY_LABEL[label].freq)
 
     def test_no_module_redeclares_an_offset(self):

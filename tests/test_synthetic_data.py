@@ -1,6 +1,13 @@
 """Tests for synthetic data generation and pipeline inputs."""
 
 import numpy as np
+import pytest
+import xarray as xr
+from catena import dry_run
+from catena.config import Config
+from catena.scaffold import generate_config
+
+from viresco.testing.data_gen import generate_synthetic_data
 
 
 class TestSyntheticDataGeneration:
@@ -116,3 +123,45 @@ class TestSyntheticDataValues:
                         "grid_mapping"
                     )
                     assert grid_mapping == "crs", name
+
+
+class TestFromCatenaInit:
+    """The data generator fills a config `catena init` writes, whatever its labels."""
+
+    def test_one_section_of_daily_and_static_variables(self, tmp_path):
+        generated = generate_config(["splash"], base=tmp_path)
+        generated.dump(tmp_path / "config.toml")
+        config = Config.load(tmp_path / "config.toml").parse()
+        generate_synthetic_data(config, grid=(1, 1), n_days=60)
+
+        inputs = xr.open_dataset(tmp_path / "inputs.nc")
+        assert inputs["temperature"].dims[0] == "time"
+        assert "time" not in inputs["elevation"].dims
+        report = dry_run(tmp_path / "config.toml")
+        assert [stage for stage in report.stages if stage.status == "failed"] == []
+
+    def test_a_coarse_variable_is_found_by_its_declared_freq(self, tmp_path):
+        """`temperature_weekly` is weekly in any section, generated from `temperature`."""
+        config = Config(
+            {
+                "sgam": {},
+                "inputs": {
+                    "anything": {
+                        "path": "weekly.nc",
+                        "suffix": "",
+                        "vars": ["temperature_weekly"],
+                    },
+                },
+            },
+            base=tmp_path,
+        ).parse()
+        generate_synthetic_data(config, grid=(1, 1), n_days=60)
+        weekly = xr.open_dataset(tmp_path / "weekly.nc")["temperature_weekly"]
+        assert 8 <= weekly.sizes["time"] <= 10
+        assert weekly.attrs["units"] == "degC"
+
+    def test_a_section_at_two_frequencies_is_refused(self, tmp_path):
+        generated = generate_config(["splash", "sgam"], base=tmp_path)
+        config = Config(generated.data, base=tmp_path).parse()
+        with pytest.raises(ValueError, match="several frequencies"):
+            generate_synthetic_data(config, grid=(1, 1), n_days=60)

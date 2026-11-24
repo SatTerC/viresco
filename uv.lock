@@ -15,6 +15,7 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P1W"
 
 [options.exclude-newer-package]
+dotdoc = false
 marimo-md-export = false
 rothc-py = false
 sgam = false
@@ -38,15 +39,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5f/56/a8120250d128bed162cd73c76d45f6ef9991f3e068f62a8ee060afa3104a/annotated_types-0.8.0.tar.gz", hash = "sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7", size = 15893, upload-time = "2026-07-23T20:16:13.995Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/99/91/8acff4f5e50511b911bbccb72b8628a49c68ce14148cd9f6431094859a90/annotated_types-0.8.0-py3-none-any.whl", hash = "sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0", size = 13427, upload-time = "2026-07-23T20:16:12.938Z" },
-]
-
-[[package]]
-name = "ansi2html"
-version = "1.9.5"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c2/49/682b08f7d8247d18aaafaedaf50609de6d91d5ab378c912b5508392578a8/ansi2html-1.9.5.tar.gz", hash = "sha256:ae17e92f1d6cac0e67d367e07fb0ba8a23dac8f193fc5d7a8c8a50fe5ddd95a4", size = 45225, upload-time = "2026-09-06T12:43:46.36Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/d4/104cba52b1aa94d1c60ae342c264d4308af59d3d8832b4975802e9fe8978/ansi2html-1.9.5-py3-none-any.whl", hash = "sha256:fff3d25b149951474a688c7e22240f93e69ac5aa023c44ab5dce806befcba281", size = 17877, upload-time = "2026-09-06T12:43:44.78Z" },
 ]
 
 [[package]]
@@ -492,6 +484,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/25/71/80cc718ff6d7abfbabacb1f57aaa42e9c1552bfdd01e64ddd704e4a03638/donfig-0.8.1.post1.tar.gz", hash = "sha256:3bef3413a4c1c601b585e8d297256d0c1470ea012afa6e8461dc28bfb7c23f52", size = 19506, upload-time = "2024-05-23T14:14:31.513Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0c/d5/c5db1ea3394c6e1732fb3286b3bd878b59507a8f77d32a2cebda7d7b7cd4/donfig-0.8.1.post1-py3-none-any.whl", hash = "sha256:2a3175ce74a06109ff9307d90a230f81215cbac9a751f4d1c6194644b8204f9d", size = 21592, upload-time = "2024-05-23T14:13:55.283Z" },
+]
+
+[[package]]
+name = "dotdoc"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "graphviz" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a9/5e/af6595a315fa6159ebcb73b4064a162b13723615c1d774489930a69fb712/dotdoc-0.1.0.tar.gz", hash = "sha256:b5fc6daa301ed0b2d13a7a99b1246a2d6a85e9732ce4746cee202029c4a926c6", size = 14626, upload-time = "2026-11-20T21:58:11.786Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/b9/6fad47c94d23f358ff634d0250b830ef68950334d00a66b5d4da9ed9949e/dotdoc-0.1.0-py3-none-any.whl", hash = "sha256:af83c3ebfb3526c18dd8120d005116741e32ef461750ee564ab81aff8fc3a1a5", size = 15181, upload-time = "2026-11-20T21:58:11.077Z" },
+]
+
+[package.optional-dependencies]
+hamilton = [
+    { name = "apache-hamilton" },
 ]
 
 [[package]]
@@ -1278,26 +1287,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ce/25/b3cccb187655b9393572bde9b09261d267c3bf2f2cdabe347673be5976a6/mkdocs_get_deps-0.2.2.tar.gz", hash = "sha256:8ee8d5f316cdbbb2834bc1df6e69c08fe769a83e040060de26d3c19fad3599a1", size = 11047, upload-time = "2026-03-10T02:46:33.632Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/88/29/744136411e785c4b0b744d5413e56555265939ab3a104c6a4b719dad33fd/mkdocs_get_deps-0.2.2-py3-none-any.whl", hash = "sha256:e7878cbeac04860b8b5e0ca31d3abad3df9411a75a32cde82f8e44b6c16ff650", size = 9555, upload-time = "2026-03-10T02:46:32.256Z" },
-]
-
-[[package]]
-name = "mkdocs-typer2"
-version = "0.4.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "markdown" },
-    { name = "pydantic" },
-    { name = "typer" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/cb/53/09beebd17749d6fa27b7ff380e8007fd1f7afcde70ac9743146ffcccb045/mkdocs_typer2-0.4.1.tar.gz", hash = "sha256:b00a68d71c8b6f9efc75005619fe1da2036ea3c24b67b9978086d69389247ada", size = 45549, upload-time = "2026-06-17T12:51:02.54Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/09/2633221fcd537b55c425950c8af23cb38d5760dc0a8b8f1bd53d38f7b5e6/mkdocs_typer2-0.4.1-py3-none-any.whl", hash = "sha256:9ecde0c020ffdf5cffd7cef3cc65906b38caaa3887c0f3b5ffbeb73b7887b34c", size = 24587, upload-time = "2026-06-17T12:51:01.557Z" },
-]
-
-[package.optional-dependencies]
-termynal = [
-    { name = "ansi2html" },
-    { name = "termynal" },
 ]
 
 [[package]]
@@ -2308,18 +2297,6 @@ wheels = [
 ]
 
 [[package]]
-name = "termynal"
-version = "0.14.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "markdown" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/26/8c/ea13868e6008ed964837db011648e3e7766e0ecfa1b42d7b9a4cf0c228e2/termynal-0.14.0.tar.gz", hash = "sha256:2918a1a6cf468497fbb3a72dc3726743988829eef1136d0c78a81df70ec869f6", size = 178022, upload-time = "2026-03-16T16:56:21.539Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c3/8f/c089f7c9f9fc1da25e6271386e5df84e1f6e0b04d2f0b408939b51b2876f/termynal-0.14.0-py3-none-any.whl", hash = "sha256:b5147545e29256d35148251f5c2d3d23dec1d2fb0b4ba464ff330a7de8b56fc6", size = 11754, upload-time = "2026-03-16T16:56:22.76Z" },
-]
-
-[[package]]
 name = "tomli"
 version = "2.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2474,7 +2451,7 @@ wheels = [
 [[package]]
 name = "ukceh-catena"
 version = "0.5.0.dev0"
-source = { git = "https://github.com/NERC-CEH/catena?branch=main#6b776cb0aafba746475f0e2369ccdc806c613c86" }
+source = { git = "https://github.com/NERC-CEH/catena?branch=main#b82f292cc82836b6770aac4cad7ef5bef4096ff9" }
 dependencies = [
     { name = "apache-hamilton" },
     { name = "dask" },
@@ -2492,6 +2469,7 @@ cli = [
 ]
 viz = [
     { name = "apache-hamilton", extra = ["visualization"] },
+    { name = "dotdoc", extra = ["hamilton"] },
 ]
 
 [[package]]
@@ -2503,7 +2481,6 @@ dependencies = [
     { name = "pyrealm" },
     { name = "rothc-py" },
     { name = "sgam" },
-    { name = "typer" },
     { name = "ukceh-catena", extra = ["cli", "viz"] },
     { name = "xarray" },
     { name = "xarray-annotated" },
@@ -2515,7 +2492,6 @@ dev = [
     { name = "marimo" },
     { name = "marimo-md-export" },
     { name = "matplotlib" },
-    { name = "mkdocs-typer2", extra = ["termynal"] },
     { name = "mkdocstrings-python" },
     { name = "pre-commit" },
     { name = "pyright" },
@@ -2530,7 +2506,6 @@ docs = [
     { name = "marimo" },
     { name = "marimo-md-export" },
     { name = "matplotlib" },
-    { name = "mkdocs-typer2", extra = ["termynal"] },
     { name = "mkdocstrings-python" },
     { name = "xharvest", extra = ["cosmos"] },
     { name = "zensical" },
@@ -2551,7 +2526,6 @@ requires-dist = [
     { name = "pyrealm", specifier = ">=2.0.0,<3" },
     { name = "rothc-py", git = "https://github.com/SatTerC/rothc_py.git" },
     { name = "sgam", git = "https://github.com/SatTerC/sgam.git" },
-    { name = "typer", specifier = ">=0.24.1" },
     { name = "ukceh-catena", extras = ["cli", "viz"], git = "https://github.com/NERC-CEH/catena?branch=main" },
     { name = "xarray", specifier = ">=2026.2.0" },
     { name = "xarray-annotated", specifier = ">=0.8.0" },
@@ -2563,7 +2537,6 @@ dev = [
     { name = "marimo", specifier = ">=0.23.0" },
     { name = "marimo-md-export", specifier = ">=0.5.2" },
     { name = "matplotlib", specifier = ">=3.10.8" },
-    { name = "mkdocs-typer2", extras = ["termynal"], specifier = ">=0.4.1" },
     { name = "mkdocstrings-python", specifier = ">=2.0.3" },
     { name = "pre-commit", specifier = ">=4.5.1" },
     { name = "pyright", specifier = ">=1.1.409" },
@@ -2578,7 +2551,6 @@ docs = [
     { name = "marimo", specifier = ">=0.23.0" },
     { name = "marimo-md-export", specifier = ">=0.5.2" },
     { name = "matplotlib", specifier = ">=3.10.8" },
-    { name = "mkdocs-typer2", extras = ["termynal"], specifier = ">=0.4.1" },
     { name = "mkdocstrings-python", specifier = ">=2.0.3" },
     { name = "xharvest", extras = ["cosmos"], git = "https://github.com/NERC-CEH/xharvest?branch=main" },
     { name = "zensical", specifier = ">=0.0.24,<0.0.74" },
@@ -2788,7 +2760,7 @@ wheels = [
 
 [[package]]
 name = "xarray-annotated"
-version = "0.9.0rc1"
+version = "0.9.0rc2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pandas" },
@@ -2796,9 +2768,9 @@ dependencies = [
     { name = "pint-xarray" },
     { name = "xarray" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bc/99/204de543a6bdf73cc239f06a872e60ef1386b907f181288be0469f458f87/xarray_annotated-0.9.0rc1.tar.gz", hash = "sha256:154e91bb6c35856179fd3a991fe59c77fc2b53aa99c2552b3a5d43d193a19421", size = 49923, upload-time = "2026-11-07T22:13:17.37Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/0a/5d1dae640950cec6bec210b4e4c6e36bf8173d4b3d38f56a8d6a302a07d8/xarray_annotated-0.9.0rc2.tar.gz", hash = "sha256:35c3a6c5221bc235948829797bf2c1d2ec1d6db4de8af82d72002ff52443bd94", size = 54527, upload-time = "2026-11-19T10:37:21.889Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/73/13f15f3a47affe3c3f59a411ef5b8562c35318b2d1333169ece4112872c0/xarray_annotated-0.9.0rc1-py3-none-any.whl", hash = "sha256:3a351c1934975faec27e97e901b75feeedeb36123122b2b58be1ab67fecc31c1", size = 60206, upload-time = "2026-11-07T22:13:16.117Z" },
+    { url = "https://files.pythonhosted.org/packages/02/a6/87fe82b473ac2c5a35e751b4873536ef7fea7402b0ea03f08c23696a749d/xarray_annotated-0.9.0rc2-py3-none-any.whl", hash = "sha256:10759856a9c0d1ace24dbb9c2d8874a936b13e10dd8a28c72449a23a569d3964", size = 65202, upload-time = "2026-11-19T10:37:20.712Z" },
 ]
 
 [package.optional-dependencies]

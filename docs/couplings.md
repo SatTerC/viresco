@@ -21,7 +21,7 @@ soil_carbon_input_monthly_from = "sgam"
 
 No coupling is on until its key is set, so enabling the section adds nothing by itself.
 A coupling acts at its source's frequency, and a coarser consumer takes means or totals of it by `[[resample]]`: the P-model's GPP is converted daily, and SGAM reads its weekly mean.
-`viresco setup` sets a key wherever one chosen model's output supplies another's input, except `ppfd_from`, since SPLASH's estimate of light from sunshine fraction is no substitute for measured radiation.
+`catena init` sets none of these keys: set one wherever one chosen model's output supplies another's input, as `recipes/config.toml` does. `ppfd_from` is best left unset, since SPLASH's estimate of light from sunshine fraction is no substitute for measured radiation.
 
 A coupling with a physical constant in it takes the constant as a setting, under the same section.
 

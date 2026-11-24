@@ -1,10 +1,10 @@
-"""Tests for viresco.scaffold.data_gen.fallback."""
+"""Tests for viresco.testing.data_gen.fallback."""
 
 import numpy as np
 import pytest
 
-from viresco.scaffold.data_gen.fallback import fallback_var, infer_kind
-from viresco.scaffold.data_gen.spec import Grid, Resolver
+from viresco.testing.data_gen.fallback import fallback_var, infer_kind
+from viresco.testing.data_gen.spec import Grid, Resolver
 
 N_DAYS = 10
 N_LAT, N_LON = 2, 3

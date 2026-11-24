@@ -24,7 +24,7 @@ from pyrealm.pmodel.optimal_chi import OPTIMAL_CHI_CLASS_REGISTRY
 from pyrealm.pmodel.quantum_yield import QUANTUM_YIELD_CLASS_REGISTRY
 
 from viresco.models.pmodel import _OUTPUT_ATTRIBUTES, pmodel
-from viresco.scaffold.config_gen import _unwrap_annotated
+from viresco.testing.config_gen import _unwrap_annotated
 
 MODULE = "viresco.models.pmodel"
 
@@ -93,7 +93,7 @@ def _required_inputs(dr) -> set[str]:
     """The data inputs the run needs, leaving out unset settings.
 
     A setting the config leaves unset is an external input too, defaulted by
-    `pmodel`, so filter on type as `viresco.scaffold.config_gen` does.
+    `pmodel`, so filter on type as `viresco.testing.config_gen` does.
     """
     return {
         v.name

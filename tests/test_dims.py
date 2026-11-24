@@ -19,15 +19,14 @@ import xarray_annotated as xra
 from catena import get_final_vars, load_config, load_inputs
 from conftest import RENAMED, driver_from_config, rename_dims, to_sites
 
-from viresco.scaffold.data_gen import generate_synthetic_data
+from viresco.testing.data_gen import generate_synthetic_data
 
 EXAMPLE_CONFIG = Path(__file__).parent.parent / "recipes" / "config.toml"
 
 PACKAGE = Path(__file__).parent.parent / "src" / "viresco"
 DIM_NAMES = {"time", "pixel", "site", "date", "x", "y", "north", "east"}
-# The synthetic-data generator names the dimensions of the data it makes, and the
-# CLI handles no arrays: its 'x' and 'y' are a checkbox marker and a unit.
-NOT_SCANNED = {"scaffold", "cli"}
+# The synthetic-data generator names the dimensions of the data it makes.
+NOT_SCANNED = {"testing"}
 
 
 def _docstrings(tree: ast.Module) -> set[int]:

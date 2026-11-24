@@ -5,7 +5,7 @@ Viresco is in alpha, and breaking changes to the config schema, the Python API a
 ## What lives where
 
 Viresco is a thin domain package on [catena](https://github.com/NERC-CEH/catena), which owns the framework: config parsing, the DAG, contract validation, I/O, caching, blocking, subsetting and the `run`, `graph` and `subset` commands.
-Viresco supplies the model and node modules, the `setup` and `data-gen` commands, and the documentation of the science.
+Viresco supplies the model and node modules, the configs and synthetic data the tests run on (`viresco.testing`), and the documentation of the science.
 
 A change that would be useful to a pipeline that is not about carbon probably belongs in catena.
 

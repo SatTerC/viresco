@@ -66,7 +66,7 @@ vars = [
 
 # Static variables are bare too (`elevation`, not `elevation_static`). A bare
 # name is therefore daily or static, and only a node's declared `Freq` says which.
-# `latitude` is an ordinary input. `viresco data-gen` writes it as a variable; a
+# `latitude` is an ordinary input. Synthetic data writes it as a variable; a
 # file that carries it as a coordinate binds it with the mapping form of `vars`
 # instead: `{ latitude = "y" }` on a latitude-longitude grid, or `{ latitude =
 # "lat" }` for the 2-D coordinate a CF file on a projected grid carries.

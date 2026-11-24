@@ -57,7 +57,7 @@ Daily is the finest resolution Viresco models; sub-daily work belongs in a separ
 
 This is a Viresco convention, not a catena one.
 catena names an input `{var}{suffix}`, with the suffix defaulting to `_<section label>`, so a Viresco config sets `suffix = ""` on its `[inputs.daily]`, `[inputs.static]` and `[outputs.daily]` sections, and `from = ""` on each `[[resample]]` from daily.
-`viresco setup` writes them that way.
+`recipes/config.toml` writes them that way.
 
 Because daily and static names are both bare, a name alone does not say which a node is: its declared frequency does.
 
@@ -69,7 +69,7 @@ The models take whatever dimensions their inputs have besides time: a grid `(y, 
 catena passes each input on as its file holds it, and every cell is modelled independently.
 
 `latitude` is an ordinary input, read from a file like any other.
-`viresco data-gen` writes it as a variable.
+viresco's synthetic data writes it as a variable.
 A file that carries it as a coordinate binds it with the mapping form of `vars`:
 
 | File | Binding |
@@ -79,7 +79,7 @@ A file that carries it as a coordinate binds it with the mapping form of `vars`:
 | A station file with a `lat` coordinate on `site` | `vars = { latitude = "lat" }` |
 
 catena does not check that gridded inputs share a grid unless a config asks it to, and xarray's default inner join silently drops the cells that do not line up.
-`viresco setup` therefore writes these checks over its input sections:
+A config with gridded inputs in several sections should therefore add these checks:
 
 ```toml
 [validation]

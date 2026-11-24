@@ -132,12 +132,13 @@ A violation beyond a relative tolerance of $10^{-6}$ means something is wrong; `
 ### Quickstart
 
 ```sh
-viresco setup --models sgam --defaults
-viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42
-viresco run config.toml
+catena init -m sgam
+catena run config.toml --dry-run
+catena run config.toml
 ```
 
-The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
+`catena init` writes a config listing the inputs SGAM needs; point its placeholder paths at your data before running.
+The [quickstart](../guides/quickstart.md) walks through each step.
 
 ### Configuration
 
@@ -211,7 +212,7 @@ Two of those inputs are produced by this module rather than loaded: `pft_params`
       heading_level: 4
       docstring_section_style: spacy
 
-`disturbances_weekly` is the daily severity aggregated to a weekly maximum, which the generated config does with a `[[resample]]` entry of its own, `aggfunc = "max"`, as listed in [`scaffold.aggregations`](../reference/modules/viresco.scaffold/aggregations.md).
+`disturbances_weekly` is the daily severity aggregated to a weekly maximum, which the generated config does with a `[[resample]]` entry of its own, `aggfunc = "max"`, as listed in [`testing.aggregations`](../reference/modules/viresco.testing/aggregations.md).
 
 ### Outputs
 

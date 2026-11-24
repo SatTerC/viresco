@@ -154,7 +154,7 @@ def _base_name(name: str, label: str | None) -> str:
 
 
 def get_builtin_models() -> list[str]:
-    """Return every module `viresco setup` offers: the models, then the drivers.
+    """Return every module `generate_config` accepts: the models, then the drivers.
 
     Each list is sorted. Couplings are not offered: the generator selects them
     itself, wherever a chosen model supplies another's input under another name
@@ -164,7 +164,7 @@ def get_builtin_models() -> list[str]:
     return [*registered(MODELS), *drivers]
 
 
-#: Registered modules `viresco setup` cannot write a working config for, each
+#: Registered modules `generate_config` cannot write a working config for, each
 #: with the reason. A config still enables one by naming its section.
 NOT_OFFERED: dict[str, str] = {
     "interpolate": (
@@ -270,7 +270,7 @@ def _accumulates(source_units: str | None, target_units: str | None) -> bool:
     return (source * registry.Unit("day")).dimensionality == target.dimensionality
 
 
-#: Coupling targets `viresco setup` never selects on its own. Each is a model's
+#: Coupling targets `generate_config` never selects on its own. Each is a model's
 #: estimate of a forcing that is better observed: SPLASH's PPFD is computed from
 #: sunshine fraction, which measured radiation outdoes. A config can still set
 #: the key by hand.
@@ -449,7 +449,7 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
     inputs_monthly = monthly - {b for b, t in derived if t == "monthly"}
 
     # One entry per direction and aggregation, mean first since it is catena's
-    # default and its entry omits `aggfunc`. A variable `scaffold.aggregations`
+    # default and its entry omits `aggfunc`. A variable `testing.aggregations`
     # lists gets an entry of its own, and so does a rate summed into a total,
     # which also overwrites the label it kept.
     groups: dict[tuple[str, str, str, bool], dict[str, str | None]] = {}
@@ -567,7 +567,7 @@ def generate_config(
 
     # catena does not check that gridded inputs share a grid unless asked, and
     # without the check xarray's default inner join silently drops the cells that
-    # do not line up. Every section here is written on one grid by data-gen.
+    # do not line up. Every section here is written on one grid by `data_gen`.
     gridded = list(config_data["inputs"])
     if len(gridded) > 1:
         config_data["validation"] = {

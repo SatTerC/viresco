@@ -2,8 +2,9 @@
 
 catena checks that gridded inputs share a grid only when a config asks it to, and
 without the check xarray's default inner join silently drops the cells that do not
-line up. `viresco setup` therefore writes `crs_equal` and `coords_equal` checks
-into every config it generates; these tests run them against data-gen's files.
+line up. `viresco.testing.generate_config` therefore writes `crs_equal` and
+`coords_equal` checks into every config it generates; these tests run them
+against the synthetic data's files.
 """
 
 from pathlib import Path
@@ -13,8 +14,8 @@ import pytest
 import xarray as xr
 from catena.pipeline import DryRunError
 
-from viresco.scaffold import generate_config
-from viresco.scaffold.data_gen import generate_synthetic_data
+from viresco.testing import generate_config
+from viresco.testing.data_gen import generate_synthetic_data
 
 MODELS = ["splash", "pmodel", "sgam", "rothc"]
 

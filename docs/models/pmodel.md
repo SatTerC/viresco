@@ -94,12 +94,13 @@ In viresco, $\theta$ reaches `pyrealm` only with the `lavergne20` optimal $\chi$
 ### Quickstart
 
 ```sh
-viresco setup --models pmodel --defaults
-viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42
-viresco run config.toml
+catena init -m pmodel
+catena run config.toml --dry-run
+catena run config.toml
 ```
 
-The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
+`catena init` writes a config listing the inputs the P-model needs; point its placeholder paths at your data before running.
+The [quickstart](../guides/quickstart.md) walks through each step.
 
 ### Configuration
 
@@ -247,7 +248,6 @@ SGAM consumes GPP, LUE and iWUE as weekly means, which `recipes/config.toml` mak
 GPP and LUE are not in the units SGAM consumes either.
 The couplings `gpp__pmodel` and `lue__pmodel` convert the daily values, where the conversion factor is visible rather than buried in a wrapper; see [Couplings](../couplings.md).
 iWUE needs no coupling, because `pyrealm` and SGAM agree on µmol mol⁻¹.
-`viresco setup` selects the same couplings and writes the same resamples.
 
 ### Python API
 

@@ -124,7 +124,7 @@ def _(mo):
     one per parameter value for a sweep, or a pipeline driven by another program that already holds the settings as data.
 
     It is worth knowing what you trade away.
-    A TOML file is one artefact you can version, diff, review and pass to `viresco run`;
+    A TOML file is one artefact you can version, diff, review and pass to `catena run`;
     a dictionary assembled over fifty lines of Python is none of those.
     Write the file by default, and reach for the dictionary when you are generating configs rather than authoring them.
     """)
@@ -224,7 +224,7 @@ def _(mo):
 
     /// tip | From a terminal
     ```sh
-    viresco graph --png config.toml
+    catena graph --png config.toml
     ```
 
     writes the same drawing to `pipeline.png`, beside the graphviz source in `pipeline.dot`.
@@ -251,7 +251,7 @@ def _(mo):
 
     /// tip | From a terminal
     ```sh
-    viresco run --dry-run config.toml
+    catena run --dry-run config.toml
     ```
     ///
     """)
@@ -285,7 +285,7 @@ def _(mo):
 
     /// tip | From a terminal
     ```sh
-    viresco run config.toml
+    catena run config.toml
     ```
 
     writes the same `results/daily.nc`.

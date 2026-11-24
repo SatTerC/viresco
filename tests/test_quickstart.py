@@ -1,12 +1,10 @@
-"""The scaffolding route has to actually produce a pipeline that runs.
+"""The generators in `viresco.testing` have to produce a pipeline that runs.
 
-The quickstart guide, `recipes/quickstart/demo.py`, teaches that route for SPLASH
-alone; `test_quickstart_notebook_runs` runs the guide itself.
-
-`viresco setup` → `viresco data-gen` → `viresco run` is what the quickstart tells
-a new user to do, and it is the only path where the two scaffolding halves are
-exercised against each other: the config generator decides what a model needs,
-and the data generator has to be able to fabricate it.
+`generate_config` → `generate_synthetic_data` → `catena run` is the only path
+where the two generators are exercised against each other: the config generator
+decides what a model needs, and the data generator has to be able to fabricate
+it. `test_quickstart_notebook_runs` runs the quickstart guide,
+`recipes/quickstart/demo.py`, itself.
 
 Nothing else covers that seam. `test_contracts.py` runs `recipes/config.toml`,
 which is hand-written — so it validates the models, not the generator. A gap in
@@ -23,13 +21,21 @@ from pathlib import Path
 import numpy as np
 import pytest
 import xarray as xr
+from catena import load_config
+from catena.cli.app import app
 from typer.testing import CliRunner
 
-from viresco.cli import app
+from viresco.testing import generate_config
+from viresco.testing.data_gen import generate_synthetic_data
 
-MODELS = "splash,pmodel,sgam,rothc"
-GRID = ("2", "2")
-DURATION = "2y"
+MODELS = ["splash", "pmodel", "sgam", "rothc"]
+GRID = (2, 2)
+N_DAYS = 730
+PATHS = {
+    f"{kind}_{label}": f"{kind}/{label}.nc"
+    for kind in ("inputs", "outputs")
+    for label in ("daily", "weekly", "monthly", "static")
+}
 
 
 @pytest.fixture(scope="module")
@@ -37,26 +43,9 @@ def quickstart(tmp_path_factory):
     """Run the documented route end to end, returning the working directory."""
     workdir = tmp_path_factory.mktemp("quickstart")
     (workdir / "outputs").mkdir()
-    runner = CliRunner()
-
-    generated = runner.invoke(
-        app, ["setup", "-m", MODELS, "-d", "-o", str(workdir / "config.toml")]
-    )
-    assert generated.exit_code == 0, generated.output
-
     config = workdir / "config.toml"
-    data = runner.invoke(
-        app,
-        [
-            "data-gen",
-            str(config),
-            "--grid",
-            *GRID,
-            "--duration",
-            DURATION,
-        ],
-    )
-    assert data.exit_code == 0, data.output
+    generate_config(MODELS, [], PATHS).dump(config)
+    generate_synthetic_data(load_config(config), grid=GRID, n_days=N_DAYS)
     return workdir
 
 
@@ -182,7 +171,7 @@ def test_quickstart_notebook_runs(tmp_path):
     `marimo-md-export` exits zero when a cell fails, so the docs build would
     publish a broken guide; run as a script, a marimo notebook exits non-zero.
     The copy keeps the notebook's working directory out of the repository. The
-    notebook draws its graph with `viresco graph --png`, which needs graphviz; CI
+    notebook draws its graph with `catena graph --png`, which needs graphviz; CI
     installs it, so the skip only applies to a local run without it.
     """
     notebook = Path(__file__).parent.parent / "recipes" / "quickstart" / "demo.py"

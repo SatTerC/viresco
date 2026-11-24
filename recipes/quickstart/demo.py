@@ -29,7 +29,7 @@ def _(mo):
     SPLASH, which computes soil moisture, evapotranspiration and runoff from daily climate.
     No data of your own is needed.
 
-    The first half uses Viresco's command-line interface, a handful of commands that go from nothing to a file of results.
+    The first half uses the command line of [catena](https://github.com/NERC-CEH/catena), the framework Viresco is built on, with one step in Python to make up the input data; together they go from nothing to a file of results.
     The second half opens the result in Python, plots it, and changes the pipeline.
 
     The guide is a [marimo](https://marimo.io) notebook, [`recipes/quickstart/demo.py`](https://github.com/SatTerC/viresco/tree/main/recipes/quickstart/demo.py).
@@ -81,9 +81,9 @@ def _(mo):
     mo.md(r"""
     ## Part 1: In a terminal
 
-    Each step below is one command, run from the directory the pipeline lives in.
+    Each step below is one command, run from the directory the pipeline lives in, except Step 3, which is a few lines of Python.
     The notebook runs them for you, in `my_pipeline/` beside it, and shows what each one printed; in a terminal, type the line after the `$`.
-    The directory is emptied first, as `viresco setup` will not overwrite a config that already exists.
+    The directory is emptied first, as `catena init` will not overwrite a config that already exists.
     """)
     return
 
@@ -97,7 +97,7 @@ def _(Path, mo, os, shlex, shutil, subprocess, sys):
     def sh(command: str) -> mo.Html:
         """Run ``command`` in ``workdir`` and show it with its output, as a terminal would.
 
-        Executables are looked up beside this Python first, so that ``viresco``
+        Executables are looked up beside this Python first, so that ``catena``
         resolves in a ``--sandbox`` environment.
         """
         args = shlex.split(command)
@@ -132,22 +132,15 @@ def _(mo):
     ### Step 1: Generate a config
 
     A pipeline is described by a configuration file.
-    `viresco setup` writes one for the models you choose.
-    Run without options it asks which models you want; here `--models splash` chooses SPLASH, and `--defaults` accepts the default paths.
-
-    /// admonition | `setup` is experimental
-        type: warning
-
-    The command and the configs it generates may change.
-    See the [CLI reference](../reference/cli.md#viresco-setup) for its current limitations.
-    ///
+    `catena init` writes one for the models you choose.
+    Run without options it asks which models you want; here `-m splash` chooses SPLASH.
     """)
     return
 
 
 @app.cell(hide_code=True)
 def _(sh):
-    setup = sh("viresco setup --models splash --defaults")
+    setup = sh("catena init -m splash")
     setup
     return (setup,)
 
@@ -166,13 +159,12 @@ def _(mo):
     mo.md(r"""
     Every section switches on one part of the pipeline:
 
-    - `[splash]` is the model, with its settings. Viresco registers its models with [catena](https://github.com/NERC-CEH/catena), the framework it is built on, so the section name alone is enough to find it.
-    - `[inputs.daily]` and `[inputs.static]` say which files to read, and which variables to take from each.
-    - `[outputs.daily]` says which results to write, and where.
+    - `[splash]` is the model, with its settings at their defaults. Viresco registers its models with catena, so the section name alone is enough to find it.
+    - `[inputs]` says which file to read, and lists every variable SPLASH needs.
+    - `[outputs]` says which results to write, and where.
 
-    Each input variable becomes a node of the pipeline named `{var}{suffix}`, where the suffix defaults to `_<section label>`.
-    Viresco gives daily and static variables [bare names](../models/index.md#node-names), so both sections set an empty `suffix`: `temperature` under `[inputs.daily]` becomes the node `temperature`, which is what SPLASH's input is called.
-    Paths are relative to the config file.
+    Each variable listed becomes a node of the pipeline of the same name, so `temperature` is read into the node `temperature`, which is what SPLASH's input is called.
+    The paths are placeholders, to be pointed at your own files; they are relative to the config file.
     catena's [configuration reference](https://github.com/NERC-CEH/catena/blob/main/docs/reference/configuration.md) describes every section.
     """)
     return
@@ -183,9 +175,10 @@ def _(mo):
     mo.md(r"""
     ### Step 2: Edit the config
 
-    `setup` asks for every result SPLASH can produce.
-    We only want soil moisture, so delete the other variables from `vars` under `[outputs.daily]`, leaving `"soil_moisture"`.
-    In a terminal, open `config.toml` in any text editor and delete those lines; the notebook makes the same edit for you.
+    `init` asks for every result SPLASH can produce.
+    We only want soil moisture, so delete the other variables from `vars` under `[outputs]`, leaving `"soil_moisture"`, and set its `path` to `outputs/daily.nc`.
+    The input path, `inputs.nc`, can stay: the next step writes that file.
+    In a terminal, open `config.toml` in any text editor and make those changes; the notebook makes the same edit for you.
     The file is now:
     """)
     return
@@ -194,7 +187,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(catena, config_path, show_toml, tomllib):
     _config = tomllib.loads(config_path.read_text())
-    _config["outputs"]["daily"]["vars"] = ["soil_moisture"]
+    _config["outputs"] = {"path": "outputs/daily.nc", "vars": ["soil_moisture"]}
     config_path.write_text(catena.config.Config(_config).dumps())
     trimmed = True
     show_toml(config_path)
@@ -206,25 +199,29 @@ def _(mo):
     mo.md(r"""
     ### Step 3: Generate synthetic data
 
-    The config says which variables the pipeline needs, so `viresco data-gen` can make up plausible values for each, with the right units, and write them to the input paths.
-    `--grid 1 1` asks for a single cell, and `--seed` makes the values reproducible.
+    The config says which variables the pipeline needs, so Viresco's test tooling, `viresco.testing`, can make up plausible values for each, with the right units, and write them to the input path.
+    This step is Python: `grid=(1, 1)` asks for a single cell, and `seed` makes the values reproducible.
 
     /// admonition | SPLASH needs a full calendar year
         type: note
 
     SPLASH estimates its initial soil moisture by iterating over the first calendar year.
-    The default start date falls in a leap year, so `--duration 1y`, which is 365 days, fails with "Cannot equilibrate - less than one year of data".
-    Use `2y` or more.
+    The default start date falls in a leap year, so `n_days=365` fails with "Cannot equilibrate - less than one year of data".
+    Use two years or more.
     ///
     """)
     return
 
 
-@app.cell(hide_code=True)
-def _(sh, trimmed):
+@app.cell
+def _(catena, config_path, trimmed):
     assert trimmed
-    data_gen = sh("viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42")
-    data_gen
+    from viresco.testing.data_gen import generate_synthetic_data
+
+    generate_synthetic_data(
+        catena.load_config(config_path), grid=(1, 1), n_days=730, seed=42
+    )
+    data_gen = True
     return (data_gen,)
 
 
@@ -247,7 +244,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(data_gen, sh):
     assert data_gen
-    dry_run = sh("viresco run config.toml --dry-run")
+    dry_run = sh("catena run config.toml --dry-run")
     dry_run
     return (dry_run,)
 
@@ -258,7 +255,7 @@ def _(mo):
     ### Step 5: Draw the pipeline
 
     Viresco represents a pipeline as a graph: each node is an input or a computation, and an arrow runs from each node to those that use it.
-    `viresco graph` draws it, and needs [graphviz](https://graphviz.org/download/) installed.
+    `catena graph` draws it, and needs [graphviz](https://graphviz.org/download/) installed.
     `--png` writes `pipeline.png`, beside the graphviz source in `pipeline.dot`.
 
     /// tip | From Python
@@ -271,7 +268,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(dry_run, sh):
     assert dry_run
-    graph = sh("viresco graph --png config.toml")
+    graph = sh("catena graph --png config.toml")
     graph
     return (graph,)
 
@@ -293,7 +290,7 @@ def _(mo):
 
     ### Step 6: Run the pipeline
 
-    `viresco run` reads the inputs, runs the model and writes soil moisture to `outputs/daily.nc`.
+    `catena run` reads the inputs, runs the model and writes soil moisture to `outputs/daily.nc`.
     The config that produced the file, and a hash of it, are stored in its attributes, so a result can be traced back to the config that made it.
 
     /// tip | From Python
@@ -306,7 +303,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(dry_run, sh):
     assert dry_run
-    run = sh("viresco run config.toml")
+    run = sh("catena run config.toml")
     run
     return (run,)
 
@@ -375,12 +372,12 @@ def _(config_path, tomllib):
 def _(mo):
     mo.md(r"""
     Suppose you want weekly soil moisture as well, for instance to feed SGAM, which Viresco runs at a weekly step.
-    catena's `[[resample]]` section aggregates a variable to a coarser step, so two additions give one:
-    a `[[resample]]` that turns `soil_moisture` into a weekly mean, `soil_moisture_weekly`
-    (its `from` and `to` are the suffixes to read and write, and daily names have none),
-    and an `[outputs.weekly]` section that writes it.
-    Below they are added to the dictionary, which is written back to `config.toml`, as Step 2 did;
-    in a text editor you would add the same lines by hand.
+    catena's `[[resample]]` section aggregates a variable to a coarser step, so a `[[resample]]` that turns `soil_moisture` into a weekly mean, `soil_moisture_weekly`, gives one
+    (its `from` and `to` are the suffixes to read and write, and daily names have none).
+    Writing it needs a second output file, so the single `[outputs]` section becomes two labelled ones, `[outputs.daily]` and `[outputs.weekly]`.
+    A labelled section names each node `{var}_<label>` unless it sets `suffix`, so `[outputs.daily]` sets `suffix = ""` to keep writing `soil_moisture`, and `[outputs.weekly]` writes `soil_moisture_weekly` under the file name `soil_moisture`.
+    Below the changes are made to the dictionary, which is written back to `config.toml`, as Step 2 did;
+    in a text editor you would make the same changes by hand.
     """)
     return
 
@@ -396,9 +393,9 @@ def _(catena, config, config_path):
             "aggfunc": "mean",
         }
     ]
-    config["outputs"]["weekly"] = {
-        "path": "outputs/weekly.nc",
-        "vars": ["soil_moisture"],
+    config["outputs"] = {
+        "daily": {"path": "outputs/daily.nc", "suffix": "", "vars": ["soil_moisture"]},
+        "weekly": {"path": "outputs/weekly.nc", "vars": ["soil_moisture"]},
     }
     config_path.write_text(catena.config.Config(config).dumps())
     resampled = True
@@ -419,7 +416,7 @@ def _(mo):
     `catena.run` also returns them, one Dataset per output section, so there is no need to open the files.
 
     /// tip | From a terminal
-    The change is saved in `config.toml`, so `viresco run config.toml --dry-run` checks it, and `viresco run config.toml` runs it, just the same.
+    The change is saved in `config.toml`, so `catena run config.toml --dry-run` checks it, and `catena run config.toml` runs it, just the same.
     ///
     """)
     return
@@ -454,7 +451,7 @@ def _(mo):
     mo.md(r"""
     ## Next steps
 
-    - To run on your own data, point each `path` under `[inputs.*]` at your files. Every variable needs a `units` attribute, which catena checks against the unit each model declares; the [model pages](../models/index.md) list them.
+    - To run on your own data, point each input `path` at your files, splitting `[inputs]` into one labelled section per file where they differ. Every variable needs a `units` attribute, which catena checks against the unit each model declares; the [model pages](../models/index.md) list them.
     - [My first pipeline](../recipes/my_first_pipeline.md) runs SPLASH on real data from a COSMOS-UK site, preparing the data with functions of your own.
     - Read about the [built-in models](../models/index.md) and how to combine them.
     - catena's [contracts](https://github.com/NERC-CEH/catena/blob/main/docs/concepts/contracts.md) page says what the checks can and cannot catch, and its [scale-up guide](https://github.com/NERC-CEH/catena/blob/main/docs/guides/run/scale-up.md) covers caching, blocking and parallel runs.

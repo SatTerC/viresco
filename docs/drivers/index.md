@@ -22,7 +22,6 @@ fAPAR comes as 8- or 10-day composites, CO₂ as a monthly or annual record, hum
 Each module is a catena module of its own, registered under its name, so a pipeline enables one with a section of that name.
 A pipeline either enables the module or loads the variable it produces, not both.
 Where a module has variants, a config key chooses one, and an unset key chooses the first listed.
-`viresco setup` offers every driver except `interpolate`, whose coarse inputs may arrive at any step and so declare no frequency for the generator to place them by.
 
 ```toml
 [humidity]
