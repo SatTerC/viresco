@@ -5,7 +5,7 @@ icon: lucide/hammer
 
 # Contributing a model
 
-This page is for adding a model, or a node that builds a model's inputs, to viresco.
+This page is for adding a model, a driver or a coupling to viresco.
 Most of viresco's conventions are checked by its test suite, which reads every registered module and says what is missing or wrong, so this page spends its time on the decisions the tests cannot make for you.
 
 The page follows [RothC](../models/rothc.md) throughout, as the smallest complete model: read `src/viresco/models/rothc.py` alongside it.
@@ -29,7 +29,7 @@ That allows a model to carry state through time, provided the state stays inside
 - **State may live inside a node.** RothC integrates its soil pools from the first month to the last inside the `rothc` node.
 - **State does not cross a node boundary.** No node may consume anything computed from its own output, directly or through other nodes.
 - **Feedbacks between nodes are closed with observations.** Where a land-surface model would feed modelled LAI back into photosynthesis, a viresco pipeline uses observed LAI.
-- **Derived drivers are separate nodes.** A driver the model computes from the forcings alone, such as ACM's days from midsummer, becomes its own node, so it can be swapped and reused; a calculation that needs the model's state stays inside the model.
+- **Forcing-only calculations are separate nodes.** A quantity the model computes from the forcings alone, such as ACM's days from midsummer, becomes its own node, so it can be swapped and reused; a calculation that needs the model's state stays inside the model.
 
 If the model cannot be run without exchanging state with another model every timestep, it does not fit viresco as it stands; say so in the issue.
 
@@ -43,15 +43,46 @@ Split it where variants of the model differ, or where an intermediate has a mean
 Do not split a calculation that is solved as a whole: ACM's internal CO2, diffusion and light limitation are one steady-state solution, and stay in one node.
 [A model of stateless nodes](#a-model-of-stateless-nodes) says how to write one.
 
-### Model or node?
+### Model, driver or coupling?
 
-A **model module** runs at one frequency: SPLASH, the P-model and ACM daily, SGAM weekly, RothC monthly ([ADR 0001][adr-0001]).
-A node at another frequency stays in the model's module only if that model alone uses it; SGAM's daily `disturbances` is the one example.
+A node is placed by what it is, not by which modules use it ([ADR 0003][adr-0003]).
+The question that decides most cases is: *do the variants disagree about the science, or only about the data available?*
 
-A node no single model owns, such as a pedotransfer function or a derived driver, goes in `viresco.nodes`, in a module named for what it does (`humidity`, `radiation`).
+| Kind | What it is | Where it goes |
+| --- | --- | --- |
+| **Model** | Variants or alternatives that differ by hypothesis or by the data they were fitted to; stateful, stateless or static | `viresco.models.<name>` |
+| **Model-internal node** | One model's own definitions or parameters, such as RothC's DPM/RPM ratios by plant type | The model's module, prefixed with its name where the name is otherwise generic (`acm_days_from_midsummer`) |
+| **Driver** | A forcing variable derived from data, whose variants differ only in the data they start from, such as VPD from dewpoint or from relative humidity | `viresco.drivers`, in a module named for the variable family (`humidity`, `radiation`) |
+| **Coupling** | One model's output turned into another model's input | `viresco.couplings`, named `<target>__<source>` |
+
+Pedotransfer functions are a model, though static and used by several others, because Cosby and Saxton–Rawls disagree about the science.
+VPD from dewpoint is a driver, because every route gives the same quantity and the choice is set by the data you have.
+A driver never consumes a model's output; a node that does is a coupling.
+
+A model module runs at one frequency, or is static: SPLASH, the P-model and ACM daily, SGAM weekly, RothC monthly ([ADR 0001][adr-0001]).
+A model-internal node at another frequency stays in the model's module; SGAM's daily `disturbances` is the one example, and it is listed in `OFF_FREQUENCY` in `tests/test_module_frequency.py`.
 
 Node names carry the frequency as a suffix: bare for daily and static, `_weekly`, `_monthly`.
 See [Node names](../models/index.md#node-names).
+A name has one unit and one frequency across every module, and `tests/test_variables.py` fails on a second.
+
+### Does it carry state?
+
+Declare how each node behaves in time, since it decides what a user must do to run it:
+
+| Behaviour | Meaning | Declaration |
+| --- | --- | --- |
+| `pointwise` | Each step from that step's inputs | none |
+| `record` | Reads a window or the whole record, carries no state | `@time_behaviour("record")` |
+| `stateful` | Integrates a state from an initial condition | `@time_behaviour("stateful")` |
+
+`time_behaviour` is in `viresco.temporal`.
+The tests check a `pointwise` node by running it on the first half of the record, and a `stateful` one for a spin-up setting named `<model>_spinup_years` or an initial-state input named `initial_<state>`.
+
+### Shared structure
+
+Something several models must agree on, such as the thicknesses of the soil layers, is a node they consume, not a setting each declares.
+Two modules declaring the same setting cannot both be written by `viresco setup`.
 
 ### Where does the science live?
 
@@ -122,7 +153,7 @@ def rothc(
     clay_content: Annotated[DataArray, Unit("percent")],
     ...,
     *,
-    n_years_spinup: int = 1,
+    rothc_spinup_years: int = 1,
     dpm_rate: float = 10.0,
 ) -> RothCOut:
     """
@@ -135,7 +166,7 @@ def rothc(
 
     Other Parameters
     ----------------
-    n_years_spinup
+    rothc_spinup_years
         Number of years of climate data used for model spin-up.
     """
 ```
@@ -193,7 +224,6 @@ __all__ = ["NameOut", "canopy_conductance", "name"]
 
 catena, `viresco setup` and the tests all find a module's nodes as Hamilton does: the public functions in its namespace that are defined in it or in one of its submodules.
 So everything in this page applies to the package as a whole: one frequency, one config section, one entry point naming the package.
-A stateless piece that another model could use belongs in `viresco.nodes` instead.
 
 ## Register it
 
@@ -206,7 +236,7 @@ A stateless piece that another model could use belongs in `viresco.nodes` instea
 
     This is the one list of models: `viresco setup`, the docs graphs and the tests all read it.
 
-2. Import it and add it to `__all__` in `src/viresco/models/__init__.py`.
+2. Import it and add it to `__all__` in `src/viresco/models/__init__.py`, and set `DOMAIN` in the module to one of `viresco.registry.DOMAINS`.
 3. Run `just test`.
    `tests/test_registry.py` names each page the model still lacks; see [Document it](#document-it).
 
@@ -249,7 +279,7 @@ class TestRothCSeam(SeamContract):
     dates = MONTHLY_DATES
     differs = "soil_organic_carbon_monthly"
     module = "viresco.models.rothc"
-    node_config: ClassVar = {"n_years_spinup": 1}
+    node_config: ClassVar = {"rothc_spinup_years": 1}
     cached_output = "soil_organic_carbon_monthly"
 
     @pytest.fixture(scope="class")
@@ -292,8 +322,11 @@ Test anything the wrapper adds: spin-up, masked cells, a method choice, a conver
     Give the settings blocks `show_root_heading: false` under a markdown heading of their own, since two `:::` headings for one node give it two anchors with the same id.
 
 2. **A reference page**, `docs/reference/modules/viresco.models/<name>.md`, whose body is a `:::` block for `viresco.models.<name>`, like `rothc.md` beside it.
-3. **Nav entries** for both, in `zensical.toml`.
-4. **The lists of models**: a row in the table in `docs/models/index.md`, a row in the table of model modules in `docs/reference/python-api.md`, and a link in the Models entry of `docs/index.md`.
+3. **Nav entries** for both, in `zensical.toml`: the model page under the Models section named for its `DOMAIN`, adding the section if it is the first model in that domain.
+4. **The lists of models**: a row in the table of model modules in `docs/reference/python-api.md`, and a link in the Models entry of `docs/index.md`.
+   The models overview table, the variable catalogue, the couplings table and the graph of how models connect are generated from the code by `just catalogue`, so they need nothing.
+
+A driver needs a section on `docs/drivers/index.md` with the anchor `{ #<module> }`, and a coupling a `:::` block on `docs/couplings.md`.
 
 `tests/test_registry.py` checks all of these.
 Build the site with `uv run just docs`, or `just docs` in an activated environment, to check it renders.
@@ -312,3 +345,4 @@ A recipe is welcome, though not required: a pipeline in `recipes/<name>/` with i
 [proposal]: https://github.com/SatTerC/viresco/issues/new?template=model-proposal.yml
 [adr-0001]: https://github.com/SatTerC/viresco/blob/main/docs/adr/0001-node-names-and-module-frequency.md
 [adr-0002]: https://github.com/SatTerC/viresco/blob/main/docs/adr/0002-driven-pipelines.md
+[adr-0003]: https://github.com/SatTerC/viresco/blob/main/docs/adr/0003-component-kinds.md

@@ -32,15 +32,14 @@ def _(mo):
     So the pipeline is not really four models; it is four models plus the joins between them, and the joins are where the work is.
 
     This notebook takes its time over those joins.
-    Two models connect only when the name *and* the units line up, and between these four they mostly do not, so the recipe carries a module of bridges, each converting one model's output into the next one's input.
+    Two models connect only when the name *and* the units line up, and between these four they mostly do not, so the recipe enables Viresco's couplings, each converting one model's output into the next one's input.
     We will draw each join as its own small graph before running anything.
 
     The recipe is a directory, [`recipes/full_pipeline`](https://github.com/SatTerC/viresco/tree/main/recipes/full_pipeline):
 
     | File | Contents |
     |---|---|
-    | `config.toml` | The pipeline: the four models, the bridges, the inputs and the outputs |
-    | `nodes.py` | The bridges between the models |
+    | `config.toml` | The pipeline: the four models, the couplings, the inputs and the outputs |
     | `make_data.py` | Writes stand-in inputs to `data/` |
     | `demo.py` | This notebook |
 
@@ -56,6 +55,7 @@ def _(mo):
 
 @app.cell
 def _():
+    import inspect
     from pathlib import Path
 
     import catena
@@ -67,7 +67,6 @@ def _():
 
     recipe_dir = Path(__file__).parent
     config_path = recipe_dir / "config.toml"
-    nodes_path = recipe_dir / "nodes.py"
     (recipe_dir / "results").mkdir(exist_ok=True)
     return (
         GraphStyle,
@@ -75,8 +74,8 @@ def _():
         catena,
         config_path,
         import_user_module,
+        inspect,
         mo,
-        nodes_path,
         plt,
         recipe_dir,
     )
@@ -112,7 +111,8 @@ def _(config_path, mo):
     Four `[<model>]` sections activate the modules.
     Everything else in the file exists to connect them:
 
-    - `[bridges]` imports `nodes.py`, below, which defines the bridges between the models, and sets their two settings.
+    - `[couplings]` selects the conversions between the models from `viresco.couplings`, below, one key per node it produces, and sets their two settings.
+    - `inert_organic_matter_from = "falloon"` in `[rothc]` derives RothC's inert pool from total soil carbon rather than reading it.
     - `[[resample]]` changes the frequency of a variable, which is how a daily model feeds a weekly one, and declares the units of what it makes.
     - `[inputs.*]` and `[outputs.*]` say what is read from and written to disk.
 
@@ -124,17 +124,20 @@ def _(config_path, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, nodes_path):
-    mo.md(f"""
-    ## The bridges
+def _(inspect, mo):
+    import viresco.couplings
 
-    Each bridge is an ordinary function, named for the node it produces, whose parameters name the nodes it consumes.
+    mo.md(f"""
+    ## The couplings
+
+    Each coupling is an ordinary function, named `<target>__<source>` for the node it produces and the model it takes from, whose parameters name the nodes it consumes.
+    It exists in the DAG only when the config sets `<target>_from = "<source>"`.
     Its annotations declare the units and frequency of what goes in and comes out, and catena checks them across the whole DAG before anything runs.
-    Nothing converts units between nodes, so a bridge that changes a unit says so: `xra.units.convert` where the change is a conversion, and `@xra.stamp_output_units(overwrite=True)` to label the output with its declared unit where the arithmetic leaves the input's label on it.
+    Nothing converts units between nodes, so a coupling that changes a unit says so: `xra.units.convert` where the change is a conversion, and `@stamp_output_units(overwrite=True)` to label the output with its declared unit where the arithmetic leaves the input's label on it.
     The docstrings are worth reading; each records why its conversion is what it is.
 
     ```python
-    {nodes_path.read_text()}
+    {inspect.getsource(viresco.couplings)}
     ```
     """)
     return
@@ -148,7 +151,7 @@ def _(mo):
     Parsing the config gives a `ParsedConfig`, and `build_driver` turns that into a Hamilton driver.
     Building is also when catena checks the whole graph's contracts, comparing the units, dimensions and temporal frequency each node declares against what its dependencies actually supply.
     A mis-wired pipeline therefore fails here, in under a second, rather than part-way through a long run.
-    That check is what makes the bridges below safe to get wrong: a missing unit conversion is a build error, not a quietly incorrect carbon budget.
+    That check is what makes the couplings below safe to get wrong: a missing unit conversion is a build error, not a quietly incorrect carbon budget.
 
     The pipeline needs some twenty inputs, so `make_data.py` writes stand-ins with viresco's synthetic-data generator, which knows a plausible range, unit and seasonal shape for each.
     Point the `[inputs.*]` paths at real files to run on your own data instead.
@@ -241,7 +244,7 @@ def _(mo):
 
     The aridity index is a different shape of problem.
     pyrealm's is climatological, potential evapotranspiration over precipitation with both terms accumulated across the whole record, so it is one number per cell rather than a time series.
-    SPLASH computes PET on its way to actual evapotranspiration and exposes it, so the bridge is a sum and a divide.
+    SPLASH computes PET on its way to actual evapotranspiration and exposes it, so the coupling is a sum and a divide.
     """)
     return
 
@@ -260,8 +263,8 @@ def _(mo):
     This is the join worth studying.
     Three quantities cross and two of them are in the wrong units, because `viresco.models.pmodel` is an honest wrapper: it reports what pyrealm computes, in pyrealm's units, rather than quietly converting on the way out.
 
-    The frequency changes too: the P-model runs daily and SGAM weekly, so a `[[resample]]` makes weekly means of the P-model's outputs, and the bridges below act on those.
-    Each bridge multiplies by a constant, so converting before or after averaging gives the same numbers.
+    The frequency changes too: the P-model runs daily and SGAM weekly, so the couplings below convert the daily values, and a `[[resample]]` makes their weekly means.
+    Each coupling multiplies by a constant, so converting before or after averaging gives the same numbers.
 
     **Gross primary productivity.**
     pyrealm reports a flux in ug C m-2 s-1.
@@ -274,10 +277,10 @@ def _(mo):
     The conversion is 4.57 mol MJ-1, the standard photon content of PAR over the 400-700 nm band.
     That is a property of the light rather than of the units, so it is a setting, `par_photons_per_mj`, rather than a conversion.
 
-    **Intrinsic water use efficiency** needs no bridge at all.
+    **Intrinsic water use efficiency** needs no coupling at all.
     pyrealm reports umol mol-1 and SGAM consumes umol mol-1, so only its weekly mean, `iwue_weekly`, sits between `pmodel` and `sgam` in the graph below.
 
-    Look at the node names in the graph: the P-model produces `gpp_flux` and `lue_photon`, resampled to `gpp_flux_weekly` and `lue_photon_weekly`, while SGAM consumes `gpp_weekly` and `lue_weekly`.
+    Look at the node names in the graph: the P-model produces `gpp_flux` and `lue_photon`, the couplings turn them into `gpp` and `lue`, and the resample makes the `gpp_weekly` and `lue_weekly` SGAM consumes.
     The unconverted quantities are deliberately named so that they cannot satisfy SGAM's inputs by accident.
     Wiring them together directly would take an edit, and the contract check would reject the units even then.
     """)
@@ -302,7 +305,7 @@ def _(mo):
     Taking the increment also picks up litter from disturbance events, which the individual turnover outputs leave out.
 
     Only then is there a unit conversion, from SGAM's g m-2 to RothC's t ha-1.
-    The bridge does it with `xra.units.convert` rather than writing the factor of 100 by hand, so the declared units carry the conversion.
+    The coupling does it with `xra.units.convert` rather than writing the factor of 100 by hand, so the declared units carry the conversion.
     """)
     return
 
@@ -323,7 +326,7 @@ def _(mo):
     The per-call `rankdir` overrides the shared style's without discarding the rest of it.
 
     Two more conversions appear here, and both aggregate a daily rate into a monthly total.
-    They are not bridges in `nodes.py` but one summing `[[resample]]` in the config.
+    They are not couplings but one summing `[[resample]]` in the config.
     Summing a rate in mm d-1 over a month integrates it, because the daily timestep is one day, but the sum keeps the rate's `mm d-1` label.
     The entry declares `units = "mm"` with `overwrite_units = true`, which stamps the total's unit over the old label.
     That label is stated rather than checked, so the comment beside the entry is what records why it is right.
@@ -426,8 +429,8 @@ def _(mo):
     mo.md(r"""
     ## Where the joins live, and why
 
-    Every conversion in this recipe sits in the pipeline rather than inside a model wrapper: a function in its own `nodes.py`, or, for the monthly totals, a `[[resample]]` entry in the config.
-    A wrapper that quietly converted pyrealm's GPP on the way out would leave the next person with no way to see the assumption, let alone change it without editing Viresco.
+    Every conversion in this recipe sits between the models rather than inside a model wrapper: a coupling in `viresco.couplings`, or, for the monthly totals, a `[[resample]]` entry in the config.
+    A wrapper that quietly converted pyrealm's GPP on the way out would leave the next person with no way to see the assumption, let alone swap it for another without editing the wrapper.
     Here each conversion is under the name of the node it produces, with a docstring or comment that says why and units that catena checks.
     """)
     return

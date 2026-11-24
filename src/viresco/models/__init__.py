@@ -9,7 +9,7 @@ group, so a config names one by its section alone and needs no
 ``_import_path``::
 
     [rothc]
-    n_years_spinup = 1
+    rothc_spinup_years = 1
 
 The section name is the module name: ``acm``, ``splash``, ``pmodel``, ``sgam``
 and ``rothc``.

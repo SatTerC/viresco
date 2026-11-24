@@ -41,7 +41,6 @@ def _(mo):
     | File | Contents |
     |---|---|
     | `config.toml` | The pipeline, from climate inputs through SPLASH and the P-model to SGAM |
-    | `nodes.py` | The bridges between the models |
     | `make_data.py` | Writes stand-in inputs to `data/` |
     | `demo.py` | This notebook |
 
@@ -68,14 +67,12 @@ def _():
 
     recipe_dir = Path(__file__).parent
     config_path = recipe_dir / "config.toml"
-    nodes_path = recipe_dir / "nodes.py"
     return (
         catena,
         config_path,
         import_user_module,
         minimize,
         mo,
-        nodes_path,
         np,
         plt,
         recipe_dir,
@@ -89,26 +86,11 @@ def _(config_path, mo):
 
     We run the SPLASH → P-model → SGAM chain.
     SPLASH provides soil moisture to the P-model, whose LUE and GPP outputs feed into SGAM.
-    `[bridges]` imports `nodes.py`, below, which converts each model's outputs into the next one's inputs.
+    `[couplings]` selects the conversions from `viresco.couplings` that turn each model's outputs into the next one's inputs; the [full pipeline](full_pipeline.md) recipe walks through each one.
     The calibration keeps everything in memory; the `[outputs.weekly]` section is there for `viresco run config.toml`.
 
     ```toml
     {config_path.read_text()}
-    ```
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo, nodes_path):
-    mo.md(f"""
-    ## The bridges
-
-    Each bridge is an ordinary function, named for the node it produces, whose parameters name the nodes it consumes.
-    The [full pipeline](full_pipeline.md) recipe walks through each one.
-
-    ```python
-    {nodes_path.read_text()}
     ```
     """)
     return

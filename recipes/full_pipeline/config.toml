@@ -1,5 +1,4 @@
-# SPLASH, the P-model, SGAM and RothC in one pipeline, joined by the bridges in
-# nodes.py.
+# SPLASH, the P-model, SGAM and RothC in one pipeline, joined by couplings.
 
 [splash]
 
@@ -10,13 +9,20 @@ method_optchi = "lavergne20_c3"
 [sgam]
 
 [rothc]
-n_years_spinup = 1
+inert_organic_matter_from = "falloon"
+rothc_spinup_years = 1
 equilibrium_threshold = 0.0001
 
-[bridges]
-_import_path = "nodes.py"
-porosity = 0.45
+# The couplings between the models, from viresco.couplings: each key names the
+# node it produces and the model it takes from.
+[couplings]
+gpp_from = "pmodel"
+lue_from = "pmodel"
+volumetric_water_content_from = "splash"
+aridity_index_from = "splash"
+bucket_porosity = 0.45
 par_photons_per_mj = 4.57
+soil_carbon_input_monthly_from = "sgam"
 
 [inputs.daily]
 path = "data/daily.nc"
@@ -63,14 +69,14 @@ vars = [
   "temperature",
   "volumetric_water_content",
   "vpd",
-  "gpp_flux",
-  "lue_photon",
+  "gpp",
+  "lue",
   "iwue",
 ]
 from = ""
 to = "weekly"
 freq = "7D"
-units = { temperature = "degC", volumetric_water_content = "m3 m-3", vpd = "Pa", gpp_flux = "ug m-2 s-1", lue_photon = "g mol-1", iwue = "umol mol-1" }
+units = { temperature = "degC", volumetric_water_content = "m3 m-3", vpd = "Pa", gpp = "g m-2 d-1", lue = "g MJ-1", iwue = "umol mol-1" }
 
 [[resample]]
 vars = [

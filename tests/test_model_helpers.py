@@ -28,7 +28,7 @@ PIXEL_COORDS = np.arange(N_PIXELS)
 MONTHLY_DATES = pd.date_range("2020-01-01", periods=N_MONTHS, freq="ME")
 DAILY_DATES = pd.date_range("2020-01-01", periods=N_DAYS, freq="D")
 
-#: The RothC bridge nodes take a monthly DataArray purely for its time
+#: The RothC input-building nodes take a monthly DataArray purely for its time
 #: coordinate (catena no longer supplies a `dates_monthly` node), so a bare
 #: time axis is all they need — the values and pixel dim are never read.
 MONTHLY_CLOCK = xr.DataArray(
@@ -63,7 +63,7 @@ def _daily(data):
 # ---------------------------------------------------------------------------
 
 
-class TestRothcBridgeFunctions:
+class TestRothcInputBuilders:
     """plant_cover_monthly, dpm_rpm_ratio_monthly, farmyard_manure_input_monthly."""
 
     @pytest.fixture(scope="class")
@@ -389,7 +389,7 @@ class TestRothcExecution:
             clay_content=_static_da(np.array([30.0])),
             soil_depth=_static_da(np.array([25.0])),
             inert_organic_matter=_static_da(np.array([2.0])),
-            n_years_spinup=1,
+            rothc_spinup_years=1,
             dates_monthly=time,
         )
 
@@ -486,7 +486,7 @@ class TestRothcDriverExecution:
                 coords={"pixel": pixel},
             )
 
-        dr = build_driver(["viresco.models.rothc"], {"n_years_spinup": 1})
+        dr = build_driver(["viresco.models.rothc"], {"rothc_spinup_years": 1})
         result = dr.execute(
             ["soil_organic_carbon_monthly"],
             inputs={

@@ -129,7 +129,7 @@ The defaults need only the drivers under *Always required*.
 Each table after that applies only when its method is configured, and a run without that method never asks for those inputs.
 
 Every time-varying driver is daily.
-Few datasets distribute them daily in these units: the [input nodes](../nodes/index.md) derive VPD from humidity, PPFD from shortwave radiation or SPLASH, pressure from elevation, and daily fAPAR and CO₂ from composites and monthly records.
+Few datasets distribute them daily in these units: the [drivers](../drivers/index.md) derive VPD from humidity, PPFD from shortwave radiation or SPLASH, pressure from elevation, and daily fAPAR and CO₂ from composites and monthly records.
 
 #### Always required
 
@@ -197,7 +197,7 @@ Required when `method_kphio = "sandoval"`.
       docstring_section_style: spacy
 
 The PET in `aridity_index` comes from [SPLASH](splash.md).
-`recipes/config.toml` derives the index in a `[[node]]` rather than hiding the choice of PET inside a wrapper.
+The coupling `aridity_index__splash`, selected by `aridity_index_from = "splash"`, derives it, rather than a wrapper hiding the choice of PET; see [Couplings](../couplings.md).
 `mean_growth_temperature` is derived for you; see [below](#inputs-mean-growth-temperature).
 
 #### Growth temperature, for `kattge_knorr` Arrhenius scaling
@@ -245,9 +245,9 @@ Required when `method_arrhenius = "kattge_knorr"`.
 
 SGAM consumes GPP, LUE and iWUE as weekly means, which `recipes/config.toml` makes with a `[[resample]]` entry.
 GPP and LUE are not in the units SGAM consumes either.
-`recipes/config.toml` defines `gpp_weekly` and `lue_weekly` as bridge nodes on the weekly means, where the conversion factor is visible rather than buried in a wrapper.
-iWUE needs no bridge, because `pyrealm` and SGAM agree on µmol mol⁻¹.
-`viresco setup` generates the same resamples and bridges.
+The couplings `gpp__pmodel` and `lue__pmodel` convert the daily values, where the conversion factor is visible rather than buried in a wrapper; see [Couplings](../couplings.md).
+iWUE needs no coupling, because `pyrealm` and SGAM agree on µmol mol⁻¹.
+`viresco setup` selects the same couplings and writes the same resamples.
 
 ### Python API
 

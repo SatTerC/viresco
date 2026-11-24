@@ -1,11 +1,11 @@
-"""`viresco.nodes.pressure`: pyrealm's standard atmosphere, on the daily axis."""
+"""`viresco.drivers.pressure`: pyrealm's standard atmosphere, on the daily axis."""
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 import xarray_annotated as xra
 
-from viresco.nodes.pressure import pressure
+from viresco.drivers.pressure import pressure
 
 DATES = pd.date_range("2020-01-01", periods=5, freq="D")
 TEMPERATURE = xr.DataArray(

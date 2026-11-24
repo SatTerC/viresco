@@ -554,7 +554,7 @@ class TestSunshineFractionFromShortwave:
 
     @staticmethod
     def _shortwave(sf: np.ndarray) -> xr.DataArray:
-        """The surface shortwave pyrealm's SPLASH models from ``sf``, in J m-2 d-1."""
+        """The surface shortwave pyrealm's SPLASH models from ``sf``, in W m-2."""
         model = pyrealm.splash.splash.SplashModel(
             lat=LATITUDE[None, :],
             elv=ELEVATION[None, :],
@@ -564,7 +564,7 @@ class TestSunshineFractionFromShortwave:
             dates=pyrealm.core.calendar.Calendar(DAILY_DATES.values),
         )
         shortwave = model.solar.transmissivity * model.solar.daily_solar_radiation
-        return _temporal(shortwave).assign_attrs(units="J m-2 d-1")
+        return _temporal(shortwave / 86400.0).assign_attrs(units="W m-2")
 
     @staticmethod
     def _statics() -> dict:
@@ -584,7 +584,7 @@ class TestSunshineFractionFromShortwave:
         sf = np.where(np.arange(N_DAYS)[:, None] % 2, 0.0, 1.0) * np.ones(N_PIXELS)
         shortwave = self._shortwave(sf) * np.where(sf == 0, 0.5, 1.5)
         recovered = sunshine_fraction__shortwave(
-            shortwave.assign_attrs(units="J m-2 d-1"), **self._statics()
+            shortwave.assign_attrs(units="W m-2"), **self._statics()
         )
         np.testing.assert_array_equal(recovered.values, sf)
 

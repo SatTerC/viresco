@@ -23,7 +23,7 @@ import viresco.models.acm as acm_module
 from viresco.models.acm import (
     _W_M2_TO_MJ_M2_D,
     acm_canopy_conductance,
-    days_from_midsummer,
+    acm_days_from_midsummer,
 )
 
 MODULE = "viresco.models.acm"
@@ -110,7 +110,7 @@ def _acm_scalar(
 
 
 def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
-    d_ms = days_from_midsummer(inputs["latitude"], inputs["lai_obs"])
+    d_ms = acm_days_from_midsummer(inputs["latitude"], inputs["lai_obs"])
     drivers = [
         inputs[name].transpose("time", "pixel").values
         for name in (
@@ -197,7 +197,7 @@ def test_reproduces_toolik_lake(site):
 
 def _days(latitude: float, dates: pd.DatetimeIndex) -> np.ndarray:
     lai = xr.DataArray(np.ones(len(dates)), dims=["time"], coords={"time": dates})
-    return days_from_midsummer(xr.DataArray(latitude), lai).values
+    return acm_days_from_midsummer(xr.DataArray(latitude), lai).values
 
 
 @pytest.mark.parametrize(

@@ -28,7 +28,10 @@ from pyrealm.pmodel.quantum_yield import QUANTUM_YIELD_CLASS_REGISTRY
 from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
-from ..temporal import DAILY
+from ..temporal import DAILY, time_behaviour
+
+#: The process this model represents; see `viresco.registry.DOMAINS`.
+DOMAIN = "photosynthesis"
 
 
 class PModelOut(TypedDict):
@@ -246,7 +249,7 @@ def pmodel(
     ppfd
         Photosynthetic photon flux density (micromoles per square metre per
         second), as the mean rate over the 24-hour day, not a daily total. See
-        `viresco.nodes.radiation` for deriving it from shortwave radiation or
+        `viresco.drivers.radiation` for deriving it from shortwave radiation or
         from SPLASH.
     optchi_inputs
         Extra inputs for the configured ``method_optchi``.
@@ -454,6 +457,7 @@ def arrhenius_inputs__kattge_knorr(
     ),
     config_used=["method_kphio", "method_arrhenius"],
 )
+@time_behaviour("record")
 @check_annotations
 def mean_growth_temperature(
     temperature: Annotated[DataArray, Unit("degC"), DAILY],

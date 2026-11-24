@@ -1,11 +1,11 @@
-"""`viresco.nodes.interpolate`: coarse series onto the daily axis."""
+"""`viresco.drivers.interpolate`: coarse series onto the daily axis."""
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 import xarray_annotated as xra
 
-from viresco.nodes.interpolate import co2, fapar
+from viresco.drivers.interpolate import co2, fapar
 
 DATES = pd.date_range("2020-01-01", periods=10, freq="D")
 TEMPERATURE = xr.DataArray(

@@ -209,7 +209,7 @@ relative_humidity = Var(
 """Humid, more so in winter, with day-to-day persistence, as a fraction (0-1).
 
 The source of `dewpoint_temperature` and `specific_humidity`, so the three are
-one humidity field and any of them gives `viresco.nodes.humidity` the same VPD.
+one humidity field and any of them gives `viresco.drivers.humidity` the same VPD.
 """
 
 dewpoint_temperature = Var(

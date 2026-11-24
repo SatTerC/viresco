@@ -1,4 +1,4 @@
-"""`viresco.nodes.humidity`: each variant matches pyrealm, and the key selects it."""
+"""`viresco.drivers.humidity`: each variant matches pyrealm, and the key selects it."""
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ from catena import build_driver
 from pyrealm.core.hygro import convert_rh_to_vpd, convert_sh_to_vpd
 from xarray_annotated.units import UnitError
 
-from viresco.nodes import humidity
+from viresco.drivers import humidity
 
 DATES = pd.date_range("2020-01-01", periods=4, freq="D")
 
@@ -81,7 +81,7 @@ def test_contract_rejects_dewpoint_in_kelvin():
     ],
 )
 def test_vpd_from_selects_one_variant(config, needs):
-    dr = build_driver(["viresco.nodes.humidity"], config)
+    dr = build_driver(["viresco.drivers.humidity"], config)
     upstream = {v.name for v in dr.what_is_upstream_of("vpd") if v.is_external_input}
     sources = {"dewpoint_temperature", "specific_humidity", "relative_humidity"}
     assert upstream & sources == {needs}

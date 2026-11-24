@@ -41,7 +41,7 @@ method_optchi = "lavergne20_c3"
 
 [rothc]
 _import_path = "viresco.models.rothc"
-n_years_spinup = 1
+rothc_spinup_years = 1
 
 [inputs.daily]
 path = "{synthetic_data_dir / "daily.nc"}"
@@ -82,7 +82,7 @@ def datagen_config_toml(tmp_path):
     content = f"""\
 [rothc]
 _import_path = "viresco.models.rothc"
-n_years_spinup = 1
+rothc_spinup_years = 1
 
 [inputs.daily]
 path = "{data_dir / "daily.nc"}"
@@ -491,7 +491,7 @@ class TestSetupCommandNonInteractive:
         with open(out, "rb") as f:
             data = tomllib.load(f)
         assert "_import_path" not in data["rothc"]
-        assert "n_years_spinup" in data["rothc"]
+        assert "rothc_spinup_years" in data["rothc"]
 
     def test_defaults_without_models_fails(self):
         result = runner.invoke(app, ["setup", "--defaults"])

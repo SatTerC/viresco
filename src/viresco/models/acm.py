@@ -29,6 +29,9 @@ from xarray_annotated import Unit, check_annotations, stamp_output_units
 
 from ..temporal import DAILY, time_index
 
+#: The process this model represents; see `viresco.registry.DOMAINS`.
+DOMAIN = "photosynthesis"
+
 #: Day of year of the June solstice, the paper's midsummer (22 June).
 _MIDSUMMER_NORTH = 173
 #: Day of year of the December solstice, midsummer in the southern hemisphere.
@@ -47,7 +50,7 @@ def _time_first(da: DataArray, like: DataArray, name: str) -> DataArray:
 
 @check_annotations
 @stamp_output_units
-def days_from_midsummer(
+def acm_days_from_midsummer(
     latitude: Annotated[DataArray, Unit("degrees")],
     lai_obs: Annotated[DataArray, DAILY],
 ) -> Annotated[DataArray, Unit("d"), DAILY]:
@@ -204,7 +207,7 @@ def acm_canopy_conductance(
 @check_annotations
 @stamp_output_units(overwrite=True)
 def acm_seasonal_factor(
-    days_from_midsummer: Annotated[DataArray, Unit("d"), DAILY],
+    acm_days_from_midsummer: Annotated[DataArray, Unit("d"), DAILY],
     *,
     acm_day_length_coefficient: float = -0.0018,
     acm_day_length_constant: float = 1.81,
@@ -218,9 +221,9 @@ def acm_seasonal_factor(
 
     Parameters
     ----------
-    days_from_midsummer
+    acm_days_from_midsummer
         Days from the summer solstice of the cell's hemisphere (days). Output of
-        the `days_from_midsummer` node.
+        the `acm_days_from_midsummer` node.
 
     Other Parameters
     ----------------
@@ -234,7 +237,9 @@ def acm_seasonal_factor(
     DataArray
         Seasonal factor (dimensionless).
     """
-    return acm_day_length_coefficient * days_from_midsummer + acm_day_length_constant
+    return (
+        acm_day_length_coefficient * acm_days_from_midsummer + acm_day_length_constant
+    )
 
 
 class AcmOut(TypedDict):

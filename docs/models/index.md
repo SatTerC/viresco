@@ -6,8 +6,7 @@ icon: lucide/package
 # Built-in models
 
 `viresco` comes with the models below, which can be composed into a pipeline.
-A model that carries state through time, or wraps an upstream package, is one node in the DAG, with helper nodes where its inputs need building.
-A model without state whose science is written here, such as ACM, is a few nodes, each of which can be written out or replaced.
+A model is a scheme whose alternatives disagree about the science; the [drivers](../drivers/index.md) derive forcing variables from data, and the [couplings](../couplings.md) turn one model's outputs into another's inputs.
 
 Viresco registers every model with catena, so a config names one by its section alone.
 
@@ -16,17 +15,32 @@ Viresco registers every model with catena, so a config names one by its section 
 soil_moisture_init_max_iter = 10
 ```
 
+Models that produce the same variable are alternatives: a pipeline loads one of them.
 
-| Model | Description | Temporal resolution |
-|-------|-------------|---------------------|
-| [SPLASH](splash.md) | Semi-empirical water-balance model that computes actual evapotranspiration, soil moisture, and runoff from daily climate data | Daily |
-| [P-model](pmodel.md) | Optimality-based photosynthesis model that computes gross primary production (GPP), light-use efficiency, intrinsic water-use efficiency, photosynthetic capacity (Vcmax, Jmax) and stomatal conductance from environmental drivers | Daily |
-| [ACM](acm.md) | Aggregated Canopy Model: computes daily gross primary productivity from observed LAI, foliar nitrogen, temperature extremes, irradiance and CO2 | Daily |
-| [SGAM](sgam.md) | Simplified Growth and Allocation Model: tracks carbon pools (leaf, stem, root, litter) over time | Weekly |
-| [RothC](rothc.md) | Soil carbon decomposition model that simulates the turnover of organic matter in soil, producing soil organic carbon stocks | Monthly |
+--8<-- "docs_tools/_generated/models.md"
 
-Each model runs at one temporal resolution, apart from a node that only that model uses.
-There is one today, configured in its model's section: the daily disturbance detection whose weekly maximum SGAM consumes.
+## Time behaviour { #time-behaviour }
+
+Each node declares how it behaves in time, and the tests check the declaration.
+The table gives the behaviour of each model's own node, and names any of its other nodes that read other steps.
+
+| Behaviour | Meaning | What it asks of you |
+|-----------|---------|---------------------|
+| Pointwise | Each step is computed from that step's inputs alone | Nothing: the result does not depend on when the run starts or how long it is |
+| Record | Reads a window of steps, or the whole record, but carries no state | Expect the result to depend on the period run |
+| Stateful | Integrates a state from an initial condition | Choose a spin-up or an initial state; calibrate against data that do not drive the model |
+
+A stateful model's results depend on its spin-up and on the first years of forcing, so two runs over different periods disagree where they overlap until the state has forgotten its start.
+Calibrating one against an observation that also drives the pipeline is not an independent test ([ADR 0002][adr-0002]).
+
+## How the models connect { #connections }
+
+Each box is a model or a driver, with its time behaviour; stateful ones are drawn in bold.
+An edge is a variable one produces and the other consumes, directly or, where marked, through a coupling.
+
+<div class="model-graph">
+--8<-- "docs_tools/_generated/components.svg"
+</div>
 
 ## Node names { #node-names }
 
@@ -81,3 +95,4 @@ See catena's [configuration reference][catena-validation] for the checks.
 `[blocking]` and `[subset]` split one dimension of the inputs, `y` on a grid, so a block is a set of whole rows.
 
 [catena-validation]: https://nerc-ceh.github.io/catena/reference/configuration.html#validation
+[adr-0002]: https://github.com/SatTerC/viresco/blob/main/docs/adr/0002-driven-pipelines.md

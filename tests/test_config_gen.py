@@ -33,8 +33,8 @@ PATH_DEFAULTS = {
 class TestGetModelConfig:
     def test_builtin_returns_defaults(self):
         params = get_model_config("rothc")
-        assert "n_years_spinup" in params
-        assert isinstance(params["n_years_spinup"], int)
+        assert "rothc_spinup_years" in params
+        assert isinstance(params["rothc_spinup_years"], int)
 
     def test_subpackage_settings_are_read_from_its_submodules(self):
         assert get_model_config("toy_subpackage") == {"toy_factor": 2.0}
@@ -68,7 +68,7 @@ class TestGenerateConfigCustomModules:
         # `_import_path`, even one viresco happens to register: `generate_config`
         # has been told to treat it as the user's own.
         assert section["_import_path"] == "viresco.models.rothc"
-        assert "n_years_spinup" in section
+        assert "rothc_spinup_years" in section
 
     def test_custom_module_without_params_written_as_import_path_only(self):
         config = generate_config(
@@ -87,7 +87,7 @@ class TestGenerateConfigCustomModules:
         toml_str = str(config)
         assert "[rothc]" in toml_str
         assert '_import_path = "viresco.models.rothc"' in toml_str
-        assert "n_years_spinup" in toml_str
+        assert "rothc_spinup_years" in toml_str
 
 
 class TestFrequencyLabels:
@@ -181,7 +181,7 @@ class TestGenerateConfigBuiltinModels:
         # viresco registers rothc with catena, so the section resolves by name
         # alone and must carry no `_import_path`.
         assert "_import_path" not in section
-        assert "n_years_spinup" in section
+        assert "rothc_spinup_years" in section
 
     def test_pmodel_generates_model_section(self):
         config = generate_config(
@@ -232,7 +232,6 @@ class TestGenerateConfigBuiltinModels:
         )._data
         assert data["inputs"]["daily"]["suffix"] == ""
         assert data["outputs"]["daily"]["suffix"] == ""
-        assert "suffix" not in data["inputs"]["weekly"]
         assert "suffix" not in data["outputs"]["weekly"]
         sources = {entry["from"] for entry in data["resample"]}
         assert "daily" not in sources
@@ -333,6 +332,7 @@ class TestGenerateConfigBuiltinModels:
             }
         ]
         assert "node" not in data
+        assert "couplings" not in data
 
     def test_declared_resample_units_are_checked_on_build(self):
         """A resample declaring units its consumer contradicts fails the build."""
@@ -372,29 +372,47 @@ class TestInferRequiredData:
         assert drivers <= set(result["inputs_daily"])
         assert not result["inputs_weekly"]
 
-    def test_bridge_source_finer_than_wanted_is_coarsened_first(self):
-        """SGAM's weekly GPP and LUE come from the daily P-model.
+    def test_coupling_output_finer_than_wanted_is_coarsened(self):
+        """SGAM's weekly GPP and LUE come from the daily P-model, by couplings.
 
-        The source is resampled to weekly by a mean, and the bridge applied to
-        that, rather than the bridge giving up and the input being loaded.
+        The couplings act on the daily outputs, and their results are resampled
+        to weekly by a mean, rather than the inputs being loaded.
         """
         result = _infer_required_data(["pmodel", "sgam"])
+        assert result["couplings"] == {"gpp_from": "pmodel", "lue_from": "pmodel"}
         weekly_means = {
             var
             for entry in result["resamples"]
             if (entry["from"], entry["to"]) == ("", "weekly") and "aggfunc" not in entry
             for var in entry["vars"]
         }
-        assert {"gpp_flux", "lue_photon", "iwue"} <= weekly_means
-        bridges = {node["name"]: node for node in result["bridges"]}
-        assert bridges["gpp_weekly"]["inputs"] == ["gpp_flux_weekly"]
-        assert bridges["lue_weekly"]["inputs"] == ["lue_photon_weekly"]
+        assert {"gpp", "lue", "iwue"} <= weekly_means
         loaded = {
             var
             for key in ("inputs_daily", "inputs_weekly", "inputs_monthly")
             for var in result[key]
         }
-        assert {"gpp", "lue", "iwue"}.isdisjoint(loaded)
+        assert {"gpp", "lue", "iwue", "gpp_flux", "lue_photon"}.isdisjoint(loaded)
+
+    def test_coupling_inputs_are_loaded_where_no_model_makes_them(self):
+        """A coupling's own inputs are wired like a model's: here, from a file."""
+        result = _infer_required_data(["splash", "sgam"])
+        assert result["couplings"]["volumetric_water_content_from"] == "splash"
+        assert "max_soil_moisture" in result["inputs_static"]
+        assert "volumetric_water_content" not in result["inputs_daily"]
+
+    def test_no_coupling_without_its_source_model(self):
+        result = _infer_required_data(["sgam"])
+        assert result["couplings"] == {}
+        assert {"gpp", "lue", "volumetric_water_content"} <= set(
+            result["inputs_weekly"]
+        )
+
+    def test_a_manual_coupling_is_never_selected(self):
+        """SPLASH's PPFD estimate stands in for a forcing better observed."""
+        result = _infer_required_data(["splash", "pmodel"])
+        assert "ppfd_from" not in result["couplings"]
+        assert "ppfd" in result["inputs_daily"]
 
     def test_result_has_all_expected_keys(self):
         result = _infer_required_data(["splash"])
@@ -403,7 +421,7 @@ class TestInferRequiredData:
             "inputs_weekly",
             "inputs_monthly",
             "inputs_static",
-            "bridges",
+            "couplings",
             "resamples",
             "outputs_daily",
             "outputs_weekly",
@@ -452,3 +470,15 @@ def test_subpackage_output_units_are_read_from_its_submodules():
     )
     assert declared is not None
     assert declared.unit == Unit("mm d-1")
+
+
+def test_every_driver_is_offered_or_says_why_not():
+    """A driver setup leaves out is named, with a reason, so none is dropped by
+    accident."""
+    from viresco.registry import DRIVERS, registered
+    from viresco.scaffold.config_gen import NOT_OFFERED, get_builtin_models
+
+    offered = set(get_builtin_models())
+    for name in registered(DRIVERS):
+        assert name in offered or NOT_OFFERED.get(name), name
+    assert set(NOT_OFFERED) <= set(registered(DRIVERS))

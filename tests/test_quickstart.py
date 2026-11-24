@@ -110,11 +110,11 @@ class TestGeneratedConfigShape:
         assert "gpp" not in loaded
 
     def test_sgam_productivity_comes_from_pmodel_not_from_a_file(self, quickstart):
-        """The generator has to emit the units bridges or this seam silently rots.
+        """The generator has to select the couplings or this seam silently rots.
 
         pmodel reports GPP and LUE in pyrealm's units, under pyrealm's names
-        (`gpp_flux`, `lue_photon`). Neither is what sgam consumes. Without a
-        bridge node the generator sees two unsatisfied inputs and quietly loads
+        (`gpp_flux`, `lue_photon`). Neither is what sgam consumes. Without the
+        couplings the generator sees two unsatisfied inputs and quietly loads
         them from a file — sgam then runs on synthetic noise, and every other
         check in this file still passes, because the pipeline it produces is
         perfectly well-formed. `lue` in particular matches no rule in the data
@@ -125,24 +125,14 @@ class TestGeneratedConfigShape:
         loaded = {
             var for section in config["inputs"].values() for var in section["vars"]
         }
-        assert {"lue", "lue_photon", "gpp_flux"}.isdisjoint(loaded)
+        assert {"gpp", "lue", "lue_photon", "gpp_flux"}.isdisjoint(loaded)
+        assert config["couplings"]["gpp_from"] == "pmodel"
+        assert config["couplings"]["lue_from"] == "pmodel"
 
-        nodes = {node["name"]: node for node in config["node"]}
-        for target, source in (("gpp", "gpp_flux"), ("lue", "lue_photon")):
-            assert nodes[f"{target}_weekly"]["inputs"] == [f"{source}_weekly"]
-
-    def test_a_bridged_variable_is_not_also_resampled(self, quickstart):
-        """A bridged node must not also be the target of a resample.
-
-        If the generator emitted a resample onto `gpp_weekly` as well as the
-        bridge from `gpp_flux_weekly`, catena would have two definitions of it,
-        and the resampled one is the wrong answer.
-        """
+    def test_the_generated_config_writes_no_expressions(self, quickstart):
+        """Couplings are package code, so nothing is left to a `[[node]]`."""
         config = tomllib.loads((quickstart / "config.toml").read_text())
-        node_names = {node["name"] for node in config["node"]}
-        for entry in config["resample"]:
-            for var in entry["vars"]:
-                assert f"{var}_{entry['to']}" not in node_names
+        assert "node" not in config
 
     def test_model_outputs_are_resampled_for_coarser_consumers(self, quickstart):
         """Daily model outputs reach weekly SGAM by a daily-to-weekly resample.
@@ -163,7 +153,7 @@ class TestGeneratedConfigShape:
             by_aggfunc.setdefault(entry.get("aggfunc", "mean"), set()).update(
                 entry["vars"]
             )
-        assert {"gpp_flux", "lue_photon", "iwue"} <= by_aggfunc["mean"]
+        assert {"gpp", "lue", "iwue"} <= by_aggfunc["mean"]
         assert "disturbances" not in by_aggfunc["mean"]
         assert by_aggfunc["max"] == {"disturbances"}
 

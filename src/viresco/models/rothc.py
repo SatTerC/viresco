@@ -6,14 +6,17 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from catena.io import sole_time_dim
-from hamilton.function_modifiers import extract_fields
+from hamilton.function_modifiers import config, extract_fields
 from numpy.typing import NDArray
 from rothc_py import RothC, RothCParams, percent_modern_c
 from rothc_py.containers import InputData
 from xarray import DataArray
 from xarray_annotated import Unit, check_annotations, stamp_output_units
 
-from ..temporal import MONTHLY, time_index
+from ..temporal import MONTHLY, time_behaviour, time_index
+
+#: The process this model represents; see `viresco.registry.DOMAINS`.
+DOMAIN = "soil carbon"
 
 
 class RothCOut(TypedDict):
@@ -149,7 +152,7 @@ def _rothc(
     inert_organic_matter: DataArray,
     dates_monthly: pd.Index,
     *,
-    n_years_spinup: int,
+    rothc_spinup_years: int,
     dpm_rate: float = 10.0,
     rpm_rate: float = 0.3,
     bio_rate: float = 0.66,
@@ -195,7 +198,7 @@ def _rothc(
         output_core_dims=[[time]] * 6,
         kwargs={
             "t_mod": t_mod,
-            "n_spinup_months": n_years_spinup * 12,
+            "n_spinup_months": rothc_spinup_years * 12,
             "dpm_rate": dpm_rate,
             "rpm_rate": rpm_rate,
             "bio_rate": bio_rate,
@@ -223,6 +226,7 @@ def _rothc(
 
 
 @extract_fields()
+@time_behaviour("stateful")
 @check_annotations
 @stamp_output_units
 def rothc(
@@ -237,7 +241,7 @@ def rothc(
     inert_organic_matter: Annotated[DataArray, Unit("t ha-1")],
     soil_depth: Annotated[DataArray, Unit("cm")],
     *,
-    n_years_spinup: int = 1,
+    rothc_spinup_years: int = 1,
     dpm_rate: float = 10.0,
     rpm_rate: float = 0.3,
     bio_rate: float = 0.66,
@@ -277,7 +281,7 @@ def rothc(
 
     Other Parameters
     ----------------
-    n_years_spinup
+    rothc_spinup_years
         Number of years of climate data used for model spin-up.
     dpm_rate
         Decomposition rate constant for decomposable plant material (per year).
@@ -327,7 +331,7 @@ def rothc(
         soil_depth=soil_depth,
         inert_organic_matter=inert_organic_matter,
         dates_monthly=time_index(temperature_monthly, "temperature_monthly"),
-        n_years_spinup=n_years_spinup,
+        rothc_spinup_years=rothc_spinup_years,
         dpm_rate=dpm_rate,
         rpm_rate=rpm_rate,
         bio_rate=bio_rate,
@@ -338,7 +342,7 @@ def rothc(
     )
 
 
-# --- Bridge nodes, needed for RothC --- #
+# --- Input-building nodes, needed for RothC --- #
 # Each of these produces a monthly series out of per-cell static data, so it needs
 # a monthly calendar to build that series against. The time axis lives on the data,
 # so each takes ``temperature_monthly`` purely for its time coordinate.
@@ -468,3 +472,25 @@ def farmyard_manure_input_monthly(
     zeros = xr.zeros_like(plant_type.expand_dims({time: dates_monthly}), dtype=float)
     zeros.attrs.clear()
     return zeros
+
+
+@config.when(inert_organic_matter_from="falloon")
+@check_annotations
+@stamp_output_units(overwrite=True)
+def inert_organic_matter__falloon(
+    organic_carbon_stocks: Annotated[DataArray, Unit("t ha-1")],
+) -> Annotated[DataArray, Unit("t ha-1")]:
+    """Inert organic matter from total soil organic carbon, after Falloon et al.
+
+    For ``inert_organic_matter_from = "falloon"``; with the key unset,
+    ``inert_organic_matter`` is read as data. RothC's inert pool is rarely
+    measured, and Falloon et al. (1998) fitted it to total soil organic carbon
+    as ``IOM = 0.049 SOC^1.139``, both in tonnes of carbon per hectare.
+
+    Parameters
+    ----------
+    organic_carbon_stocks
+        Total soil organic carbon over RothC's soil depth (tonnes of carbon per
+        hectare).
+    """
+    return 0.049 * organic_carbon_stocks**1.139

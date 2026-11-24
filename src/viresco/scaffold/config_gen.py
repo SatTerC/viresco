@@ -20,10 +20,9 @@ from hamilton.settings import ENABLE_POWER_USER_MODE
 from xarray_annotated import Declared, Freq, declaration_from_hint
 
 from .. import temporal
-from ..registry import MODELS, registered
+from ..registry import COUPLINGS, DRIVERS, KINDS, MODELS, registered
 from ..temporal import resample_offset
 from .aggregations import aggfunc_for
-from .bridges import Bridge, bridge_for
 
 
 def _analyze_model_module(
@@ -155,8 +154,25 @@ def _base_name(name: str, label: str | None) -> str:
 
 
 def get_builtin_models() -> list[str]:
-    """Return the name of every model viresco registers, sorted."""
-    return list(registered(MODELS))
+    """Return every module `viresco setup` offers: the models, then the drivers.
+
+    Each list is sorted. Couplings are not offered: the generator selects them
+    itself, wherever a chosen model supplies another's input under another name
+    or in other units.
+    """
+    drivers = [name for name in registered(DRIVERS) if name not in NOT_OFFERED]
+    return [*registered(MODELS), *drivers]
+
+
+#: Registered modules `viresco setup` cannot write a working config for, each
+#: with the reason. A config still enables one by naming its section.
+NOT_OFFERED: dict[str, str] = {
+    "interpolate": (
+        "its coarse inputs take a series at any step coarser than daily, so they "
+        "declare no frequency, and the generator cannot tell which input section "
+        "they belong in"
+    ),
+}
 
 
 def get_model_config(model_name: str) -> dict[str, Any]:
@@ -171,7 +187,7 @@ def get_model_config(model_name: str) -> dict[str, Any]:
     dict because catena merges a section's keys into one flat driver config
     regardless of which node consumes them.
     """
-    module_path = registered(MODELS).get(model_name, model_name)
+    module_path = _module_path(model_name)
 
     try:
         module = import_module(module_path)
@@ -180,16 +196,30 @@ def get_model_config(model_name: str) -> dict[str, Any]:
 
     settings: dict[str, Any] = {}
     for _, func in find_functions(module):
-        settings.update(
-            {
-                p.name: p.default
-                for p in inspect.signature(func).parameters.values()
-                if p.kind == inspect.Parameter.KEYWORD_ONLY
-                and p.default is not inspect.Parameter.empty
-                and p.default is not None  # TOML has no null; unset means default
-            }
-        )
+        settings.update(_settings_of(func))
     return settings
+
+
+def _settings_of(func: Any) -> dict[str, Any]:
+    """Return a node function's keyword-only settings and their defaults."""
+    return {
+        p.name: p.default
+        for p in inspect.signature(func).parameters.values()
+        if p.kind == inspect.Parameter.KEYWORD_ONLY
+        and p.default is not inspect.Parameter.empty
+        and p.default is not None  # TOML has no null; unset means default
+    }
+
+
+def _module_path(name: str) -> str:
+    """Return the module registered under section ``name``, else ``name`` itself.
+
+    A name no kind registers is taken to be a module path, as for a custom module.
+    """
+    for kind in KINDS:
+        if (path := registered(kind).get(name)) is not None:
+            return path
+    return name
 
 
 #: Labels ordered fine to coarse, so an index comparison answers "can this be
@@ -240,30 +270,31 @@ def _accumulates(source_units: str | None, target_units: str | None) -> bool:
     return (source * registry.Unit("day")).dimensionality == target.dimensionality
 
 
-def _bridge_factor(
-    bridge: Bridge, source_units: str | None, target_units: str | None
-) -> float | None:
-    """Return the multiplier taking ``source_units`` to ``target_units``.
+#: Coupling targets `viresco setup` never selects on its own. Each is a model's
+#: estimate of a forcing that is better observed: SPLASH's PPFD is computed from
+#: sunshine fraction, which measured radiation outdoes. A config can still set
+#: the key by hand.
+_MANUAL_COUPLINGS = frozenset({"ppfd"})
 
-    A bridge with an explicit ``factor`` uses it: those pairs are not
-    dimensionally the same quantity, so no registry can derive them. Otherwise
-    the two units are the same quantity written differently and pint knows the
-    number — asking it keeps a conversion factor from being restated (and
-    eventually mistyped) here.
 
-    ``None`` where the declared units are missing or pint cannot relate them,
-    which means the table has drifted from the models and the caller should not
-    silently emit a wrong node.
+def _coupling_targets() -> dict[str, tuple[str, str, Freq | None]]:
+    """Return each coupling function's target node, source and frequency.
+
+    Keyed by function name, ``<target>__<source>``; the target's frequency is the
+    one its return annotation declares, ``None`` for a static target.
     """
-    if bridge.factor is not None:
-        return bridge.factor
-    if not source_units or not target_units:
-        return None
-    try:
-        registry = pint.get_application_registry()
-        return float(registry.Quantity(1.0, source_units).to(target_units).magnitude)
-    except (pint.DimensionalityError, pint.UndefinedUnitError, TypeError, ValueError):
-        return None
+    module = import_module(COUPLINGS)
+    targets: dict[str, tuple[str, str, Freq | None]] = {}
+    for name, func in find_functions(module):
+        target, _, source = name.partition("__")
+        returned = typing.get_type_hints(func, include_extras=True).get("return")
+        declaration = declaration_from_hint(returned)
+        targets[name] = (
+            target,
+            source,
+            None if declaration is None else declaration.freq,
+        )
+    return targets
 
 
 def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
@@ -290,7 +321,7 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
         return _declared_unit(declared.get(name))
 
     for model_name in model_names:
-        module = import_module(registered(MODELS)[model_name])
+        module = import_module(_module_path(model_name))
         data_inputs, _, data_outputs = _analyze_model_module(
             module, base_config, declared
         )
@@ -316,16 +347,13 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
     # (base, target_label) for every coarsening: a variable derived like this
     # must not also be loaded.
     derived: set[tuple[str, str]] = set()
-    # Units-restating nodes for producer/consumer pairs that disagree. Not a
-    # coarsening, so tracked apart from `resamples`. See `scaffold.bridges`.
-    bridge_nodes: list[dict[str, Any]] = []
 
     def _record(base: str, source: str, target: str) -> None:
         """File one coarsening, with the units its output is declared with.
 
         The consumer's declaration wins. Where nothing consumes the coarsened
-        node directly (a bridge's input), a mean keeps the producer's units, so
-        those are declared instead.
+        node directly, a mean keeps the producer's units, so those are declared
+        instead.
         """
         key = (base, source, target)
         source_units = _units(_node_name(base, source))
@@ -337,47 +365,50 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
             # the consumer's units, since a resample keeps its input's label.
             summed.add(key)
 
-    def _record_bridge(base: str, label: str | None) -> bool:
-        """Emit the units-restating node for ``base``, if a bridge supplies it.
+    def _unmet(name: str) -> bool:
+        """Report whether no chosen module produces ``name``, even finer."""
+        base, label = _base(name), _label(name)
+        produced = produced_at.get(base, set())
+        if label in produced:
+            return False
+        return label is None or _finest_source(produced, label) is None
 
-        A source produced finer than wanted is coarsened onto ``label`` first,
-        and the bridge applied there: the P-model's daily ``gpp_flux`` becomes
-        ``gpp_flux_weekly``, then ``gpp_weekly``. A bridge is a constant factor,
-        which commutes with the mean, so the order does not change the result.
-
-        False when no bridge covers this name, when its source is not produced
-        at or finer than the frequency wanted, or when the factor cannot be
-        established. In every case the caller falls through to loading the
-        variable from a file.
-        """
-        bridge = bridge_for(base)
-        if bridge is None:
-            return False
-        source_label = _finest_source(produced_at.get(bridge.source, set()), label)
-        if source_label is None:
-            return False
-        target_name = _node_name(base, label)
-        target_units = _units(target_name)
-        # A mean keeps units, so the coarsened source has the units it is
-        # produced in.
-        source_units = _units(_node_name(bridge.source, source_label))
-        factor = _bridge_factor(bridge, source_units, target_units)
-        if factor is None or target_units is None:
-            return False
-        if label is not None and source_label != label:
-            _record(bridge.source, source_label, label)
-        source_name = _node_name(bridge.source, label)
-        bridge_nodes.append(
-            {
-                "name": target_name,
-                "inputs": [source_name],
-                "expression": f"{source_name} * {factor:.6g}",
-                "units": target_units,
-                "overwrite_units": True,
-                **({} if label is None else {"freq": temporal.offset(label)}),
-            }
+    # Couplings: an input no chosen model produces, but one produces under
+    # another name or in other units, is made from that model's output by the
+    # coupling `<target>__<source>`, selected by `<target>_from = "<source>"`.
+    # A coupling's own inputs may need loading or coupling in turn, so repeat
+    # until nothing new is selected. See `viresco.couplings`.
+    coupling_targets = _coupling_targets()
+    coupling_module = import_module(COUPLINGS)
+    couplings: dict[str, str] = {}
+    while True:
+        selected = False
+        for name in sorted(all_data_inputs):
+            if not _unmet(name):
+                continue
+            base, label = _base(name), _label(name)
+            for target, source, freq in coupling_targets.values():
+                key = f"{target}_from"
+                target_label = _label_of(freq)
+                if (
+                    key in couplings
+                    or target in _MANUAL_COUPLINGS
+                    or source not in model_names
+                    or _base_name(target, target_label) != base
+                    or _finest_source({target_label}, label) is None
+                ):
+                    continue
+                couplings[key] = source
+                selected = True
+                break
+        if not selected:
+            break
+        data_inputs, _, data_outputs = _analyze_model_module(
+            coupling_module, {**base_config, **couplings}, declared
         )
-        return True
+        all_data_inputs.update(data_inputs)
+        for output in data_outputs:
+            produced_at.setdefault(_base(output), set()).add(_label(output))
 
     by_label: dict[str | None, set[str]] = {
         "daily": daily,
@@ -399,10 +430,6 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
             _record(base, source, label)
             continue
 
-        if _record_bridge(base, label):
-            # Produced at this frequency under another name, in another model's
-            # honest units. Convert it rather than loading a second copy.
-            continue
         # Not produced at all, or only *coarser* than wanted. Resampling cannot
         # refine, so this has to come from a file even when a model does produce
         # the same name at a coarser frequency.
@@ -478,7 +505,7 @@ def _infer_required_data(model_names: list[str]) -> dict[str, Any]:
         "inputs_weekly": sorted(inputs_weekly),
         "inputs_monthly": sorted(inputs_monthly),
         "inputs_static": sorted(static),
-        "bridges": bridge_nodes,
+        "couplings": couplings,
         "resamples": resample_entries,
         "outputs_daily": sorted(set(outputs_daily)),
         "outputs_weekly": sorted(set(outputs_weekly)),
@@ -550,10 +577,14 @@ def generate_config(
             ]
         }
 
-    # Nodes before resamples: a reader meets the derivations that change what a
-    # variable *means* before the ones that only change its cadence.
-    if required_data["bridges"]:
-        config_data["node"] = required_data["bridges"]
+    if required_data["couplings"]:
+        config_data["couplings"] = dict(required_data["couplings"])
+        coupling_funcs = dict(find_functions(import_module(COUPLINGS)))
+        for key, source in required_data["couplings"].items():
+            target = key.removesuffix("_from")
+            config_data["couplings"].update(
+                _settings_of(coupling_funcs[f"{target}__{source}"])
+            )
     if required_data["resamples"]:
         config_data["resample"] = required_data["resamples"]
 
@@ -578,4 +609,38 @@ def generate_config(
             **get_model_config(mod_path),
         }
 
+    _drop_repeated_settings(
+        config_data,
+        [*builtin_models, "couplings", *(m.rsplit(".", 1)[-1] for m in custom_modules)],
+    )
     return Config(config_data)
+
+
+def _drop_repeated_settings(config_data: dict[str, Any], sections: list[str]) -> None:
+    """Keep each setting in the first section that declares it, in place.
+
+    catena merges every section's keys into one flat config and raises on a key
+    set in two sections. Two nodes in different modules may share a setting, as
+    `viresco.drivers.radiation` and `viresco.couplings` share
+    ``par_photons_per_mj``, and then one value serves both, so it is written
+    once. Two different defaults for one name cannot both be honoured, so they
+    raise.
+    """
+    first: dict[str, tuple[str, Any]] = {}
+    for section in sections:
+        settings = config_data.get(section)
+        if not isinstance(settings, dict):
+            continue
+        for key in list(settings):
+            if key.startswith("_"):
+                continue
+            if key not in first:
+                first[key] = (section, settings[key])
+                continue
+            owner, value = first[key]
+            if settings[key] != value:
+                raise ValueError(
+                    f"Setting {key!r} defaults to {value!r} in [{owner}] and to "
+                    f"{settings[key]!r} in [{section}]; one config cannot set both."
+                )
+            del settings[key]
