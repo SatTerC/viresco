@@ -39,7 +39,8 @@ graph-all:
   @for m in $(uv run python -c 'from viresco.registry import MODELS, registered; print(*registered(MODELS))'); do just graph "$m"; done
 
 # Render the generated docs snippets (models table, variable catalogue, couplings
-# table, graph of models and drivers, and each model page's Usage section) into
+# table, graph of models and drivers, and each model page's Reference section
+# and guide links) into
 # docs_tools/_generated/, not committed.
 catalogue:
   uv run python scripts/render_catalogue.py docs_tools/_generated

@@ -10,10 +10,12 @@ The snippets, each read from the code so that it cannot drift from it:
   another produces, directly or through a coupling;
 - ``couplings.md``: each coupling, the key that selects it, and the modules on
   either side;
-- ``usage/<model>.md``: each model page's Usage section, from the config
-  ``catena init -m <model>`` writes: its settings, its inputs and its outputs,
-  each with the units and frequency it declares and the docstring that
-  describes it.
+- ``reference/<model>.md``: each model page's Reference section, from the
+  config ``catena init -m <model>`` writes: its settings, inputs, outputs and
+  intermediate nodes, each with the unit and frequency it declares and the
+  docstring that describes it;
+- ``guides/<model>.md``: links to the documented recipes and guides that run
+  the model, empty where there are none.
 
 Run through ``just catalogue``, which ``just docs`` runs first. Nothing here is
 committed: the pages include the snippets with ``pymdownx.snippets``.
@@ -22,6 +24,7 @@ committed: the pages include the snippets with ``pymdownx.snippets``.
 import argparse
 import inspect
 import re
+import tomllib
 import typing
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -424,8 +427,8 @@ def _output_hint(func: typing.Any, node: str) -> tuple[typing.Any, str]:
     return returned, _returns(func)
 
 
-def usage(entry: Module) -> str:
-    """A model page's Usage section, relative to ``docs/models/``.
+def reference(entry: Module) -> str:
+    """A model page's Reference section, relative to ``docs/models/``.
 
     The inputs and outputs are those of the config ``catena init -m <model>``
     writes, from the variants its settings select by default.
@@ -485,35 +488,14 @@ def usage(entry: Module) -> str:
         (output_rows if name in outputs else intermediate_rows).append(row)
 
     header = ("Unit", "Frequency")
-    parts = [
-        "### Quickstart\n",
-        "```sh\n"
-        f"catena init -m {entry.name}\n"
-        "catena run config.toml --dry-run\n"
-        "catena run config.toml\n"
-        "```\n",
-        f"`catena init` writes a config with the `[{entry.name}]` settings at their "
-        "defaults and every input below under `[inputs]`; point its placeholder "
-        "paths at your data before running.\n"
-        "The [quickstart](../guides/quickstart.md) walks through each step.\n",
-        "### Configuration\n",
-    ]
-    rows = _settings_rows(entry.module)
-    if rows:
+    parts = []
+    if rows := _settings_rows(entry.module):
         parts += [
-            f"Every setting goes in the one `[{entry.name}]` section, whichever node "
-            "takes it.\n",
+            f"### Settings: `[{entry.name}]`\n",
             _table(("Setting", "Default", "Node", "Description"), rows),
         ]
-    else:
-        parts.append(f"{_title(entry.name, short=True)} has no settings.\n")
-    parts += ["### Inputs\n"]
-    if any(row[0] == "`latitude`" for row in input_rows):
-        parts.append(
-            "`latitude` is read from a file, as a variable or a coordinate; see "
-            "[Inputs on a grid](index.md#inputs-on-a-grid).\n"
-        )
     parts += [
+        "### Inputs\n",
         _table(("Input", *header, "Read by", "Description"), input_rows),
         "### Outputs\n",
         _table(("Output", *header, "Description"), output_rows),
@@ -521,15 +503,50 @@ def usage(entry: Module) -> str:
     if intermediate_rows:
         parts += [
             "#### Intermediate nodes\n",
-            "Not written by default; list one under `[outputs]` to write it.\n",
             _table(("Node", *header, "Description"), intermediate_rows),
         ]
     parts += [
         "### Python API\n",
-        f"See the [API documentation](../reference/modules/viresco.models/"
-        f"{entry.name}.md) for the full signatures.\n",
+        f"[`{entry.module.__name__}`](../reference/modules/viresco.models/"
+        f"{entry.name}.md)\n",
     ]
     return "\n".join(parts)
+
+
+RECIPES = ROOT / "recipes"
+
+
+def _documented_recipes() -> list[str]:
+    """The recipes in the Recipes nav, which ``documented_recipes`` must match."""
+    nav = tomllib.loads((ROOT / "zensical.toml").read_text())["project"]["nav"]
+    pages = next(entry["Recipes"] for entry in nav if "Recipes" in entry)
+    return [Path(page).stem for page in pages]
+
+
+def _notebook_title(path: Path) -> str:
+    match = re.search(r'app_title="([^"]+)"', path.read_text())
+    return match.group(1) if match else path.parent.name
+
+
+def guides(models: list[str]) -> dict[str, list[tuple[str, str]]]:
+    """For each model, the documented guides that run it, as (title, link).
+
+    Links are relative to ``docs/models/``. A recipe runs the models its
+    ``config.toml`` has sections for; the quickstart, which has no committed
+    config, runs the models its notebook passes to ``catena init -m``.
+    """
+    found: dict[str, list[tuple[str, str]]] = {model: [] for model in models}
+    quickstart = RECIPES / "quickstart" / "demo.py"
+    used = set(re.findall(r"catena init(?: -m \w+)*? -m (\w+)", quickstart.read_text()))
+    for model in sorted(used & set(models)):
+        found[model].append((_notebook_title(quickstart), "../guides/quickstart.md"))
+    for recipe in _documented_recipes():
+        sections = tomllib.loads((RECIPES / recipe / "config.toml").read_text())
+        title = _notebook_title(RECIPES / recipe / "demo.py")
+        for model in models:
+            if model in sections:
+                found[model].append((title, f"../recipes/{recipe}.md"))
+    return found
 
 
 def main() -> None:
@@ -544,10 +561,14 @@ def main() -> None:
     (args.output / "variables.md").write_text(variables_table(modules, found))
     (args.output / "components.svg").write_text(components_graph(modules, found))
     (args.output / "couplings.md").write_text(couplings_table(modules, found))
-    (args.output / "usage").mkdir(exist_ok=True)
-    for entry in modules:
-        if entry.kind == MODELS:
-            (args.output / "usage" / f"{entry.name}.md").write_text(usage(entry))
+    models = [entry for entry in modules if entry.kind == MODELS]
+    for directory in ("reference", "guides"):
+        (args.output / directory).mkdir(exist_ok=True)
+    for entry in models:
+        (args.output / "reference" / f"{entry.name}.md").write_text(reference(entry))
+    for model, links in guides([entry.name for entry in models]).items():
+        lines = "".join(f"- [{title}]({link})\n" for title, link in links)
+        (args.output / "guides" / f"{model}.md").write_text(lines)
 
 
 if __name__ == "__main__":
