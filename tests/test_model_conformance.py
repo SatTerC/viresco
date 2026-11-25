@@ -20,6 +20,7 @@ import ast
 import inspect
 import re
 import textwrap
+import types
 import typing
 from types import ModuleType
 
@@ -87,6 +88,9 @@ def test_nodes_in_a_subpackage_are_checked():
 
 
 def _is_dataarray(hint: typing.Any) -> bool:
+    """Whether ``hint`` is a DataArray, also inside an optional input's union."""
+    if typing.get_origin(hint) in (typing.Union, types.UnionType):
+        return any(_is_dataarray(arg) for arg in typing.get_args(hint))
     if typing.get_origin(hint) is typing.Annotated:
         hint = typing.get_args(hint)[0]
     return hint is xr.DataArray
