@@ -75,8 +75,9 @@ checkout, if present) rather than guessing at its API.
   `docs/models/_graphs/<model>.svg`, and `just docs` depends on `graph-all` so a
   docs build always renders them fresh. `graph-all` loops over the registered
   models. Likewise `just catalogue` (`scripts/render_catalogue.py`) writes the
-  models overview table, the variable catalogue, the couplings table and the
-  graph of models and drivers into `docs_tools/_generated/`, which the pages
+  models overview table, the variable catalogue, the couplings table, the
+  graph of models and drivers, and each model page's Usage section
+  (`usage/<model>.md`) into `docs_tools/_generated/`, which the pages
   include as snippets; edit the script, not the pages, to change them.
 - The `catena.modules` entry points in `pyproject.toml` are the one list of
   model, driver and coupling modules, read through `viresco.registry`; run `uv sync` after

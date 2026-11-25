@@ -1,6 +1,6 @@
 """Render the documentation's generated tables and graph from the registry.
 
-Three snippets, each read from the code so that it cannot drift from it:
+The snippets, each read from the code so that it cannot drift from it:
 
 - ``models.md``: the models overview table, with each model's domain, frequency,
   time behaviour and alternatives;
@@ -9,22 +9,33 @@ Three snippets, each read from the code so that it cannot drift from it:
 - ``components.svg``: one box per model and driver, joined where one consumes what
   another produces, directly or through a coupling;
 - ``couplings.md``: each coupling, the key that selects it, and the modules on
-  either side.
+  either side;
+- ``usage/<model>.md``: each model page's Usage section, from the config
+  ``catena init -m <model>`` writes: its settings, its inputs and its outputs,
+  each with the units and frequency it declares and the docstring that
+  describes it.
 
 Run through ``just catalogue``, which ``just docs`` runs first. Nothing here is
 committed: the pages include the snippets with ``pymdownx.snippets``.
 """
 
 import argparse
+import inspect
 import re
 import typing
 from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import cache
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, UnionType
 
 import graphviz
+import griffe
+import tomli_w
+from catena.build import build_driver
+from catena.scaffold import generate_config
 from hamilton.graph_utils import find_functions
+from hamilton.node import DependencyType
 from render_model_graph import as_inline_html
 from xarray_annotated import declaration_from_hint
 
@@ -80,6 +91,8 @@ def _modules() -> list[Module]:
 def _is_data(hint: typing.Any) -> bool:
     if typing.get_origin(hint) is typing.Annotated:
         hint = typing.get_args(hint)[0]
+    if typing.get_origin(hint) in (typing.Union, UnionType):
+        return any(_is_data(arg) for arg in typing.get_args(hint))
     return getattr(hint, "__name__", "") == "DataArray"
 
 
@@ -302,6 +315,223 @@ def components_graph(modules: list[Module], found: dict[str, Variable]) -> str:
     return as_inline_html(graph.pipe(format="svg", encoding="utf-8")) + "\n"
 
 
+@cache
+def _griffe_module(name: str) -> griffe.Object | griffe.Alias:
+    return griffe.load(name, docstring_parser="numpy")
+
+
+def _doc_sections(obj: typing.Any) -> list[griffe.DocstringSection]:
+    """The parsed numpydoc sections of a function's or class's docstring."""
+    found = _griffe_module(obj.__module__)[obj.__qualname__]
+    return found.docstring.parsed if found.docstring else []
+
+
+def _one_line(text: str) -> str:
+    """A docstring description as one table cell."""
+    return " ".join(text.split()).replace("|", r"\|")
+
+
+def _documented(func: typing.Any, kind: griffe.DocstringSectionKind) -> dict[str, str]:
+    """Each name a function's ``kind`` section documents, with its description."""
+    return {
+        item.name: _one_line(item.description)
+        for section in _doc_sections(func)
+        if section.kind is kind
+        for item in section.value
+    }
+
+
+def _returns(func: typing.Any) -> str:
+    """The description under a function's ``Returns``, else its summary line."""
+    returns = _documented(func, griffe.DocstringSectionKind.returns)
+    if returns:
+        return next(iter(returns.values()))
+    text = _doc_sections(func)
+    summary = text[0].value if text and text[0].kind.value == "text" else ""
+    return _one_line(summary.split("\n\n", 1)[0])
+
+
+def _field_doc(cls: typing.Any, name: str) -> str:
+    """The docstring of a TypedDict's field."""
+    found = _griffe_module(cls.__module__)[cls.__qualname__]
+    member = found.members.get(name)
+    return _one_line(member.docstring.value) if member and member.docstring else ""
+
+
+def _label(hint: typing.Any) -> tuple[str, str]:
+    """A declaration's unit and frequency, as table cells."""
+    declared = declaration_from_hint(hint)
+    if declared is None:
+        return "—", "static"
+    unit = "—" if declared.unit is None else f"`{declared.unit}`"
+    freq = "static" if declared.freq is None else FREQUENCIES.get(declared.freq, "?")
+    return unit, freq
+
+
+def _has_unit(hint: typing.Any) -> bool:
+    declared = declaration_from_hint(hint)
+    return declared is not None and declared.unit is not None
+
+
+def _toml(value: typing.Any) -> str:
+    return tomli_w.dumps({"x": value}).removeprefix("x = ").strip()
+
+
+def _code_list(names: typing.Iterable[str]) -> str:
+    return ", ".join(f"`{name}`" for name in names)
+
+
+def _table(header: tuple[str, ...], rows: list[tuple[str, ...]]) -> str:
+    lines = [
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join("---" for _ in header) + " |",
+        *("| " + " | ".join(row) + " |" for row in rows),
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def _settings_rows(module: ModuleType) -> list[tuple[str, ...]]:
+    """One row per keyword-only setting of any of the module's node functions."""
+    nodes: dict[str, list[str]] = defaultdict(list)
+    defaults: dict[str, typing.Any] = {}
+    docs: dict[str, str] = {}
+    for name, func in find_functions(module):
+        documented = _documented(func, griffe.DocstringSectionKind.other_parameters)
+        for param in inspect.signature(func).parameters.values():
+            if param.kind is not inspect.Parameter.KEYWORD_ONLY:
+                continue
+            nodes[param.name].append(name)
+            defaults.setdefault(param.name, param.default)
+            if param.name not in docs and documented.get(param.name):
+                docs[param.name] = documented[param.name]
+    return [
+        (
+            f"`{setting}`",
+            "unset" if defaults[setting] is None else f"`{_toml(defaults[setting])}`",
+            _code_list(nodes[setting]),
+            docs.get(setting, ""),
+        )
+        for setting in nodes
+    ]
+
+
+def _output_hint(func: typing.Any, node: str) -> tuple[typing.Any, str]:
+    """The hint a node function declares for ``node``, and its description."""
+    returned = typing.get_type_hints(func, include_extras=True).get("return")
+    if typing.is_typeddict(returned):
+        hints = typing.get_type_hints(returned, include_extras=True)
+        return hints.get(node), _field_doc(returned, node)
+    return returned, _returns(func)
+
+
+def usage(entry: Module) -> str:
+    """A model page's Usage section, relative to ``docs/models/``.
+
+    The inputs and outputs are those of the config ``catena init -m <model>``
+    writes, from the variants its settings select by default.
+    """
+    generated = generate_config([entry.name]).data
+    settings = generated.get(entry.name, {})
+    dr = build_driver([entry.module.__name__], settings, check_contracts=False)
+    nodes = {node.name: node for node in dr.graph.get_nodes()}
+    outputs = set(generated.get("outputs", {}).get("vars", []))
+
+    consumed: dict[str, list[tuple[typing.Any, typing.Any, DependencyType]]] = (
+        defaultdict(list)
+    )
+    for node in nodes.values():
+        if node.user_defined or not node.originating_functions:
+            continue
+        func = node.originating_functions[0]
+        for dep, (hint, dependency) in node.input_types.items():
+            consumed[dep].append((func, hint, dependency))
+
+    input_rows = []
+    for name, node in sorted(nodes.items()):
+        uses = consumed.get(name, [])
+        if not node.user_defined or not any(_is_data(hint) for _, hint, _ in uses):
+            continue
+        # A consumer declaring a unit first: one that reads the input only for
+        # its calendar declares none, and describes it only as that.
+        uses.sort(key=lambda use: not _has_unit(use[1]))
+        unit, freq = _label(uses[0][1])
+        description = next(
+            (
+                doc
+                for func, _, _ in uses
+                if (
+                    doc := _documented(
+                        func, griffe.DocstringSectionKind.parameters
+                    ).get(name)
+                )
+            ),
+            "",
+        )
+        optional = all(dep is DependencyType.OPTIONAL for _, _, dep in uses)
+        label = f"`{name}`" + (" (optional)" if optional else "")
+        users = _code_list(sorted({func.__name__ for func, _, _ in uses}))
+        input_rows.append((label, unit, freq, users, description))
+
+    output_rows, intermediate_rows = [], []
+    for name, node in nodes.items():
+        if node.user_defined or not node.originating_functions:
+            continue
+        func = node.originating_functions[0]
+        hint, description = _output_hint(func, name)
+        if not _is_data(hint) or typing.is_typeddict(hint):
+            continue
+        unit, freq = _label(hint)
+        row = (f"`{name}`", unit, freq, description)
+        (output_rows if name in outputs else intermediate_rows).append(row)
+
+    header = ("Unit", "Frequency")
+    parts = [
+        "### Quickstart\n",
+        "```sh\n"
+        f"catena init -m {entry.name}\n"
+        "catena run config.toml --dry-run\n"
+        "catena run config.toml\n"
+        "```\n",
+        f"`catena init` writes a config with the `[{entry.name}]` settings at their "
+        "defaults and every input below under `[inputs]`; point its placeholder "
+        "paths at your data before running.\n"
+        "The [quickstart](../guides/quickstart.md) walks through each step.\n",
+        "### Configuration\n",
+    ]
+    rows = _settings_rows(entry.module)
+    if rows:
+        parts += [
+            f"Every setting goes in the one `[{entry.name}]` section, whichever node "
+            "takes it.\n",
+            _table(("Setting", "Default", "Node", "Description"), rows),
+        ]
+    else:
+        parts.append(f"{_title(entry.name, short=True)} has no settings.\n")
+    parts += ["### Inputs\n"]
+    if any(row[0] == "`latitude`" for row in input_rows):
+        parts.append(
+            "`latitude` is read from a file, as a variable or a coordinate; see "
+            "[Inputs on a grid](index.md#inputs-on-a-grid).\n"
+        )
+    parts += [
+        _table(("Input", *header, "Read by", "Description"), input_rows),
+        "### Outputs\n",
+        _table(("Output", *header, "Description"), output_rows),
+    ]
+    if intermediate_rows:
+        parts += [
+            "#### Intermediate nodes\n",
+            "Not written by default; list one under `[outputs]` to write it.\n",
+            _table(("Node", *header, "Description"), intermediate_rows),
+        ]
+    parts += [
+        "### Python API\n",
+        f"See the [API documentation](../reference/modules/viresco.models/"
+        f"{entry.name}.md) for the full signatures.\n",
+    ]
+    return "\n".join(parts)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path, help="Directory for the snippets.")
@@ -314,6 +544,10 @@ def main() -> None:
     (args.output / "variables.md").write_text(variables_table(modules, found))
     (args.output / "components.svg").write_text(components_graph(modules, found))
     (args.output / "couplings.md").write_text(couplings_table(modules, found))
+    (args.output / "usage").mkdir(exist_ok=True)
+    for entry in modules:
+        if entry.kind == MODELS:
+            (args.output / "usage" / f"{entry.name}.md").write_text(usage(entry))
 
 
 if __name__ == "__main__":
