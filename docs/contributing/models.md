@@ -89,14 +89,18 @@ Two modules declaring the same setting share one value, so their defaults must a
 Where a maintained Python implementation exists, viresco wraps it and depends on it: [pyrealm](https://github.com/ImperialCollegeLondon/pyrealm) for SPLASH and the P-model, [RothC_Py](https://github.com/SatTerC/RothC_Py) for RothC, `sgam` for SGAM.
 The model's own code, its tests and its documentation of the science stay upstream; viresco holds the wrapper that makes it a set of DAG nodes.
 
-Where no such package exists, a small model can be written here in numpy, and moved to its own package if it outgrows viresco.
+Where no such package exists, a small model can be written here, in numpy or in xarray, and moved to its own package if it outgrows viresco.
 Check the upstream licence before you start: viresco is MIT-licensed.
 Code without a licence cannot be ported; write the model from its published equations instead, as ACM is.
 
 ## Anatomy of a model module
 
-A model that is one node has three layers, plus any helper nodes it needs.
-A model of several stateless nodes has no kernel or seam; see [below](#a-model-of-stateless-nodes).
+How a node computes is your call, subject to review: a numpy kernel mapped over the cells by an `apply_ufunc` seam, as RothC does, or xarray throughout, as ACM does.
+So is the layout: one module, or a [subpackage](#a-model-in-a-subpackage).
+What follows is RothC's way, a kernel behind a seam, which suits a model that is one node around an upstream package.
+A model of several stateless nodes in xarray has no kernel or seam; see [below](#a-model-of-stateless-nodes).
+
+A model that is one node around a kernel has three layers, plus any helper nodes it needs.
 
 ### 1. The kernel
 
@@ -208,9 +212,9 @@ A model without state is a few public nodes in one module, each plain xarray ari
 - **Use `xr.ufuncs`** (`xr.ufuncs.exp`, not `np.exp`), which pyright knows return a `DataArray`.
 - **The node returning the model's outputs is named for the model**, so the config section, the docs page and the main node agree.
 
-### A model too large for one module
+### A model in a subpackage { #a-model-in-a-subpackage }
 
-A larger model is a subpackage, `src/viresco/models/<name>/`, laid out however suits it.
+A model may be a subpackage, `src/viresco/models/<name>/`, rather than one module, laid out however suits it; that is your choice, usually made once a module grows too large to read.
 Its `__init__.py` imports the public nodes and their output `TypedDict`s from the submodules, lists them in `__all__`, and holds nothing else public:
 
 ```python
@@ -244,9 +248,11 @@ A node at another frequency than its model needs an entry in `OFF_FREQUENCY` in 
 
 ## Test it
 
-### What is checked for you
+Imperfect is fine: where a test would take disproportionate work, cut the corner, say so in the pull request, and open an issue for it rather than block on it.
 
-Once the module is registered, these run with nothing added:
+### Required: what is checked for you
+
+The required tests are the ones that run once the module is registered, with nothing added:
 
 | Test | Checks |
 | --- | --- |
@@ -266,8 +272,11 @@ An input read only for its calendar, as a helper node's is, declares no unit eit
 A variable with no entry in its tables gets noise inferred from its name, which is enough for most inputs.
 Add a `Var` row to `src/viresco/testing/data_gen/daily.py` or `static.py` only where the structure matters: the model responds to seasonality, another variable derives from it, or two variables must keep an order, as a daily maximum and minimum temperature must.
 The conformance run checks that the model runs on this data, not that the data or the results are plausible, so look at both once.
+A test of plausibility is not required for now ([#80](https://github.com/SatTerC/viresco/issues/80)).
 
-### What you write
+### Highly recommended: what you write
+
+These are not enforced, but a reviewer will ask for them, and a model without them needs a reason in the pull request.
 
 **The seam test.** Subclass `SeamContract` from `tests/seam.py`, in `tests/test_<model>.py` beside the model's other tests.
 It checks the seam against an independent reference, the output dimensions, that distinct cells give distinct outputs, chunked against eager inputs, and a cached against an uncached run:
@@ -301,25 +310,64 @@ The seam is called with them as keyword arguments, so any settings it takes go i
 A model of stateless nodes has no seam function: its seam is the composition of its nodes, and `driver_seam(module, outputs)` from `tests/seam.py` runs them through a catena driver, taking inputs and settings as keyword arguments.
 
 Where the science is written here, there is no package to loop over, so the reference is a scalar transcription of the published equations, evaluated one cell and day at a time with `math` (`tests/test_acm.py`).
-That catches mistakes in broadcasting, units and wiring, but not a misreading of the paper the transcription shares, so a test against published values is then required.
+That catches mistakes in broadcasting, units and wiring, but not a misreading of the paper the transcription shares, so a test against published values matters most here.
 
-**Tests of the science.** A model's own tests belong upstream, but the wrapper must still be shown to give the upstream model's answers in viresco's units.
+**Tests of the science.** A model's own tests belong upstream, but the wrapper should still be shown to give the upstream model's answers in viresco's units, and a model written here to reproduce a paper's or another implementation's numbers.
 Pin a few outputs against published values or the upstream package's own examples; `tests/test_pyrealm_units.py` does this for pyrealm, with its golden values regenerated by `just regen-pyrealm-golden` only after reviewing why they changed.
 Where a paper gives its model's outputs only in a figure, read them off, say in the test which figure and table they come from, and set a tolerance that covers the reading and the precision of the tabulated inputs; `tests/test_acm.py` does this for ACM's Toolik Lake sites.
 Test anything the wrapper adds: spin-up, masked cells, a method choice, a conversion.
 
 ## Document it { #document-it }
 
-1. **A model page**, `docs/models/<name>.md`, following [RothC](../models/rothc.md): overview, theory, then usage as quickstart, configuration, inputs, outputs and Python API, then references.
-   Its front matter gives a `title` and an `icon` from [Lucide](https://lucide.dev/icons/), as `lucide/<icon>`.
-   The overview inlines the DAG from `docs/models/_graphs/<name>.svg`, which `just graph <name>` renders and `just docs` regenerates; copy the `model-graph` block from `rothc.md`.
-   The tables of settings, inputs and outputs are rendered from the signatures and docstrings with `:::` blocks; copy them from `rothc.md`.
-   Do not restate in prose anything a table already says.
-   The theory section is where the science goes: the equations, the assumptions, and where viresco departs from the upstream model or the paper.
-   An empirical or fitted model's theory section ends with its validity: the ranges of the drivers it was fitted over, and what is known of how it extrapolates.
+1. **A model page**, `docs/models/<name>.md`, with four sections in this order:
 
-    A model of stateless nodes renders each node twice, once for its settings and once for its inputs, as [ACM](../models/acm.md) does.
-    Give the settings blocks `show_root_heading: false` under a markdown heading of their own, since two `:::` headings for one node give it two anchors with the same id.
+    | Section | Holds |
+    | --- | --- |
+    | Overview | What the model is and does, where its code comes from, and the DAG, ending with the generated guide links |
+    | Theory | The science: the equations and the assumptions, ending, for an empirical or fitted model, with its validity: the ranges of the drivers it was fitted over, and what is known of how it extrapolates |
+    | Details | The implementation: which equations from which source, and where viresco departs from the upstream model or the paper |
+    | Reference | Generated: the model's settings, inputs, outputs and intermediate nodes, with their units, frequencies and descriptions |
+
+    Theory and Details explain; Reference is looked up, so it comes last and holds no prose.
+    Write only Overview, Theory and Details: everything else on the page is generated from the code, so it cannot drift from it.
+    Copy the skeleton from [ACM](../models/acm.md):
+
+    ```markdown
+    ---
+    title: ACM
+    icon: lucide/leaf
+    ---
+
+    # Aggregated Canopy Model (ACM)
+
+    ## Overview
+
+    ...
+
+    <div class="model-graph">
+    ;--8<-- "docs/models/_graphs/acm.svg"
+    </div>
+
+    ;--8<-- "docs_tools/_generated/guides/acm.md"
+
+    ## Theory
+
+    ## Details
+
+    ## Reference
+
+    ;--8<-- "docs_tools/_generated/reference/acm.md"
+    ```
+
+    The front matter gives a `title` and an `icon` from [Lucide](https://lucide.dev/icons/), as `lucide/<icon>`.
+    `just docs` regenerates the DAG and the snippets; `just graph <name>` and `just catalogue` render them on their own.
+
+    - **Reference** comes from the config `catena init -m <name>` writes, so its tables cover the variants the settings select by default.
+      Until [NERC-CEH/catena#64](https://github.com/NERC-CEH/catena/issues/64), an input that only another variant needs gets a hand-written subsection after the snippet, with a `:::` block for the variant's node, as the [P-model](../models/pmodel.md) and [SPLASH](../models/splash.md) pages do.
+    - **The guide links** list the documented recipes and the quickstart that run the model, read from their configs; they render nothing until one does.
+    - **Citations are inline links** to a DOI or URL, in Theory or Details, such as `([Williams et al., 1997](https://doi.org/...))`.
+      There is no references list.
+    - **Do not restate in prose** anything the Reference tables say: a node's units and meaning belong in its docstring, where the table and the API reference both read them.
 
 2. **A reference page**, `docs/reference/modules/viresco.models/<name>.md`, whose body is a `:::` block for `viresco.models.<name>`, like `rothc.md` beside it.
 3. **Nav entries** for both, in `zensical.toml`: the model page under the Models section named for its `DOMAIN`, adding the section if it is the first model in that domain.
@@ -336,9 +384,10 @@ A recipe is welcome, though not required: a pipeline in `recipes/<name>/` with i
 ## What a reviewer looks for
 
 - The model fits a driven pipeline, and state stays inside its node.
-- The science is upstream or in a module of its own, cited, with its assumptions in the theory section.
+- The science is upstream or in a module of its own, cited inline, with its assumptions in Theory and its departures from the source in Details.
 - Units are declared everywhere, and match the upstream model's conventions or document where they differ.
-- The wrapper is shown to reproduce upstream values, or a model written here to reproduce published ones.
+- Ideally, the wrapper is shown to reproduce upstream values, or a model written here to reproduce published ones; where it is not, the pull request says why.
+- Corners cut are fine, provided each has an issue.
 - A fitted model says over what ranges it was fitted.
 - `just` passes: lint, type checks and the full test suite.
 

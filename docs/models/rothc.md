@@ -8,7 +8,7 @@ icon: lucide/worm
 
 ## Overview
 
-RothC simulates the turnover of soil organic carbon (SOC) in non-waterlogged soils.[^jenkinson1990] It splits SOC into five distinct compartments – four active and one inert – and accounts for soil type (clay content), temperature, moisture, and plant cover to calculate decay rates.
+RothC simulates the turnover of soil organic carbon (SOC) in non-waterlogged soils ([Jenkinson, 1990](https://doi.org/10.1098/rstb.1990.0177)). It splits SOC into five distinct compartments – four active and one inert – and accounts for soil type (clay content), temperature, moisture, and plant cover to calculate decay rates.
 
 The five pools are:
 
@@ -27,6 +27,8 @@ The DAG for a pipeline running RothC alone, with nodes coloured by declared freq
 <div class="model-graph">
 --8<-- "docs/models/_graphs/rothc.svg"
 </div>
+
+--8<-- "docs_tools/_generated/guides/rothc.md"
 
 ## Theory
 
@@ -48,6 +50,13 @@ The decomposition rates are scaled by:
 
 RothC requires initial pool sizes to begin simulation. A spin-up phase runs the model over repeated climate cycles until the pools reach equilibrium, which fixes the initial conditions.
 
+For full model details, see:
+
+- [SatTerC RothC_Py documentation](https://satterc.github.io/RothC_Py/science.html)
+- [Original model description paper](https://github.com/Rothamsted-Models/RothC_Py/blob/main/RothC_description.pdf) (Coleman, Prout and Milne, Rothamsted Research)
+
+## Details
+
 ### Evapotranspiration, not open-pan evaporation
 
 RothC's own water-balance driver is open-pan evaporation, which the underlying RothC_Py scales by 0.75 to get evapotranspiration.
@@ -56,149 +65,18 @@ There is nothing to convert, so `evap_factor` defaults to 1.0.
 
 PET, not AET, is the right driver: RothC's water balance is rainfall minus evaporative *demand*, and AET is already suppressed by the soil dryness RothC is itself computing, so feeding AET in double-counts the water limitation and holds the soil systematically too wet.
 
-For full model details, see:
-
-- [SatTerC RothC_Py documentation](https://satterc.github.io/RothC_Py/science.html)
-- [Original model description paper](https://github.com/Rothamsted-Models/RothC_Py/blob/main/RothC_description.pdf) (Coleman, Prout and Milne, Rothamsted Research)
-
-## Usage
-
-### Quickstart
-
-RothC needs potential evapotranspiration, which [SPLASH](splash.md) produces, so run the two together:
-
-```sh
-catena init -m splash -m rothc
-```
-
-RothC is monthly and SPLASH daily, so the config also needs a `[[resample]]` entry that sums SPLASH's daily potential evapotranspiration and the precipitation into monthly totals; `catena init` does not write it, and [`recipes/config.toml`](https://github.com/NERC-CEH/viresco/blob/main/recipes/config.toml) shows the entry.
-Point the placeholder paths at your data, then `catena run config.toml`.
-
-### Configuration
-
-```toml
-[rothc]
-rothc_spinup_years = 1
-```
-
-::: viresco.models.rothc.rothc
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-
-The per-PFT DPM/RPM ratios are settings of the `dpm_rpm_ratio_monthly` input-building node below, and are configured as keys of the same `[rothc]` section:
-
-::: viresco.models.rothc.dpm_rpm_ratio_monthly
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-
-### Inputs
-
-`latitude` is read from a file, as a variable or a coordinate; see [Inputs on a grid](index.md#inputs-on-a-grid).
-
-::: viresco.models.rothc.rothc
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_other_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-
 ### Input-building nodes
 
-Three of those monthly inputs are produced by this module rather than loaded.
-Each builds a monthly series out of per-cell static data, which leaves it nothing to get a calendar from — so each also takes `temperature_monthly`, read purely for its time coordinate.
+Three of RothC's monthly inputs, `plant_cover_monthly`, `dpm_rpm_ratio_monthly` and `farmyard_manure_input_monthly`, are built by this module from per-cell static data rather than loaded.
+Static data has no calendar, so each also takes `temperature_monthly`, read only for its time coordinate.
 If you supply your own version of one of these nodes, it needs a time-bearing input for the same reason.
 
-::: viresco.models.rothc.plant_cover_monthly
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: false
-      heading_level: 4
-      docstring_section_style: spacy
+### Other sources of inputs
 
-::: viresco.models.rothc.dpm_rpm_ratio_monthly
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: false
-      show_docstring_other_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
+- `inert_organic_matter` is read as data unless `inert_organic_matter_from = "falloon"` is set.
+  The node `inert_organic_matter__falloon` then derives it from `organic_carbon_stocks`, total soil organic carbon, as $\text{IOM} = 0.049\,\text{SOC}^{1.139}$ ([Falloon et al., 1998](https://doi.org/10.1016/S0038-0717(97)00256-3)).
+- `soil_carbon_input_monthly` can come from SGAM's litter pool, by the coupling `soil_carbon_input_monthly__sgam`, selected by `soil_carbon_input_monthly_from = "sgam"`; see [Couplings](../couplings.md).
 
-::: viresco.models.rothc.farmyard_manure_input_monthly
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: false
-      heading_level: 4
-      docstring_section_style: spacy
+## Reference
 
-`inert_organic_matter` is read as data unless `inert_organic_matter_from = "falloon"` is set, when it is derived from total soil organic carbon:
-
-::: viresco.models.rothc.inert_organic_matter__falloon
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-`soil_carbon_input_monthly` can come from SGAM's litter pool, by the coupling `soil_carbon_input_monthly__sgam`; see [Couplings](../couplings.md).
-
-### Outputs
-
-::: viresco.models.rothc.RothCOut
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_docstring_description: false
-      docstring_section_style: spacy
-      show_bases: false
-      members: false
-
-### Python API
-
-See the [API documentation](../reference/modules/viresco.models/rothc.md) for full function signatures and parameter details.
-
-## References
-
-[^jenkinson1990]: Jenkinson, D. S.: The Turnover of Organic Carbon and Nitrogen in Soil, Philosophical Transactions of the Royal Society of London, Series B: Biological Sciences, 329, 361–368, 1990.
-
-[^jenkinson1987]: Jenkinson, D. S., et al.: Modelling the turnover of organic matter in long-term experiments at Rothamsted, INTECOL Bulletin, 15, 1–8, 1987.
-
-[^jenkinson1977]: Jenkinson, D. S., and Rayner, J. H.: Turnover of soil organic matter in some of the Rothamsted classical experiments, Soil Science, 123, 298–305, 1977.
-
-[^bolinder2007]: Bolinder, M. A., et al.: An approach for estimating net primary productivity and annual carbon inputs to soil for common agricultural crops in Canada, Agriculture, Ecosystems & Environment, 118, 29–42, 2007.
-
-[^farina2013]: Farina, R., et al.: Modification of the RothC model for simulations of soil organic C dynamics in dryland regions, Geoderma, 200, 18–30, 2013.
-
-[^giongo2020]: Giongo, V., et al.: Optimizing multifunctional agroecosystems in irrigated dryland agriculture to restore soil carbon – Experiments and modelling, Science of the Total Environment, 725, 2020.
+--8<-- "docs_tools/_generated/reference/rothc.md"

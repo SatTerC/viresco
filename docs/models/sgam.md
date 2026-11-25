@@ -50,6 +50,8 @@ The DAG for a pipeline running SGAM alone, with nodes coloured by declared frequ
 --8<-- "docs/models/_graphs/sgam.svg"
 </div>
 
+--8<-- "docs_tools/_generated/guides/sgam.md"
+
 ## Theory
 
 ### Carbon use efficiency
@@ -117,8 +119,6 @@ SGAM ships one parameter set per PFT. The values below are its defaults; we have
 
 The pattern in those numbers is the intended one: trees hold carbon in long-lived structure, grasses turn leaves and roots over fast, shrubs tolerate drought at high water-use efficiency, crops put carbon above ground.
 
-These are not pipeline config: they come from the `sgam` package, keyed on each cell's `plant_type`, via the `pft_params` node.
-
 ### Mass balance
 
 At each timestep carbon is conserved across all live pools:
@@ -127,119 +127,18 @@ $$P_{\text{pool}}(t) = P_{\text{pool}}(t-1) + \text{NPP}_{\text{pool}}(t) - \Del
 
 A violation beyond a relative tolerance of $10^{-6}$ means something is wrong; `strict_mass_balance` decides whether that raises or warns.
 
-## Usage
+## Details
 
-### Quickstart
+### Input-building nodes
 
-```sh
-catena init -m sgam
-catena run config.toml --dry-run
-catena run config.toml
-```
+Two of the `sgam` node's inputs are built by this module rather than loaded.
 
-`catena init` writes a config listing the inputs SGAM needs; point its placeholder paths at your data before running.
-The [quickstart](../guides/quickstart.md) walks through each step.
+- `pft_params` holds the plant functional type parameters above.
+  They are not pipeline config: they come from the `sgam` package, keyed on each cell's `plant_type`.
+- `disturbances` is the daily disturbance severity, detected from daily `gpp_obs`, `lai_obs` and `temperature`.
+  SGAM reads it as `disturbances_weekly`, the weekly *maximum* of the daily severity rather than the mean: a mean dilutes one short event by the quiet days around it, and SGAM under-responds.
+  The generated config makes it with a `[[resample]]` entry of its own, `aggfunc = "max"`, as [`testing.aggregations`](../reference/modules/viresco.testing/aggregations.md) lists.
 
-### Configuration
+## Reference
 
-```toml
-[sgam]
-use_dynamic_allocation = true
-strict_mass_balance = false
-```
-
-::: viresco.models.sgam.sgam
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-
-Disturbance detection runs on daily observations and has one setting of its own, configured as a key of the same `[sgam]` section:
-
-::: viresco.models.sgam.disturbances
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-
-### Inputs
-
-`latitude` is read from a file, as a variable or a coordinate; see [Inputs on a grid](index.md#inputs-on-a-grid).
-
-::: viresco.models.sgam.sgam
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_other_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-
-Two of those inputs are produced by this module rather than loaded: `pft_params`, and the daily disturbance severity behind `disturbances_weekly`.
-
-::: viresco.models.sgam.pft_params
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-::: viresco.models.sgam.disturbances
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: false
-      show_docstring_other_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-`disturbances_weekly` is the daily severity aggregated to a weekly maximum, which the generated config does with a `[[resample]]` entry of its own, `aggfunc = "max"`, as listed in [`testing.aggregations`](../reference/modules/viresco.testing/aggregations.md).
-
-### Outputs
-
-::: viresco.models.sgam.SgamOut
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_docstring_description: false
-      docstring_section_style: spacy
-      show_bases: false
-      members: false
-
-Leaf area index is not one of them: the `leaf_area_index_weekly` node derives it from the leaf pool.
-
-::: viresco.models.sgam.leaf_area_index_weekly
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      separate_signature: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-### Python API
-
-See the [API documentation](../reference/modules/viresco.models/sgam.md) for full function signatures and parameter details.
-
-## References
-
-SGAM was developed internally by the SatTerC team. For the full scientific background and implementation details, see the [SGAM documentation](https://satterc.github.io/sgam/science.html).
+--8<-- "docs_tools/_generated/reference/sgam.md"

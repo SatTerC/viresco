@@ -9,7 +9,9 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+import xarray_annotated as xra
 from seam import SeamContract
+from xarray_annotated.units import UnitError
 
 from viresco.models.sgam import (
     _SGAM_OUTPUT_NAMES,
@@ -17,6 +19,7 @@ from viresco.models.sgam import (
     _pft_int_to_enum,
     _pft_params_from_dataset,
     _sgam,
+    sgam,
 )
 
 N_WEEKS = 52
@@ -152,6 +155,25 @@ def _reference_loop(inputs: dict) -> dict[str, np.ndarray]:
     }
 
 
+def _node_inputs() -> dict[str, xr.DataArray]:
+    """Uniform inputs for a run of the `sgam` node."""
+    ones = np.ones((N_WEEKS, N_PIXELS))
+    return {
+        "plant_type": _static(PLANT_TYPE.astype(float)),  # drives pft_params
+        "temperature_weekly": _temporal(ones * 15.0),
+        "gpp_weekly": _temporal(ones * 5.0),
+        "volumetric_water_content_weekly": _temporal(ones * 0.3),
+        "vpd_weekly": _temporal(ones * 1000.0),
+        "lue_weekly": _temporal(ones * 2.0),
+        "iwue_weekly": _temporal(ones * 100.0),
+        "disturbances_weekly": _temporal(ones * 0.0),
+        "leaf_pool_init": _static(LEAF_INIT),
+        "stem_pool_init": _static(STEM_INIT),
+        "root_pool_init": _static(ROOT_INIT),
+        "latitude": _static(LATITUDE),
+    }
+
+
 class TestSGAMSeam(SeamContract):
     seam = staticmethod(_sgam)
     outputs = _SGAM_OUTPUT_NAMES
@@ -171,18 +193,46 @@ class TestSGAMSeam(SeamContract):
 
     @pytest.fixture
     def node_inputs(self):
-        ones = np.ones((N_WEEKS, N_PIXELS))
-        return {
-            "plant_type": _static(PLANT_TYPE.astype(float)),  # drives pft_params
-            "temperature_weekly": _temporal(ones * 15.0),
-            "gpp_weekly": _temporal(ones * 5.0),
-            "volumetric_water_content_weekly": _temporal(ones * 0.3),
-            "vpd_weekly": _temporal(ones * 1000.0),
-            "lue_weekly": _temporal(ones * 2.0),
-            "iwue_weekly": _temporal(ones * 100.0),
-            "disturbances_weekly": _temporal(ones * 0.0),
-            "leaf_pool_init": _static(LEAF_INIT),
-            "stem_pool_init": _static(STEM_INIT),
-            "root_pool_init": _static(ROOT_INIT),
-            "latitude": _static(LATITUDE),
-        }
+        return _node_inputs()
+
+
+#: The units `sgam` declares for each input of `_node_inputs`.
+_NODE_UNITS = {
+    "temperature_weekly": "degC",
+    "gpp_weekly": "g m-2 d-1",
+    "volumetric_water_content_weekly": "m3 m-3",
+    "vpd_weekly": "Pa",
+    "lue_weekly": "g MJ-1",
+    "iwue_weekly": "umol mol-1",
+    "disturbances_weekly": "1",
+    "leaf_pool_init": "g m-2",
+    "stem_pool_init": "g m-2",
+    "root_pool_init": "g m-2",
+}
+
+
+def _sgam_node(**optional: xr.DataArray) -> dict[str, xr.DataArray]:
+    """Run the `sgam` node, contracts enforced, with uniform inputs."""
+    inputs = _node_inputs()
+    for name, unit in _NODE_UNITS.items():
+        inputs[name] = inputs[name].assign_attrs(units=unit)
+    with xra.enabled(True):
+        return sgam(
+            **inputs,
+            pft_params=_build_pft_params_dataset(inputs["plant_type"]),
+            **optional,
+        )
+
+
+@pytest.mark.parametrize("name", ["litter_pool_init", "removed_init"])
+def test_optional_initial_pool_is_checked(name):
+    """An initial pool given in its declared unit runs; in another, it raises."""
+    pool = _static(np.ones(N_PIXELS))
+    omitted = _sgam_node()
+    supplied = _sgam_node(**{name: pool.assign_attrs(units="g m-2")})
+    output = (
+        "litter_pool_weekly" if name == "litter_pool_init" else "removed_pool_weekly"
+    )
+    assert not np.array_equal(supplied[output].values, omitted[output].values)
+    with pytest.raises(UnitError, match=name):
+        _sgam_node(**{name: pool.assign_attrs(units="kg m-2")})

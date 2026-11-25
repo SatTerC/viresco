@@ -8,19 +8,19 @@ icon: lucide/leaf
 
 ## Overview
 
-The P-model is an optimality-based light use efficiency model for simulating ecosystem gross primary production (GPP).[^stocker2020]
-Rather than assigning fixed trait values to plant functional types (PFTs), it predicts how plants continuously acclimate to their environment based on eco-evolutionary optimality theory – the idea that plants adapt to maximise resource use efficiency.[^prentice2014]
-For a broader overview of the model's challenges and future directions, see the University of Reading LEMONTREE blog.[^lemontree2025]
+The P-model is an optimality-based light use efficiency model for simulating ecosystem gross primary production (GPP) ([Stocker et al., 2020](https://doi.org/10.5194/gmd-13-1545-2020)).
+Rather than assigning fixed trait values to plant functional types (PFTs), it predicts how plants continuously acclimate to their environment based on eco-evolutionary optimality theory – the idea that plants adapt to maximise resource use efficiency ([Prentice et al., 2014](https://doi.org/10.1111/ele.12211)).
+For a broader overview of the model's challenges and future directions, see [the University of Reading LEMONTREE blog](https://research.reading.ac.uk/lemontree/the-p-model-challenges-we-face-and-plan-to-address/).
 
 The model rests on three hypotheses:
 
 **Least-Cost Hypothesis** – Plants balance water loss during transpiration against carbon fixation capacity to minimise total cost.
-This predicts how the ratio of leaf-internal to ambient CO₂ (χ) varies with environment: χ decreases in dry air (conserving water), increases in warm conditions (water transport becomes cheaper due to lower viscosity), and decreases at high altitude (lower O₂ makes photosynthesis cheaper). [^prentice2014]
+This predicts how the ratio of leaf-internal to ambient CO₂ (χ) varies with environment: χ decreases in dry air (conserving water), increases in warm conditions (water transport becomes cheaper due to lower viscosity), and decreases at high altitude (lower O₂ makes photosynthesis cheaper) ([Prentice et al., 2014](https://doi.org/10.1111/ele.12211)).
 
 **Coordination Hypothesis** – Plants adjust their photosynthetic capacity (Vcmax) to fully utilise available light, avoiding waste.
 This yields a simple proportionality between photosynthetic capacity (at growth temperature) and incident light intensity.
 
-**Cost-Benefit Hypothesis** – Leaves balance the cost of maintaining maximum electron transport rate (Jmax) against the benefit of electron-transport-limited photosynthesis, predicting the Jmax:Vcmax ratio. [^wang2017]
+**Cost-Benefit Hypothesis** – Leaves balance the cost of maintaining maximum electron transport rate (Jmax) against the benefit of electron-transport-limited photosynthesis, predicting the Jmax:Vcmax ratio ([Wang et al., 2017](https://doi.org/10.1038/s41477-017-0006-x)).
 
 Together the three hypotheses let the P-model predict GPP without biome-specific calibration, from environmental drivers (light, temperature, CO₂, vapour pressure deficit, soil moisture) and fAPAR alone.
 
@@ -38,6 +38,8 @@ The DAG for a pipeline running the P-model alone, with nodes coloured by declare
 <div class="model-graph">
 --8<-- "docs/models/_graphs/pmodel.svg"
 </div>
+
+--8<-- "docs_tools/_generated/guides/pmodel.md"
 
 ## Theory
 
@@ -87,67 +89,33 @@ $$\text{GPP} = \text{LUE} \cdot \text{PPFD} \cdot f_{\text{APAR}}$$
 
 The P-model includes a soil moisture stress factor $\beta(\theta)$ that reduces GPP under dry conditions.
 The implementation in `pyrealm` uses the soil moisture parameter $\theta$ (volumetric water content) to modulate both $\chi$ and LUE.
+
+## Details
+
+### Soil moisture
+
 In viresco, $\theta$ reaches `pyrealm` only with the `lavergne20` optimal $\chi$ methods; see [soil moisture inputs](#inputs-soil-moisture).
 
-## Usage
-
-### Quickstart
-
-```sh
-catena init -m pmodel
-catena run config.toml --dry-run
-catena run config.toml
-```
-
-`catena init` writes a config listing the inputs the P-model needs; point its placeholder paths at your data before running.
-The [quickstart](../guides/quickstart.md) walks through each step.
-
-### Configuration
-
-```toml
-[pmodel]
-method_optchi = "prentice14"
-method_jmaxlim = "wang17"
-method_kphio = "temperature"
-method_arrhenius = "simple"
-```
-
-::: viresco.models.pmodel.pmodel
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-
-### Inputs
-
-Which inputs a run needs depends on the configured methods.
-The defaults need only the drivers under *Always required*.
-Each table after that applies only when its method is configured, and a run without that method never asks for those inputs.
+### Daily drivers
 
 Every time-varying driver is daily.
 Few datasets distribute them daily in these units: the [drivers](../drivers/index.md) derive VPD from humidity, PPFD from shortwave radiation or SPLASH, pressure from elevation, and daily fAPAR and CO₂ from composites and monthly records.
 
-#### Always required
+### Outputs for SGAM
 
-Every run needs these, whatever the methods.
+SGAM consumes GPP, LUE and iWUE as weekly means, which `recipes/config.toml` makes with a `[[resample]]` entry.
+GPP and LUE are not in the units SGAM consumes either.
+The couplings `gpp__pmodel` and `lue__pmodel` convert the daily values, where the conversion factor is visible rather than buried in a wrapper; see [Couplings](../couplings.md).
+iWUE needs no coupling, because `pyrealm` and SGAM agree on µmol mol⁻¹.
 
-::: viresco.models.pmodel.pmodel
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_other_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-      extra:
-        hide_parameters: [optchi_inputs, kphio_inputs, arrhenius_inputs]
+## Reference
+
+--8<-- "docs_tools/_generated/reference/pmodel.md"
+
+### Inputs for other methods
+
+The inputs above are those of the default methods.
+Each subsection below applies only when its method is configured, and a run without that method never asks for those inputs.
 
 #### Soil moisture, for `lavergne20` optimal χ { #inputs-soil-moisture }
 
@@ -232,33 +200,3 @@ Required when `method_arrhenius = "kattge_knorr"`.
       show_signature: false
       show_docstring_returns: false
       docstring_section_style: spacy
-
-### Outputs
-
-::: viresco.models.pmodel.PModelOut
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_docstring_description: false
-      docstring_section_style: spacy
-      show_bases: false
-      members: false
-
-SGAM consumes GPP, LUE and iWUE as weekly means, which `recipes/config.toml` makes with a `[[resample]]` entry.
-GPP and LUE are not in the units SGAM consumes either.
-The couplings `gpp__pmodel` and `lue__pmodel` convert the daily values, where the conversion factor is visible rather than buried in a wrapper; see [Couplings](../couplings.md).
-iWUE needs no coupling, because `pyrealm` and SGAM agree on µmol mol⁻¹.
-
-### Python API
-
-See the [API documentation](../reference/modules/viresco.models/pmodel.md) for full function signatures and parameter details.
-
-## References
-
-[^stocker2020]: Stocker, B. D., Wang, H., Smith, N. G., Harrison, S. P., Keenan, T. F., Sandoval, D., Davis, T., and Prentice, I. C.: P-model v1.0: an optimality-based light use efficiency model for simulating ecosystem gross primary production, Geosci. Model Dev., 13, 1545–1581, https://doi.org/10.5194/gmd-13-1545-2020, 2020.
-
-[^prentice2014]: Prentice, I. C., Dong, N., Gleason, S. M., Maire, V., and Wright, I. J.: Balancing the costs of carbon gain and water transport: testing a new theoretical framework for plant functional ecology, Ecol. Lett., 17, 82–91, https://doi.org/10.1111/ele.12211, 2014.
-
-[^lemontree2025]: Sanders, N. (ed.): The P model: challenges we face and plan to address, University of Reading LEMONTREE blog, https://research.reading.ac.uk/lemontree/the-p-model-challenges-we-face-and-plan-to-address/, 2025.
-
-[^wang2017]: Wang, H., Prentice, I. C., Keenan, T. F., Davis, T. W., Wright, I. J., Cornwell, W. K., Breon, F. M., Atkin, O. K., and Dong, N.: Towards a universal model for carbon dioxide uptake by plants, Nat. Plants, 3, 734–741, https://doi.org/10.1038/s41477-017-0006-x, 2017.

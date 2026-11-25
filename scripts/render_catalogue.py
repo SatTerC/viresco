@@ -1,6 +1,6 @@
 """Render the documentation's generated tables and graph from the registry.
 
-Three snippets, each read from the code so that it cannot drift from it:
+The snippets, each read from the code so that it cannot drift from it:
 
 - ``models.md``: the models overview table, with each model's domain, frequency,
   time behaviour and alternatives;
@@ -9,22 +9,36 @@ Three snippets, each read from the code so that it cannot drift from it:
 - ``components.svg``: one box per model and driver, joined where one consumes what
   another produces, directly or through a coupling;
 - ``couplings.md``: each coupling, the key that selects it, and the modules on
-  either side.
+  either side;
+- ``reference/<model>.md``: each model page's Reference section, from the
+  config ``catena init -m <model>`` writes: its settings, inputs, outputs and
+  intermediate nodes, each with the unit and frequency it declares and the
+  docstring that describes it;
+- ``guides/<model>.md``: links to the documented recipes and guides that run
+  the model, empty where there are none.
 
 Run through ``just catalogue``, which ``just docs`` runs first. Nothing here is
 committed: the pages include the snippets with ``pymdownx.snippets``.
 """
 
 import argparse
+import inspect
 import re
+import tomllib
 import typing
 from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import cache
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, UnionType
 
 import graphviz
+import griffe
+import tomli_w
+from catena.build import build_driver
+from catena.scaffold import generate_config
 from hamilton.graph_utils import find_functions
+from hamilton.node import DependencyType
 from render_model_graph import as_inline_html
 from xarray_annotated import declaration_from_hint
 
@@ -80,6 +94,8 @@ def _modules() -> list[Module]:
 def _is_data(hint: typing.Any) -> bool:
     if typing.get_origin(hint) is typing.Annotated:
         hint = typing.get_args(hint)[0]
+    if typing.get_origin(hint) in (typing.Union, UnionType):
+        return any(_is_data(arg) for arg in typing.get_args(hint))
     return getattr(hint, "__name__", "") == "DataArray"
 
 
@@ -302,6 +318,235 @@ def components_graph(modules: list[Module], found: dict[str, Variable]) -> str:
     return as_inline_html(graph.pipe(format="svg", encoding="utf-8")) + "\n"
 
 
+@cache
+def _griffe_module(name: str) -> griffe.Object | griffe.Alias:
+    return griffe.load(name, docstring_parser="numpy")
+
+
+def _doc_sections(obj: typing.Any) -> list[griffe.DocstringSection]:
+    """The parsed numpydoc sections of a function's or class's docstring."""
+    found = _griffe_module(obj.__module__)[obj.__qualname__]
+    return found.docstring.parsed if found.docstring else []
+
+
+def _one_line(text: str) -> str:
+    """A docstring description as one table cell."""
+    return " ".join(text.split()).replace("|", r"\|")
+
+
+def _documented(func: typing.Any, kind: griffe.DocstringSectionKind) -> dict[str, str]:
+    """Each name a function's ``kind`` section documents, with its description."""
+    return {
+        item.name: _one_line(item.description)
+        for section in _doc_sections(func)
+        if section.kind is kind
+        for item in section.value
+    }
+
+
+def _returns(func: typing.Any) -> str:
+    """The description under a function's ``Returns``, else its summary line."""
+    returns = _documented(func, griffe.DocstringSectionKind.returns)
+    if returns:
+        return next(iter(returns.values()))
+    text = _doc_sections(func)
+    summary = text[0].value if text and text[0].kind.value == "text" else ""
+    return _one_line(summary.split("\n\n", 1)[0])
+
+
+def _field_doc(cls: typing.Any, name: str) -> str:
+    """The docstring of a TypedDict's field."""
+    found = _griffe_module(cls.__module__)[cls.__qualname__]
+    member = found.members.get(name)
+    return _one_line(member.docstring.value) if member and member.docstring else ""
+
+
+def _label(hint: typing.Any) -> tuple[str, str]:
+    """A declaration's unit and frequency, as table cells."""
+    declared = declaration_from_hint(hint)
+    if declared is None:
+        return "—", "static"
+    unit = "—" if declared.unit is None else f"`{declared.unit}`"
+    freq = "static" if declared.freq is None else FREQUENCIES.get(declared.freq, "?")
+    return unit, freq
+
+
+def _has_unit(hint: typing.Any) -> bool:
+    declared = declaration_from_hint(hint)
+    return declared is not None and declared.unit is not None
+
+
+def _toml(value: typing.Any) -> str:
+    return tomli_w.dumps({"x": value}).removeprefix("x = ").strip()
+
+
+def _code_list(names: typing.Iterable[str]) -> str:
+    return ", ".join(f"`{name}`" for name in names)
+
+
+def _table(header: tuple[str, ...], rows: list[tuple[str, ...]]) -> str:
+    lines = [
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join("---" for _ in header) + " |",
+        *("| " + " | ".join(row) + " |" for row in rows),
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def _settings_rows(module: ModuleType) -> list[tuple[str, ...]]:
+    """One row per keyword-only setting of any of the module's node functions."""
+    nodes: dict[str, list[str]] = defaultdict(list)
+    defaults: dict[str, typing.Any] = {}
+    docs: dict[str, str] = {}
+    for name, func in find_functions(module):
+        documented = _documented(func, griffe.DocstringSectionKind.other_parameters)
+        for param in inspect.signature(func).parameters.values():
+            if param.kind is not inspect.Parameter.KEYWORD_ONLY:
+                continue
+            nodes[param.name].append(name)
+            defaults.setdefault(param.name, param.default)
+            if param.name not in docs and documented.get(param.name):
+                docs[param.name] = documented[param.name]
+    return [
+        (
+            f"`{setting}`",
+            "unset" if defaults[setting] is None else f"`{_toml(defaults[setting])}`",
+            _code_list(nodes[setting]),
+            docs.get(setting, ""),
+        )
+        for setting in nodes
+    ]
+
+
+def _output_hint(func: typing.Any, node: str) -> tuple[typing.Any, str]:
+    """The hint a node function declares for ``node``, and its description."""
+    returned = typing.get_type_hints(func, include_extras=True).get("return")
+    if typing.is_typeddict(returned):
+        hints = typing.get_type_hints(returned, include_extras=True)
+        return hints.get(node), _field_doc(returned, node)
+    return returned, _returns(func)
+
+
+def reference(entry: Module) -> str:
+    """A model page's Reference section, relative to ``docs/models/``.
+
+    The inputs and outputs are those of the config ``catena init -m <model>``
+    writes, from the variants its settings select by default.
+    """
+    generated = generate_config([entry.name]).data
+    settings = generated.get(entry.name, {})
+    dr = build_driver([entry.module.__name__], settings, check_contracts=False)
+    nodes = {node.name: node for node in dr.graph.get_nodes()}
+    outputs = set(generated.get("outputs", {}).get("vars", []))
+
+    consumed: dict[str, list[tuple[typing.Any, typing.Any, DependencyType]]] = (
+        defaultdict(list)
+    )
+    for node in nodes.values():
+        if node.user_defined or not node.originating_functions:
+            continue
+        func = node.originating_functions[0]
+        for dep, (hint, dependency) in node.input_types.items():
+            consumed[dep].append((func, hint, dependency))
+
+    input_rows = []
+    for name, node in sorted(nodes.items()):
+        uses = consumed.get(name, [])
+        if not node.user_defined or not any(_is_data(hint) for _, hint, _ in uses):
+            continue
+        # A consumer declaring a unit first: one that reads the input only for
+        # its calendar declares none, and describes it only as that.
+        uses.sort(key=lambda use: not _has_unit(use[1]))
+        unit, freq = _label(uses[0][1])
+        description = next(
+            (
+                doc
+                for func, _, _ in uses
+                if (
+                    doc := _documented(
+                        func, griffe.DocstringSectionKind.parameters
+                    ).get(name)
+                )
+            ),
+            "",
+        )
+        optional = all(dep is DependencyType.OPTIONAL for _, _, dep in uses)
+        label = f"`{name}`" + (" (optional)" if optional else "")
+        users = _code_list(sorted({func.__name__ for func, _, _ in uses}))
+        input_rows.append((label, unit, freq, users, description))
+
+    output_rows, intermediate_rows = [], []
+    for name, node in nodes.items():
+        if node.user_defined or not node.originating_functions:
+            continue
+        func = node.originating_functions[0]
+        hint, description = _output_hint(func, name)
+        if not _is_data(hint) or typing.is_typeddict(hint):
+            continue
+        unit, freq = _label(hint)
+        row = (f"`{name}`", unit, freq, description)
+        (output_rows if name in outputs else intermediate_rows).append(row)
+
+    header = ("Unit", "Frequency")
+    parts = [
+        f"Python API: [`{entry.module.__name__}`](../reference/modules/"
+        f"viresco.models/{entry.name}.md)\n"
+    ]
+    if rows := _settings_rows(entry.module):
+        parts += [
+            f"### Settings: `[{entry.name}]`\n",
+            _table(("Setting", "Default", "Node", "Description"), rows),
+        ]
+    parts += [
+        "### Inputs\n",
+        _table(("Input", *header, "Read by", "Description"), input_rows),
+        "### Outputs\n",
+        _table(("Output", *header, "Description"), output_rows),
+    ]
+    if intermediate_rows:
+        parts += [
+            "#### Intermediate nodes\n",
+            _table(("Node", *header, "Description"), intermediate_rows),
+        ]
+    return "\n".join(parts)
+
+
+RECIPES = ROOT / "recipes"
+
+
+def _documented_recipes() -> list[str]:
+    """The recipes in the Recipes nav, which ``documented_recipes`` must match."""
+    nav = tomllib.loads((ROOT / "zensical.toml").read_text())["project"]["nav"]
+    pages = next(entry["Recipes"] for entry in nav if "Recipes" in entry)
+    return [Path(page).stem for page in pages]
+
+
+def _notebook_title(path: Path) -> str:
+    match = re.search(r'app_title="([^"]+)"', path.read_text())
+    return match.group(1) if match else path.parent.name
+
+
+def guides(models: list[str]) -> dict[str, list[tuple[str, str]]]:
+    """For each model, the documented guides that run it, as (title, link).
+
+    Links are relative to ``docs/models/``. A recipe runs the models its
+    ``config.toml`` has sections for; the quickstart, which has no committed
+    config, runs the models its notebook passes to ``catena init -m``.
+    """
+    found: dict[str, list[tuple[str, str]]] = {model: [] for model in models}
+    quickstart = RECIPES / "quickstart" / "demo.py"
+    used = set(re.findall(r"catena init(?: -m \w+)*? -m (\w+)", quickstart.read_text()))
+    for model in sorted(used & set(models)):
+        found[model].append((_notebook_title(quickstart), "../guides/quickstart.md"))
+    for recipe in _documented_recipes():
+        sections = tomllib.loads((RECIPES / recipe / "config.toml").read_text())
+        title = _notebook_title(RECIPES / recipe / "demo.py")
+        for model in models:
+            if model in sections:
+                found[model].append((title, f"../recipes/{recipe}.md"))
+    return found
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path, help="Directory for the snippets.")
@@ -314,6 +559,15 @@ def main() -> None:
     (args.output / "variables.md").write_text(variables_table(modules, found))
     (args.output / "components.svg").write_text(components_graph(modules, found))
     (args.output / "couplings.md").write_text(couplings_table(modules, found))
+    models = [entry for entry in modules if entry.kind == MODELS]
+    for directory in ("reference", "guides"):
+        (args.output / directory).mkdir(exist_ok=True)
+    for entry in models:
+        (args.output / "reference" / f"{entry.name}.md").write_text(reference(entry))
+    for model, links in guides([entry.name for entry in models]).items():
+        lines = "".join(f"- [{title}]({link})\n" for title, link in links)
+        text = f"Guides that run this model:\n\n{lines}" if links else ""
+        (args.output / "guides" / f"{model}.md").write_text(text)
 
 
 if __name__ == "__main__":
