@@ -1,4 +1,5 @@
-/* Model DAG diagrams, inlined as SVG by `just graph <model>`. */
+/* The graph of models and drivers, inlined as SVG by `just catalogue`. Model
+   pages' graphs come from dotdoc, which styles its own. */
 
 .model-graph {
   /* Graphviz bakes a white canvas and light pastel fills into the SVG, so the

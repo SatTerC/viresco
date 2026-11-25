@@ -75,9 +75,10 @@ checkout, if present) rather than guessing at its API.
   `xr.ufuncs`. A seam with no core dimension still needs one `[]` per output in
   `output_core_dims`.
 - Model DAG graphs are generated, not committed: `just graph <model>` writes
-  `docs/models/_graphs/<model>.svg`, and `just docs` depends on `graph-all` so a
-  docs build always renders them fresh. `graph-all` loops over the registered
-  models. Likewise `just catalogue` (`scripts/render_catalogue.py`) writes the
+  `docs_tools/_generated/graphs/<model>.html`, drawn with dotdoc so each node a
+  registered module defines links to its API reference entry, and `just docs`
+  depends on `graph-all` so a docs build always renders them fresh. `graph-all`
+  loops over the registered models. Likewise `just catalogue` (`scripts/render_catalogue.py`) writes the
   models overview table, the variable catalogue, the couplings table, the
   graph of models and drivers, each model page's Reference section
   (`reference/<model>.md`) and its links to guides (`guides/<model>.md`) into

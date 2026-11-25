@@ -30,11 +30,12 @@ test-cov:
 regen-pyrealm-golden:
   uv run python scripts/regen_pyrealm_golden.py
 
-# Render a model's DAG to an SVG inlined by its docs page.
+# Render a model's DAG to the HTML snippet its docs page includes, each node
+# linked to its API reference entry (needs Graphviz).
 graph model:
-  uv run python scripts/render_model_graph.py {{model}} docs/models/_graphs/{{model}}.svg
+  uv run python scripts/render_model_graph.py {{model}} docs_tools/_generated/graphs/{{model}}.html
 
-# Re-render the graph of every registered model in docs/models/_graphs/.
+# Re-render the graph of every registered model in docs_tools/_generated/graphs/.
 graph-all:
   @for m in $(uv run python -c 'from viresco.registry import MODELS, registered; print(*registered(MODELS))'); do just graph "$m"; done
 
@@ -49,7 +50,7 @@ catalogue:
 # Depends on `graph-all` and `catalogue` because the model graphs and tables are
 # generated, not committed:
 # rendering one takes well under a second, so there is nothing to gain by
-# checking in an SVG that a signature change would silently invalidate.
+# checking in a graph that a signature change would silently invalidate.
 # `--clean` because zensical's incremental cache does not track the files pulled
 # in by `pymdownx.snippets`, so a freshly rendered graph is otherwise ignored.
 # Does not depend on `export-all`, which takes minutes, but refuses to build

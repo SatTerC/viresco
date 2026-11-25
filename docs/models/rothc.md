@@ -24,9 +24,7 @@ We forked the Python implementation from [Rothamsted Research](https://github.co
 
 The DAG for a pipeline running RothC alone, with nodes coloured by declared frequency (`1ME` for monthly):
 
-<div class="model-graph">
---8<-- "docs/models/_graphs/rothc.svg"
-</div>
+--8<-- "docs_tools/_generated/graphs/rothc.html"
 
 --8<-- "docs_tools/_generated/guides/rothc.md"
 

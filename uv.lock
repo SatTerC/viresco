@@ -2489,6 +2489,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "coverage" },
+    { name = "dotdoc", extra = ["hamilton"] },
     { name = "marimo" },
     { name = "marimo-md-export" },
     { name = "matplotlib" },
@@ -2503,6 +2504,7 @@ dev = [
     { name = "zensical" },
 ]
 docs = [
+    { name = "dotdoc", extra = ["hamilton"] },
     { name = "marimo" },
     { name = "marimo-md-export" },
     { name = "matplotlib" },
@@ -2534,6 +2536,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage", specifier = ">=7.13.5" },
+    { name = "dotdoc", extras = ["hamilton"], specifier = ">=0.1.0" },
     { name = "marimo", specifier = ">=0.23.0" },
     { name = "marimo-md-export", specifier = ">=0.5.2" },
     { name = "matplotlib", specifier = ">=3.10.8" },
@@ -2548,6 +2551,7 @@ dev = [
     { name = "zensical", specifier = ">=0.0.24,<0.0.74" },
 ]
 docs = [
+    { name = "dotdoc", extras = ["hamilton"], specifier = ">=0.1.0" },
     { name = "marimo", specifier = ">=0.23.0" },
     { name = "marimo-md-export", specifier = ">=0.5.2" },
     { name = "matplotlib", specifier = ">=3.10.8" },

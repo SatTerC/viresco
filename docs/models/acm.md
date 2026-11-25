@@ -31,9 +31,7 @@ Every intermediate node can be written out like any other, which helps in diagno
 
 The DAG for a pipeline running ACM alone, with nodes coloured by declared frequency (`D` for daily):
 
-<div class="model-graph">
---8<-- "docs/models/_graphs/acm.svg"
-</div>
+--8<-- "docs_tools/_generated/graphs/acm.html"
 
 --8<-- "docs_tools/_generated/guides/acm.md"
 
