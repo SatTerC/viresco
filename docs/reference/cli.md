@@ -5,89 +5,21 @@ icon: lucide/square-terminal
 
 # CLI
 
-The `viresco` command is mostly [catena][catena-cli]'s.
-`run`, `graph` and `subset` are mounted unchanged, so that a pipeline is driven from one entry point rather than two.
-They are documented below as they appear under `viresco`, but the behaviour is catena's and so is the explanation of it: see [catena's CLI reference][catena-cli] for what the options mean, and [scale up][catena-scale] for the workflow `subset` belongs to.
+viresco has no command of its own: pipelines are written, checked and run with [catena's CLI][catena-cli], which installs with viresco.
+viresco registers its models, drivers and couplings with catena, so a config names one by its section alone (`[splash]`), and `catena init` offers them.
 
-Only `setup` and `data-gen` are viresco's own.
-Both exist to get a pipeline running before there is any real data to run it on: `setup` writes the config, `data-gen` fills the input files it names.
+```sh
+catena init -m splash          # write a starting config
+catena run config.toml --dry-run
+catena run config.toml
+catena graph --png config.toml
+```
 
-## `viresco setup`
+`catena init` lists the inputs the chosen models need and nothing among them produces, and each model's settings at their defaults.
+It does not add the `[[resample]]` entries or `[couplings]` keys that join models at different frequencies; write those by hand, following [`recipes/config.toml`](https://github.com/NERC-CEH/viresco/blob/main/recipes/config.toml).
+Its file paths are placeholders, to be set before the pipeline runs.
 
-/// admonition | Experimental
-    type: warning
-
-`setup` is experimental, and both the command and the configs it generates may change.
-Treat its output as a starting point rather than a complete config.
-
-It scaffolds the inputs for each model's default settings only.
-Changing a setting can bring in inputs the generated config does not load, such as a P-model `method_*` key, and those have to be added by hand; see [P-model inputs](../models/pmodel.md#inputs).
-`viresco run --dry-run` reports any that are missing.
-This limitation is tracked in [#56](https://github.com/NERC-CEH/viresco/issues/56).
-///
-
-::: mkdocs-typer2
-    :module: viresco.cli
-    :name: viresco
-    :command: setup
-    :termynal: true
-    :width: 80
-    :prompt: ❯
-
-## `viresco data-gen`
-
-::: mkdocs-typer2
-    :module: viresco.cli
-    :name: viresco
-    :command: data-gen
-    :termynal: true
-    :width: 80
-    :prompt: ❯
-
-## `viresco run`
-
-::: mkdocs-typer2
-    :module: viresco.cli
-    :name: viresco
-    :command: run
-    :termynal: true
-    :width: 80
-    :prompt: ❯
-
-## `viresco graph`
-
-::: mkdocs-typer2
-    :module: viresco.cli
-    :name: viresco
-    :command: graph
-    :termynal: true
-    :width: 80
-    :prompt: ❯
-
-## `viresco subset`
-
-Commands for parallel `[subset]` runs.
-They bracket a set of independent `[subset]` runs: create the shared store once, run the subsets concurrently, then stitch the parts back together.
-
-### `viresco subset create-store`
-
-::: mkdocs-typer2
-    :module: viresco.cli
-    :name: viresco
-    :command: subset create-store
-    :termynal: true
-    :width: 80
-    :prompt: ❯
-
-### `viresco subset merge`
-
-::: mkdocs-typer2
-    :module: viresco.cli
-    :name: viresco
-    :command: subset merge
-    :termynal: true
-    :width: 80
-    :prompt: ❯
+See [catena's CLI reference][catena-cli] for every command and option, and [scale up][catena-scale] for `catena subset`.
 
 [catena-cli]: https://nerc-ceh.github.io/catena/reference/cli.html
 [catena-scale]: https://nerc-ceh.github.io/catena/guides/run/scale-up.html

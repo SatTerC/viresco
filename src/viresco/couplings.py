@@ -13,9 +13,10 @@ volumetric_water_content_from = "splash"
 
 No coupling has a default, so a key left unset adds no node and the section is
 harmless when enabled. A coupling acts at its source's frequency; a coarser
-consumer takes means or totals of it by ``[[resample]]``. `viresco setup` writes
-the keys wherever a model's input is produced, under another name or in other
-units, by another chosen model. See ``docs/adr/0003-component-kinds.md``.
+consumer takes means or totals of it by ``[[resample]]``.
+`viresco.testing.generate_config` writes the keys wherever a model's input is
+produced, under another name or in other units, by another chosen model. See
+``docs/adr/0003-component-kinds.md``.
 """
 
 from typing import Annotated

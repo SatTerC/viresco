@@ -29,9 +29,9 @@ from conftest import driver_from_config
 from hamilton.graph_utils import find_functions
 
 from viresco.registry import import_all
-from viresco.scaffold.config_gen import generate_config, get_builtin_models
-from viresco.scaffold.data_gen import generate_synthetic_data
 from viresco.temporal import time_behaviour_of
+from viresco.testing.config_gen import generate_config, get_builtin_models
+from viresco.testing.data_gen import generate_synthetic_data
 
 #: Three years, so the second half still holds the full year SPLASH needs to
 #: equilibrate its soil moisture.

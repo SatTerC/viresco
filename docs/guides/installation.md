@@ -42,7 +42,7 @@ source .venv/bin/activate
 
 ### Graphviz (for pipeline visualisation)
 
-The Python `graphviz` bindings come with the install, but `viresco graph` also needs the Graphviz system binaries:
+The Python `graphviz` bindings come with the install, but `catena graph` also needs the Graphviz system binaries:
 
 ```sh
 # Ubuntu/Debian
@@ -55,9 +55,10 @@ brew install graphviz
 ## Verify installation
 
 ```sh
-viresco --version
+catena --version
+python -c "import viresco; print(viresco.__version__)"
 ```
 
-This prints the installed Viresco version and, beneath it, the version of catena it is running on.
+These print the installed versions of catena and Viresco.
 
 [catena]: https://github.com/NERC-CEH/catena

@@ -82,7 +82,7 @@ The tests check a `pointwise` node by running it on the first half of the record
 ### Shared structure
 
 Something several models must agree on, such as the thicknesses of the soil layers, is a node they consume, not a setting each declares.
-Two modules declaring the same setting cannot both be written by `viresco setup`.
+Two modules declaring the same setting share one value, so their defaults must agree.
 
 ### Where does the science live?
 
@@ -179,7 +179,7 @@ def rothc(
 - **Units are checked, never converted.** An input in kelvin where `degC` is declared raises.
   Convert where data enters the pipeline, and do not loosen a declaration to accept a second unit.
 - **Settings are keyword-only, after `*`, with their defaults in the signature.**
-  `viresco setup` writes them into the model's config section, and every section's keys share one namespace, so name them specifically (`dpm_rate`, not `rate`).
+  `catena init` writes them into the model's config section, and every section's keys share one namespace, so name them specifically (`dpm_rate`, not `rate`).
   Prefix a name with the model's where it would otherwise be generic (`acm_canopy_height`); one already specific to the model, such as `dpm_rate`, needs no prefix.
 - **A setting is one value for the whole domain.** A parameter that describes a site and can vary in space, such as foliar nitrogen, is better a static data input.
   If it is a setting, its docstring or the model page says which site its default comes from.
@@ -222,7 +222,7 @@ from ._model import NameOut, name
 __all__ = ["NameOut", "canopy_conductance", "name"]
 ```
 
-catena, `viresco setup` and the tests all find a module's nodes as Hamilton does: the public functions in its namespace that are defined in it or in one of its submodules.
+catena, `viresco.testing` and the tests all find a module's nodes as Hamilton does: the public functions in its namespace that are defined in it or in one of its submodules.
 So everything in this page applies to the package as a whole: one frequency, one config section, one entry point naming the package.
 
 ## Register it
@@ -234,7 +234,7 @@ So everything in this page applies to the package as a whole: one frequency, one
     rothc = "viresco.models.rothc"
     ```
 
-    This is the one list of models: `viresco setup`, the docs graphs and the tests all read it.
+    This is the one list of models: `catena init`, the docs graphs and the tests all read it.
 
 2. Import it and add it to `__all__` in `src/viresco/models/__init__.py`, and set `DOMAIN` in the module to one of `viresco.registry.DOMAINS`.
 3. Run `just test`.
@@ -251,7 +251,7 @@ Once the module is registered, these run with nothing added:
 | Test | Checks |
 | --- | --- |
 | `test_model_conformance.py` | Units on every data input and output, `check_annotations` on every node that declares any, settings with defaults under `Other Parameters`, bare docstring names, docstrings on output fields |
-| `test_model_conformance.py` | The model alone, on the config `viresco setup` writes and the data `viresco data-gen` fills, with every contract enforced, on a grid, on sites and with renamed dimensions |
+| `test_model_conformance.py` | The model alone, on the config and synthetic data `viresco.testing` writes, with every contract enforced, on a grid, on sites and with renamed dimensions |
 | `test_module_frequency.py` | One frequency per model module |
 | `test_dims.py` | No dimension name in the source |
 | `test_registry.py` | Docs and reference pages, nav entries, `__all__` |
@@ -262,9 +262,9 @@ An input read only for its calendar, as a helper node's is, declares no unit eit
 
 ### Synthetic data
 
-`viresco data-gen` writes plausible data for every input a config names, taking each variable's units from the node that declares it.
+`viresco.testing.data_gen` writes plausible data for every input a config names, taking each variable's units from the node that declares it.
 A variable with no entry in its tables gets noise inferred from its name, which is enough for most inputs.
-Add a `Var` row to `src/viresco/scaffold/data_gen/daily.py` or `static.py` only where the structure matters: the model responds to seasonality, another variable derives from it, or two variables must keep an order, as a daily maximum and minimum temperature must.
+Add a `Var` row to `src/viresco/testing/data_gen/daily.py` or `static.py` only where the structure matters: the model responds to seasonality, another variable derives from it, or two variables must keep an order, as a daily maximum and minimum temperature must.
 The conformance run checks that the model runs on this data, not that the data or the results are plausible, so look at both once.
 
 ### What you write

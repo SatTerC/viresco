@@ -1,4 +1,4 @@
-"""Tests for scaffold/config_gen.py."""
+"""Tests for testing/config_gen.py."""
 
 import pytest
 import toy_subpackage
@@ -9,8 +9,8 @@ from hamilton.settings import ENABLE_POWER_USER_MODE
 from xarray_annotated import Declared, Freq, Unit, declaration_from_hint
 
 from viresco import models, temporal
-from viresco.scaffold import generate_config, get_model_config
-from viresco.scaffold.config_gen import (
+from viresco.testing import generate_config, get_model_config
+from viresco.testing.config_gen import (
     _analyze_model_module,
     _base_name,
     _infer_required_data,
@@ -476,7 +476,7 @@ def test_every_driver_is_offered_or_says_why_not():
     """A driver setup leaves out is named, with a reason, so none is dropped by
     accident."""
     from viresco.registry import DRIVERS, registered
-    from viresco.scaffold.config_gen import NOT_OFFERED, get_builtin_models
+    from viresco.testing.config_gen import NOT_OFFERED, get_builtin_models
 
     offered = set(get_builtin_models())
     for name in registered(DRIVERS):

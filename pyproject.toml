@@ -19,15 +19,12 @@ dependencies = [
     "numpy>=2.4.2",
     "xarray>=2026.2.0",
     "xarray-annotated>=0.8.0",
-    "typer>=0.24.1",
     # pyrealm is capped below 3 in case their units change
     "pyrealm>=2.0.0,<3",
     "rothc-py",
     "sgam",
 ]
 
-[project.scripts]
-viresco = "viresco.cli:main"
 
 # Registering the model and node modules under catena's entry-point group makes
 # each one addressable by a bare section name, so a config writes `[splash]` with
@@ -65,7 +62,6 @@ docs = [
     "marimo-md-export>=0.5.2",
     "mkdocstrings-python>=2.0.3",
     "zensical>=0.0.24,<0.0.74",
-    "mkdocs-typer2[termynal]>=0.4.1",
 ]
 recipes = [
     "matplotlib>=3.10.8",
@@ -83,7 +79,7 @@ module-name = "viresco"
 
 [tool.uv]
 exclude-newer = "1 week"
-exclude-newer-package = { marimo-md-export = false , xarray-annotated = false , ukceh-catena = false , sgam = false , rothc-py = false , xharvest = false }
+exclude-newer-package = { marimo-md-export = false , xarray-annotated = false , ukceh-catena = false , dotdoc = false , sgam = false , rothc-py = false , xharvest = false }
 
 [tool.uv.sources]
 rothc-py = { git = "https://github.com/SatTerC/rothc_py.git" }
@@ -120,8 +116,6 @@ select = [
 # Except tests and scripts from docstring requirements
 "tests/**" = ["D", "E501"]
 "scripts/**" = ["D"]
-# Typer CLI modules use typer.Option() in function signatures as standard practice.
-"src/viresco/cli/**" = ["B008"]
 # Marimo recipe notebooks use bare expressions for display output (B018),
 # contain prose that naturally exceeds 88 chars (E501),
 # include academic citations with en dashes (RUF001),

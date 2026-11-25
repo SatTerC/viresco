@@ -15,7 +15,7 @@ Viresco implements version 1, as published by Williams et al. (1997).
 The later variants used in DALEC and CARDAMOM differ in structure as well as parameters, and are not reproduced here.
 
 ACM carries no state from one day to the next: each day's GPP depends only on that day's drivers.
-LAI is an observed input, so ACM needs no vegetation model upstream, and its GPP can drive [SGAM](sgam.md) through the weekly resampling `viresco setup` writes.
+LAI is an observed input, so ACM needs no vegetation model upstream, and its GPP can drive [SGAM](sgam.md) through a weekly `[[resample]]` entry, as in `recipes/config.toml`.
 
 Having no state, ACM is not one node but four, split where the later variants of ACM differ from version 1:
 
@@ -98,12 +98,13 @@ Outside those ranges ACM extrapolates, and the authors found it underpredicts be
 ACM needs only meteorology, observed LAI and latitude, so it runs on its own:
 
 ```sh
-viresco setup --models acm --defaults
-viresco data-gen config.toml --grid 1 1 --duration 1y --seed 42
-viresco run config.toml
+catena init -m acm
+catena run config.toml --dry-run
+catena run config.toml
 ```
 
-The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
+`catena init` writes a config listing the inputs ACM needs; point its placeholder paths at your data before running.
+The [quickstart](../guides/quickstart.md) walks through each step.
 
 ### Configuration
 

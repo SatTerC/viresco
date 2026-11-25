@@ -6,7 +6,7 @@ icon: lucide/square-function
 # Python API
 
 Building and running a pipeline is catena's job, and viresco adds no wrapper around it.
-Everything `viresco run` does is available from Python through [catena's API][catena-api]:
+Everything `catena run` does is available from Python through [catena's API][catena-api]:
 
 ```python
 import catena
@@ -14,7 +14,7 @@ import catena
 report = catena.run("config.toml")
 ```
 
-What viresco supplies is the modules that config points at, and the scaffolding for getting to a config in the first place.
+What viresco supplies is the modules that config points at.
 
 ## Models
 
@@ -51,28 +51,29 @@ The [Drivers](../drivers/index.md) page shows how a config uses them.
 | --- | --- |
 | [`viresco.couplings`](modules/viresco.couplings.md) | One model's outputs as another's inputs, each selected by `<target>_from = "<source>"`. |
 
-## Scaffolding
+## Testing
 
-`viresco setup` and `viresco data-gen` are thin wrappers over the functions below, so a config and a set of synthetic inputs can be produced from a script or a notebook as easily as from the terminal.
+`viresco.testing` writes configs and synthetic inputs for the test suite and for developing a model before it has real data.
+Its config generator adds the resamples and couplings between models that `catena init` leaves out.
 
 | Name | Does |
 | --- | --- |
-| [`get_builtin_models`](modules/viresco.scaffold/config_gen.md#viresco.scaffold.config_gen.get_builtin_models) | The model names `viresco setup` offers. |
-| [`get_model_config`](modules/viresco.scaffold/config_gen.md#viresco.scaffold.config_gen.get_model_config) | The settings one model accepts, with their defaults and descriptions. |
-| [`generate_config`](modules/viresco.scaffold/config_gen.md#viresco.scaffold.config_gen.generate_config) | A runnable config for a chosen set of models, inputs and outputs wired up. |
-| [`generate_synthetic_data`](modules/viresco.scaffold/data_gen/generate.md#viresco.scaffold.data_gen.generate.generate_synthetic_data) | Input files for every `[inputs.*]` section a config names. |
+| [`get_builtin_models`](modules/viresco.testing/config_gen.md#viresco.testing.config_gen.get_builtin_models) | The model and driver names `generate_config` accepts. |
+| [`get_model_config`](modules/viresco.testing/config_gen.md#viresco.testing.config_gen.get_model_config) | The settings one model accepts, with their defaults and descriptions. |
+| [`generate_config`](modules/viresco.testing/config_gen.md#viresco.testing.config_gen.generate_config) | A runnable config for a chosen set of models, inputs and outputs wired up. |
+| [`generate_synthetic_data`](modules/viresco.testing/data_gen/generate.md#viresco.testing.data_gen.generate.generate_synthetic_data) | Input files for every `[inputs.*]` section a config names. |
 
 ### Modules
 
 | Module | Contents |
 | --- | --- |
-| [`viresco.scaffold.config_gen`](modules/viresco.scaffold/config_gen.md) | Reading a model's signatures to work out what it needs, and writing the TOML that supplies it. |
-| [`viresco.scaffold.aggregations`](modules/viresco.scaffold/aggregations.md) | Variables coarsened by something other than a mean, and the aggregation they get instead. |
-| [`viresco.scaffold.data_gen.generate`](modules/viresco.scaffold/data_gen/generate.md) | Config in, input files out. |
-| [`viresco.scaffold.data_gen.spec`](modules/viresco.scaffold/data_gen/spec.md) | What a variable's generator is handed: the grid, the calendar, and the values already computed. |
-| [`viresco.scaffold.data_gen.daily`](modules/viresco.scaffold/data_gen/daily.md) | The daily variables with a hand-written generator. |
-| [`viresco.scaffold.data_gen.static`](modules/viresco.scaffold/data_gen/static.md) | The same for time-invariant variables. |
-| [`viresco.scaffold.data_gen.fallback`](modules/viresco.scaffold/data_gen/fallback.md) | What a variable gets when no table entry names it: a kind inferred from the name, and noise to match. |
+| [`viresco.testing.config_gen`](modules/viresco.testing/config_gen.md) | Reading a model's signatures to work out what it needs, and writing the TOML that supplies it. |
+| [`viresco.testing.aggregations`](modules/viresco.testing/aggregations.md) | Variables coarsened by something other than a mean, and the aggregation they get instead. |
+| [`viresco.testing.data_gen.generate`](modules/viresco.testing/data_gen/generate.md) | Config in, input files out. |
+| [`viresco.testing.data_gen.spec`](modules/viresco.testing/data_gen/spec.md) | What a variable's generator is handed: the grid, the calendar, and the values already computed. |
+| [`viresco.testing.data_gen.daily`](modules/viresco.testing/data_gen/daily.md) | The daily variables with a hand-written generator. |
+| [`viresco.testing.data_gen.static`](modules/viresco.testing/data_gen/static.md) | The same for time-invariant variables. |
+| [`viresco.testing.data_gen.fallback`](modules/viresco.testing/data_gen/fallback.md) | What a variable gets when no table entry names it: a kind inferred from the name, and noise to match. |
 
 ## Shared
 

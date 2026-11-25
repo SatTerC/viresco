@@ -1,7 +1,7 @@
 """The `viresco.drivers` modules drive the daily P-model through a real config.
 
 The unit tests check each node on its own. This runs them as catena sections, on
-data from `viresco data-gen`, so a wiring mistake shows: a variant that asks for
+synthetic data from `viresco.testing`, so a wiring mistake shows: a variant that asks for
 an input no section supplies, a contract a node's output fails downstream, or a
 section name that does not resolve.
 """
@@ -9,9 +9,11 @@ section name that does not resolve.
 import numpy as np
 import pytest
 import xarray as xr
+from catena import load_config
+from catena.cli.app import app
 from typer.testing import CliRunner
 
-from viresco.cli import app
+from viresco.testing.data_gen import generate_synthetic_data
 
 CONFIG = """\
 [splash]
@@ -89,9 +91,9 @@ def test_drivers_drive_the_pmodel(tmp_path, monkeypatch, vpd_from, ppfd_from):
     (tmp_path / "outputs").mkdir()
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
+    generate_synthetic_data(load_config(config), grid=(2, 2), n_days=730)
 
     for args in (
-        ["data-gen", str(config), "--grid", "2", "2", "--duration", "2y"],
         ["run", str(config), "--dry-run"],
         ["run", str(config)],
     ):

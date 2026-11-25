@@ -2,7 +2,7 @@
 
 The rest of the suite runs with contract validation off (see `conftest`): the
 fixtures are deliberately tiny, and a two-timestep array has no inferable
-frequency. That leaves nothing checking that what `data-gen` writes actually
+frequency. That leaves nothing checking that what `data_gen` writes actually
 matches the units and frequencies the model modules declare — a table row with
 the wrong units would pass every other test and only fail in a real run.
 
@@ -18,7 +18,7 @@ import xarray_annotated as xra
 from catena import ParsedConfig, get_final_vars, load_config, load_inputs
 from conftest import driver_from_config
 
-from viresco.scaffold.data_gen import generate_synthetic_data
+from viresco.testing.data_gen import generate_synthetic_data
 
 EXAMPLE_CONFIG = Path(__file__).parent.parent / "recipes" / "config.toml"
 

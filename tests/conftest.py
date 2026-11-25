@@ -6,7 +6,7 @@ import pytest
 import xarray as xr
 from catena import build_driver, load_config, load_inputs
 
-from viresco.scaffold.data_gen import generate_synthetic_data
+from viresco.testing.data_gen import generate_synthetic_data
 
 # The fixtures build DAGs and run models over deliberately small, synthetic
 # arrays. Contract validation is catena's job and is exercised by catena's own

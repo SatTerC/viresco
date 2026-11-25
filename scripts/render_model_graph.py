@@ -2,7 +2,7 @@
 
 `catena.build_graph` visualises a whole pipeline, so this builds the smallest
 config that exercises a single model — the model's own section plus the inputs
-and outputs `viresco.scaffold.config_gen` infers for it — and graphs that. The
+and outputs `viresco.testing.config_gen` infers for it — and graphs that. The
 I/O paths in the generated config are never opened: building the graph reads
 the DAG's contracts, not the data.
 
@@ -16,7 +16,7 @@ from pathlib import Path
 
 from catena import build_graph
 
-from viresco.scaffold.config_gen import generate_config
+from viresco.testing.config_gen import generate_config
 
 #: Placeholder I/O paths. `generate_config` requires them; nothing reads them.
 PATHS = {

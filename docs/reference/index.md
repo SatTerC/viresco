@@ -14,8 +14,8 @@ Anything about the carbon and water cycle models, the config generator, or the s
 
 <div class="grid cards" markdown>
 
-- **[CLI](cli.md)** — `viresco setup`, which writes a starting config, and `viresco data-gen`, which fills its input files with synthetic data. The other subcommands are catena's, mounted unchanged.
-- **[Python API](python-api.md)** — the model modules, the scaffolding behind `setup` and `data-gen`, and every module's signatures.
+- **[CLI](cli.md)** — catena's commands, with viresco's modules registered for them.
+- **[Python API](python-api.md)** — the model modules, the test tooling in `viresco.testing`, and every module's signatures.
 
 </div>
 

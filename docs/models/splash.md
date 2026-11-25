@@ -103,12 +103,13 @@ The input dates must also be consecutive days, and a missing date stops the run 
 ### Quickstart
 
 ```sh
-viresco setup --models splash --defaults
-viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42
-viresco run config.toml
+catena init -m splash
+catena run config.toml --dry-run
+catena run config.toml
 ```
 
-The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
+`catena init` writes a config listing the inputs SPLASH needs; point its placeholder paths at your data before running.
+The [quickstart](../guides/quickstart.md) walks through each step.
 For calibrating `max_soil_moisture` against observations, see the [soil moisture recipe](../recipes/soil_moisture.md).
 
 ### Configuration

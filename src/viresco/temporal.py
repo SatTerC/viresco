@@ -8,9 +8,9 @@ daily nodes have bare names (``temperature``); coarser ones carry a suffix
 not a catena one. Static nodes are bare too, so a bare name is daily or static,
 and only the declared `Freq`, or the absence of one, tells them apart.
 
-`viresco.models` declares these as `Freq` contracts, `viresco.scaffold.config_gen`
+`viresco.models` declares these as `Freq` contracts, `viresco.testing.config_gen`
 reads them to sort a generated config's variables and writes them into its
-``[[resample]]`` entries, and `viresco.scaffold.data_gen` resamples synthetic
+``[[resample]]`` entries, and `viresco.testing.data_gen` resamples synthetic
 data onto them.
 
 The offsets are unanchored, so ``Freq("7D")`` constrains the spacing only: a

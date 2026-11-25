@@ -68,12 +68,11 @@ For full model details, see:
 RothC needs potential evapotranspiration, which [SPLASH](splash.md) produces, so run the two together:
 
 ```sh
-viresco setup --models splash --models rothc --defaults
-viresco data-gen config.toml --grid 1 1 --duration 2y --seed 42
-viresco run config.toml
+catena init -m splash -m rothc
 ```
 
-The [quickstart](../guides/quickstart.md) walks through what each of those does, and how to point the config at your own data instead of the synthetic set.
+RothC is monthly and SPLASH daily, so the config also needs a `[[resample]]` entry that sums SPLASH's daily potential evapotranspiration and the precipitation into monthly totals; `catena init` does not write it, and [`recipes/config.toml`](https://github.com/NERC-CEH/viresco/blob/main/recipes/config.toml) shows the entry.
+Point the placeholder paths at your data, then `catena run config.toml`.
 
 ### Configuration
 

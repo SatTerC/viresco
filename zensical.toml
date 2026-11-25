@@ -57,13 +57,13 @@ nav = [
           "reference/modules/viresco.drivers/pressure.md",
           "reference/modules/viresco.drivers/interpolate.md",
           "reference/modules/viresco.couplings.md",
-          "reference/modules/viresco.scaffold/config_gen.md",
-          "reference/modules/viresco.scaffold/aggregations.md",
-          "reference/modules/viresco.scaffold/data_gen/generate.md",
-          "reference/modules/viresco.scaffold/data_gen/spec.md",
-          "reference/modules/viresco.scaffold/data_gen/daily.md",
-          "reference/modules/viresco.scaffold/data_gen/static.md",
-          "reference/modules/viresco.scaffold/data_gen/fallback.md",
+          "reference/modules/viresco.testing/config_gen.md",
+          "reference/modules/viresco.testing/aggregations.md",
+          "reference/modules/viresco.testing/data_gen/generate.md",
+          "reference/modules/viresco.testing/data_gen/spec.md",
+          "reference/modules/viresco.testing/data_gen/daily.md",
+          "reference/modules/viresco.testing/data_gen/static.md",
+          "reference/modules/viresco.testing/data_gen/fallback.md",
           "reference/modules/viresco.temporal.md",
       ]},
   ]},
@@ -162,11 +162,7 @@ combine_header_slug = true
 custom_checkbox = true
 [project.markdown_extensions.pymdownx.tilde]
 
-# mkdocs-typer2
 [project.markdown_extensions.tables]
-[project.markdown_extensions."mkdocs_typer2.markdown:makeExtension"]
-pretty = false
-engine = "native"
 
 # Mkdocstrings
 # ------------
