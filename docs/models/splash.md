@@ -17,9 +17,7 @@ The [pyrealm SPLASH documentation](https://pyrealm.readthedocs.io/en/latest/user
 
 The DAG for a pipeline running SPLASH alone, with nodes coloured by declared frequency (`D` for daily):
 
-<div class="model-graph">
---8<-- "docs/models/_graphs/splash.svg"
-</div>
+--8<-- "docs_tools/_generated/graphs/splash.html"
 
 --8<-- "docs_tools/_generated/guides/splash.md"
 

@@ -35,9 +35,7 @@ Because the model is nonlinear, those are not the outputs of a run on weekly mea
 
 The DAG for a pipeline running the P-model alone, with nodes coloured by declared frequency (`D` for daily):
 
-<div class="model-graph">
---8<-- "docs/models/_graphs/pmodel.svg"
-</div>
+--8<-- "docs_tools/_generated/graphs/pmodel.html"
 
 --8<-- "docs_tools/_generated/guides/pmodel.md"
 

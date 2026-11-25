@@ -44,11 +44,10 @@ flowchart TD
     ROOT -. "disturbance (crops)" .-> LIT
 ```
 
-The DAG for a pipeline running SGAM alone, with nodes coloured by declared frequency (`7D` for weekly, `D` for daily). It is a large graph — 24 outputs — so it scrolls inside its box:
+The DAG for a pipeline running SGAM alone, with nodes coloured by declared frequency (`7D` for weekly, `D` for daily).
+It is a large graph, with 24 outputs, so the buttons above it zoom it and expand it to the window:
 
-<div class="model-graph">
---8<-- "docs/models/_graphs/sgam.svg"
-</div>
+--8<-- "docs_tools/_generated/graphs/sgam.html"
 
 --8<-- "docs_tools/_generated/guides/sgam.md"
 

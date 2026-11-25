@@ -344,9 +344,7 @@ Test anything the wrapper adds: spin-up, masked cells, a method choice, a conver
 
     ...
 
-    <div class="model-graph">
-    ;--8<-- "docs/models/_graphs/acm.svg"
-    </div>
+    ;--8<-- "docs_tools/_generated/graphs/acm.html"
 
     ;--8<-- "docs_tools/_generated/guides/acm.md"
 

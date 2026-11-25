@@ -56,8 +56,10 @@ dev = [
     "ruff>=0.15.4",
     "rust-just>=1.46.0",
 ]
+# dotdoc draws the model graphs, linking each node to its API reference entry.
 docs = [
     {include-group = "recipes"},
+    "dotdoc[hamilton]>=0.1.0",
     "marimo>=0.23.0",
     "marimo-md-export>=0.5.2",
     "mkdocstrings-python>=2.0.3",

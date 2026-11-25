@@ -39,7 +39,6 @@ from catena.build import build_driver
 from catena.scaffold import generate_config
 from hamilton.graph_utils import find_functions
 from hamilton.node import DependencyType
-from render_model_graph import as_inline_html
 from xarray_annotated import declaration_from_hint
 
 from viresco import temporal
@@ -274,6 +273,20 @@ def couplings_table(modules: list[Module], found: dict[str, Variable]) -> str:
 
 def _base(name: str) -> str:
     return re.sub(r"_(weekly|monthly)$", "", name)
+
+
+def as_inline_html(svg: str) -> str:
+    """Strip the SVG down to something markdown will pass through untouched.
+
+    The XML prolog and doctype go because the fragment is inlined into a page
+    rather than served as a document. The fixed ``width``/``height`` go too, so
+    the ``viewBox`` scales the drawing to its container. A blank line anywhere
+    inside would end the raw-HTML block and leave the remainder as literal
+    text, so those are collapsed as well.
+    """
+    svg = svg[svg.index("<svg") :]
+    svg = re.sub(r'<svg width="[^"]*" height="[^"]*"', "<svg", svg, count=1)
+    return re.sub(r"\n\s*\n+", "\n", svg).strip()
 
 
 def components_graph(modules: list[Module], found: dict[str, Variable]) -> str:
