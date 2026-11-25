@@ -7,7 +7,7 @@ icon: lucide/leaf
 
 ## Overview
 
-ACM predicts daily gross primary productivity (GPP) of a whole canopy from a handful of drivers available at daily and regional scales.[^williams1997]
+ACM predicts daily gross primary productivity (GPP) of a whole canopy from a handful of drivers available at daily and regional scales ([Williams et al., 1997](https://doi.org/10.1890/1051-0761%281997%29007%5B0882%3APGPPIT%5D2.0.CO%3B2)).
 It was built as an emulator of a multilayer soil–plant–atmosphere model of half-hourly canopy processes: ten parameters were fitted so that ACM reproduced that model's daily GPP over a wide range of LAI, foliar nitrogen, temperature, irradiance, CO2, canopy height and soil water.
 Without refitting, it then predicted measured GPP at Harvard Forest, at wet-sedge tundra sites at Toolik Lake, Alaska, and along a transect of Oregon conifer forests.
 
@@ -35,9 +35,11 @@ The DAG for a pipeline running ACM alone, with nodes coloured by declared freque
 --8<-- "docs/models/_graphs/acm.svg"
 </div>
 
+--8<-- "docs_tools/_generated/guides/acm.md"
+
 ## Theory
 
-Equation numbers are those of the paper; symbols are as in its Table 2, and the settings below give each one's name in the config.
+Equation numbers are those of the paper; symbols are as in its Table 2, and the settings table under [Reference](#reference) gives each one's name in the config.
 
 The daily mean temperature $T$ and half-range $D_T$ come from the daily extremes, $T = (T_\max + T_\min)/2$ and $D_T = (T_\max - T_\min)/2$.
 
@@ -74,6 +76,14 @@ $$
 P_T = p_I (d_1 D_{ms} + d_2) \tag{9}
 $$
 
+### Validity
+
+The parameters were fitted over the driver ranges of the paper's Table 1: LAI 0.5–8, foliar N 1–4 g m-2, mean temperature 7–30 °C, half-range 1–12 °C, $C_a$ 250–750 ppm, $\Psi_d$ −0.5 to −4 MPa, canopy height 0.5–50 m, latitude 0–70° N and days of year 173–365.
+GPP below 1 g m-2 d-1 was excluded from the fit.
+Outside those ranges ACM extrapolates, and the authors found it underpredicts below an LAI of about 2.
+
+## Details
+
 ### Where viresco departs from the paper
 
 - **Days from midsummer** is computed by the `acm_days_from_midsummer` node, around the calendar, from the solstice of the cell's hemisphere: day 173 in the north, as in the paper, and day 355 in the south, which the paper does not cover.
@@ -83,193 +93,16 @@ $$
 - **Zero LAI** gives zero GPP, where the equations give $0/0$.
 - **Frost.** For the Oregon transect the paper set GPP to zero on days below −2 °C. That is part of the application, not the model, and is not applied.
 
-### Validity
+### Site settings
 
-The parameters were fitted over the driver ranges of the paper's Table 1: LAI 0.5–8, foliar N 1–4 g m-2, mean temperature 7–30 °C, half-range 1–12 °C, $C_a$ 250–750 ppm, $\Psi_d$ −0.5 to −4 MPa, canopy height 0.5–50 m, latitude 0–70° N and days of year 173–365.
-GPP below 1 g m-2 d-1 was excluded from the fit.
-Outside those ranges ACM extrapolates, and the authors found it underpredicts below an LAI of about 2.
+Of ACM's settings, the calibrated parameters default to the paper's Table 2.
+Three describe the site instead: `acm_foliar_nitrogen`, `acm_canopy_height` and `acm_water_potential_difference`.
+They default to Harvard Forest (the paper's Table 4), so set them for yours.
+
+### Tests
 
 `tests/test_acm.py` checks viresco's implementation against the paper's predictions for the six Toolik Lake plots (its Table 5 and Fig. 3).
 
-## Usage
+## Reference
 
-### Quickstart
-
-ACM needs only meteorology, observed LAI and latitude, so it runs on its own:
-
-```sh
-catena init -m acm
-catena run config.toml --dry-run
-catena run config.toml
-```
-
-`catena init` writes a config listing the inputs ACM needs; point its placeholder paths at your data before running.
-The [quickstart](../guides/quickstart.md) walks through each step.
-
-### Configuration
-
-The calibrated parameters default to the paper's Table 2.
-Foliar nitrogen, canopy height and the water potential difference describe the site, and default to Harvard Forest (the paper's Table 4); set them for yours.
-All of them go in the one `[acm]` section, whichever node takes them:
-
-```toml
-[acm]
-acm_foliar_nitrogen = 1.92
-acm_canopy_height = 24.0
-acm_water_potential_difference = -2.5
-```
-
-#### `acm_nitrogen_limited_capacity` { #settings-acm_nitrogen_limited_capacity }
-
-::: viresco.models.acm.acm_nitrogen_limited_capacity
-    options:
-      show_root_heading: false
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: false
-      show_docstring_raises: false
-      show_docstring_description: false
-      show_docstring_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-#### `acm_canopy_conductance` { #settings-acm_canopy_conductance }
-
-::: viresco.models.acm.acm_canopy_conductance
-    options:
-      show_root_heading: false
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: false
-      show_docstring_raises: false
-      show_docstring_description: false
-      show_docstring_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-#### `acm_seasonal_factor` { #settings-acm_seasonal_factor }
-
-::: viresco.models.acm.acm_seasonal_factor
-    options:
-      show_root_heading: false
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: false
-      show_docstring_raises: false
-      show_docstring_description: false
-      show_docstring_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-#### `acm` { #settings-acm }
-
-::: viresco.models.acm.acm
-    options:
-      show_root_heading: false
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: false
-      show_docstring_raises: false
-      show_docstring_description: false
-      show_docstring_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-### Inputs
-
-`latitude` is read from a file, as a variable or a coordinate; see [Inputs on a grid](index.md#inputs-on-a-grid).
-`acm_days_from_midsummer` takes `lai_obs` only for its daily calendar.
-
-::: viresco.models.acm.acm_days_from_midsummer
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: true
-      show_docstring_raises: false
-      show_docstring_other_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-::: viresco.models.acm.acm_nitrogen_limited_capacity
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: true
-      show_docstring_raises: false
-      show_docstring_other_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-::: viresco.models.acm.acm_canopy_conductance
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: true
-      show_docstring_raises: false
-      show_docstring_other_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-::: viresco.models.acm.acm_seasonal_factor
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: true
-      show_docstring_raises: false
-      show_docstring_other_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-::: viresco.models.acm.acm
-    options:
-      show_root_heading: true
-      show_root_full_path: false
-      show_root_toc_entry: false
-      show_signature: false
-      separate_signature: false
-      show_docstring_returns: false
-      show_docstring_raises: false
-      show_docstring_other_parameters: false
-      heading_level: 4
-      docstring_section_style: spacy
-
-### Outputs
-
-The intermediate nodes above can be listed as outputs too, in the units their tables give.
-
-::: viresco.models.acm.AcmOut
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_docstring_description: false
-      docstring_section_style: spacy
-      show_bases: false
-      members: false
-
-### Python API
-
-See the [API documentation](../reference/modules/viresco.models/acm.md) for full function signatures and parameter details.
-
-## References
-
-[^williams1997]: Williams, M., Rastetter, E. B., Fernandes, D. N., Goulden, M. L., Shaver, G. R., and Johnson, L. C.: Predicting gross primary productivity in terrestrial ecosystems, Ecological Applications, 7, 882–894, 1997.
+--8<-- "docs_tools/_generated/reference/acm.md"

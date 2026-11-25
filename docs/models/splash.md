@@ -8,7 +8,7 @@ icon: lucide/droplet
 
 ## Overview
 
-SPLASH (Simple Process-led Algorithms for Simulating Habitats) is a water balance model that estimates soil moisture, actual evapotranspiration (AET) and surface water runoff for sites.[^davis2017]
+SPLASH (Simple Process-led Algorithms for Simulating Habitats) is a water balance model that estimates soil moisture, actual evapotranspiration (AET) and surface water runoff for sites ([Davis et al., 2017](https://doi.org/10.5194/gmd-10-689-2017)).
 
 The model takes an initial estimate of soil moisture, then uses time series of precipitation, temperature and sunshine fraction to track how the daily water balance changes with incoming precipitation, condensation and AET. Soil moisture, temperature and downwelling solar radiation at the site all feed into AET and condensation, which is why the site's elevation and latitude are required inputs.
 
@@ -20,6 +20,8 @@ The DAG for a pipeline running SPLASH alone, with nodes coloured by declared fre
 <div class="model-graph">
 --8<-- "docs/models/_graphs/splash.svg"
 </div>
+
+--8<-- "docs_tools/_generated/guides/splash.md"
 
 ## Theory
 
@@ -46,11 +48,13 @@ $$
 The capacity also limits how fast the soil can supply water for evaporation, with supply rate $S_w = S_c W_{n[t-1]} / W_m$, where $S_c$ is 1.05 mm·h⁻¹.
 $W_m$ comes from the required `max_soil_moisture` input, so it can vary per cell.
 
+## Details
+
 /// admonition | Results differ from pyrealm 2.0.0 called directly
     type: note
 
 pyrealm 2.0.0 uses the configured capacity for runoff but a fixed 150 mm for the supply rate.
-This wrapper applies the configured capacity to both, as the equation above and Davis et al. (2017) specify, so its results differ from a direct pyrealm call wherever capacity is not 150 mm.
+This wrapper applies the configured capacity to both, as the water balance under [Theory](#theory) and [Davis et al. (2017)](https://doi.org/10.5194/gmd-10-689-2017) specify, so its results differ from a direct pyrealm call wherever capacity is not 150 mm.
 ///
 
 ### Initial soil moisture estimation
@@ -68,7 +72,7 @@ That skips the spin-up, so the year minimum and the dependence on block size no 
 
 ### Sunshine fraction from measured radiation
 
-SPLASH works out all of its radiation from the sunshine fraction $s_f$: the shortwave reaching the ground as $\tau R_a$, with transmissivity $\tau = (0.25 + 0.5\,s_f)(1 + 2.67\times10^{-5} z)$ (Linacre, 1968) and $R_a$ the radiation at the top of the atmosphere, and the net longwave from $s_f$ and temperature.
+SPLASH works out all of its radiation from the sunshine fraction $s_f$: the shortwave reaching the ground as $\tau R_a$, with transmissivity $\tau = (0.25 + 0.5\,s_f)(1 + 2.67\times10^{-5} z)$ ([Linacre, 1968](https://doi.org/10.1016/0002-1571(68)90022-8)) and $R_a$ the radiation at the top of the atmosphere, and the net longwave from $s_f$ and temperature.
 It has no way to take measured radiation instead.
 
 Sites with a radiometer but no sunshine recorder, such as COSMOS-UK's, can set `sunshine_fraction_method = "shortwave"` and supply `shortwave_radiation`.
@@ -77,7 +81,7 @@ Sites with a radiometer but no sunshine recorder, such as COSMOS-UK's, can set `
 Two things follow:
 
 - The result is clipped to 0–1. A day whose transmissivity is below 0.25 clips to 0, and on it SPLASH's shortwave exceeds the measurement. Overcast days often fall there: at the COSMOS-UK site in Chimney Meadows, a third of November–February days do.
-- Net longwave still comes from Prentice et al. (1993), through the recovered $s_f$, so any longwave measurement goes unused.
+- Net longwave still comes from [Prentice et al. (1993)](https://doi.org/10.1016/0304-3800(93)90126-D), through the recovered $s_f$, so any longwave measurement goes unused.
 
 ### Missing values
 
@@ -98,59 +102,14 @@ Model failures come from pyrealm 2.0.0, whose AET calculation can return NaN at 
 
 The input dates must also be consecutive days, and a missing date stops the run with an error, because pyrealm steps through days by position.
 
-## Usage
+## Reference
 
-### Quickstart
+--8<-- "docs_tools/_generated/reference/splash.md"
 
-```sh
-catena init -m splash
-catena run config.toml --dry-run
-catena run config.toml
-```
+### Inputs for other settings
 
-`catena init` writes a config listing the inputs SPLASH needs; point its placeholder paths at your data before running.
-The [quickstart](../guides/quickstart.md) walks through each step.
-For calibrating `max_soil_moisture` against observations, see the [soil moisture recipe](../recipes/soil_moisture.md).
-
-### Configuration
-
-```toml
-[splash]
-sunshine_fraction_method = "input"
-soil_moisture_init_method = "equilibrate"
-soil_moisture_init_max_iter = 10
-soil_moisture_init_max_diff = 1.0
-```
-
-::: viresco.models.splash.splash
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-
-### Inputs
-
-`latitude` is read from a file, as a variable or a coordinate; see [Inputs on a grid](index.md#inputs-on-a-grid).
-
-#### Always required
-
-::: viresco.models.splash.splash
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_signature: false
-      show_docstring_description: false
-      show_docstring_returns: false
-      show_docstring_other_parameters: false
-      show_docstring_raises: false
-      docstring_section_style: spacy
-      extra:
-        hide_parameters: [soil_moisture_init_inputs]
+The inputs above are those of the default settings.
+Each subsection below applies only when its setting is configured.
 
 #### Initial state, for `prescribed` initialisation
 
@@ -185,22 +144,3 @@ Required, in place of `sunshine_fraction`, when `sunshine_fraction_method` is `s
       docstring_section_style: spacy
       extra:
         hide_parameters: [elevation, latitude]
-
-### Outputs
-
-::: viresco.models.splash.SplashOut
-    options:
-      show_root_heading: false
-      show_root_toc_entry: false
-      show_docstring_description: false
-      docstring_section_style: spacy
-      show_bases: false
-      members: false
-
-### Python API
-
-See the [API documentation](../reference/modules/viresco.models/splash.md) for full function signatures and parameter details.
-
-## References
-
-[^davis2017]: Davis, T. W., Prentice, I. C., Stocker, B. D., Thomas, R. T., Whitley, R. J., Wang, H., Evans, B. J., Gallego-Sala, A. V., Sykes, M. T., and Cramer, W.: Simple process-led algorithms for simulating habitats (SPLASH v.1.0): robust indices of radiation, evapotranspiration and plant-available moisture, Geosci. Model Dev., 10, 689–708, https://doi.org/10.5194/gmd-10-689-2017, 2017.

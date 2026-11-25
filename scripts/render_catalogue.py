@@ -488,7 +488,10 @@ def reference(entry: Module) -> str:
         (output_rows if name in outputs else intermediate_rows).append(row)
 
     header = ("Unit", "Frequency")
-    parts = []
+    parts = [
+        f"Python API: [`{entry.module.__name__}`](../reference/modules/"
+        f"viresco.models/{entry.name}.md)\n"
+    ]
     if rows := _settings_rows(entry.module):
         parts += [
             f"### Settings: `[{entry.name}]`\n",
@@ -505,11 +508,6 @@ def reference(entry: Module) -> str:
             "#### Intermediate nodes\n",
             _table(("Node", *header, "Description"), intermediate_rows),
         ]
-    parts += [
-        "### Python API\n",
-        f"[`{entry.module.__name__}`](../reference/modules/viresco.models/"
-        f"{entry.name}.md)\n",
-    ]
     return "\n".join(parts)
 
 
@@ -568,7 +566,8 @@ def main() -> None:
         (args.output / "reference" / f"{entry.name}.md").write_text(reference(entry))
     for model, links in guides([entry.name for entry in models]).items():
         lines = "".join(f"- [{title}]({link})\n" for title, link in links)
-        (args.output / "guides" / f"{model}.md").write_text(lines)
+        text = f"Guides that run this model:\n\n{lines}" if links else ""
+        (args.output / "guides" / f"{model}.md").write_text(text)
 
 
 if __name__ == "__main__":
